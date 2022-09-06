@@ -1,0 +1,50 @@
+{{- /*
+// SPDX-License-Identifier: GPL-3.0
+// Copyright 2022 Pete Heist
+
+This template is used to generate the shell commands for launching the node
+via ssh.
+
+The script below is converted to a one-line shell command in the
+scriptToCommand function in ssh.go. scriptToCommand does not handle arbitrary
+script code, so use go test -v in the launch package to verify that the command
+is generated properly, and update it as necessary to handle any new syntax.
+
+Several exit codes are returned explicitly for different error conditions. These
+start at 10, to avoid conflicts with any other returned codes:
+https://tldp.org/LDP/abs/html/exitcodes.html
+
+*/ -}}
+
+# create temp directory and set filename
+if ! d=$(mktemp -d /tmp/antler.XXXXXXXXXX); then
+    exit 10
+fi
+# f is the full path to the node executable
+f="$d/{{.ExeName}}"
+
+# c is the cleanup function
+c() {
+    rm "$f"
+    rmdir "$d"
+}
+
+# on Linux: use trap to always remove file and directory on exit
+#
+# on other platforms: revert to explicitly calling a cleanup function
+{{ if Platform "linux" }}
+trap c EXIT
+{{ end }}
+
+# use dd to copy node executable and chmod to set the executable bit
+if ! dd of="$f" bs={{.ExeSize}} count=1 iflag=fullblock status=none; then
+    {{ if not (Platform "linux") }}c{{ end }}
+    exit 11
+elif ! chmod +x "$f"; then
+    {{ if not (Platform "linux") }}c{{ end }}
+    exit 12
+fi
+
+# execute antler-node
+"$f" {{.NodeID}}
+{{ if not (Platform "linux") }}c{{ end }}

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -e
+
+# race detection
+#BUILD_FLAGS=-race
+
+#PLATFORMS=(linux-amd64 linux-arm64 freebsd-amd64)
+PLATFORMS=(linux-amd64)
+
+for p in ${PLATFORMS[@]}; do
+	os=${p%%-*}
+	arch=${p#*-}
+	GOOS=$os GOARCH=$arch \
+        go build $BUILD_FLAGS -o node/bin/antler-node-$p ./cmd/node
+done

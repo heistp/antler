@@ -31,16 +31,16 @@ type conn struct {
 // newConn returns a new conn for the given underlying conn.
 func newConn(tr transport, to Node) *conn {
 	return &conn{
-		sync.Mutex{},                   // mtx
-		tr,                             // tr
-		to,                             // to
-		make(chan interface{}),         // tq
-		make(chan message, thruputCap), // tx
-		0,                              // io
-		make(map[runID]run),            // run
-		0,                              // id
-		false,                          // canceled
-		false,                          // closed
+		sync.Mutex{},           // mtx
+		tr,                     // tr
+		to,                     // to
+		make(chan interface{}), // tq
+		make(chan message, 16), // tx
+		0,                      // io
+		make(map[runID]run),    // run
+		0,                      // id
+		false,                  // canceled
+		false,                  // closed
 	}
 }
 

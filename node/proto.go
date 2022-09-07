@@ -110,7 +110,7 @@ func init() {
 // Run launches and runs setup on child nodes, recursively through the node
 // tree. After successful setup, the node is ready to execute Run's.
 func (s setup) Run(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder) (ofb Feedback, err error) {
+	rec *recorder, cxl chan canceler) (ofb Feedback, err error) {
 	if err = repo.AddSource(s.Exes); err != nil {
 		return
 	}

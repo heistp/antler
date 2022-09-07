@@ -11,7 +11,7 @@ package netns_iperf3
 Run: {
 	Test: {
 		Props: {Name: "netns-iperf3"}
-		Serial: [setup, run]
+		Serial: [setup, server, run]
 	}
 }
 
@@ -36,7 +36,6 @@ ns: {
 			"ip addr add 10.0.0.2/24 dev right.l",
 			"ip link set right.l up",
 			"ethtool -K right.l \(#offloads)",
-			"iperf3 -s -D -1",
 		]
 	}
 	mid: {
@@ -73,6 +72,17 @@ ns: [id=_]: node: {
 
 // offloads contains the features arguments for ethtool to disable offloads
 #offloads: "rx off tx off sg off tso off gso off gro off rxvlan off txvlan off"
+
+// server runs the iperf3 server in the right namespace
+server: {
+	Child: {
+		Node: ns.right.node
+		System: {
+			Command:    "iperf3 -s"
+			Background: true
+		}
+	}
+}
 
 // run runs the test using iperf3 from the left namespace to the right
 run: {

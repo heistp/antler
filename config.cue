@@ -58,7 +58,12 @@ Run: #TestRun
 
 // node.System
 #System: {
-	Command: string & !=""
+	Command?: string & !=""
+	Args?: [string, ...]
+	Background?:   bool
+	IgnoreErrors?: bool
+	Stdout?:       string & !=""
+	Stderr?:       string & !=""
 }
 
 // node.Child

@@ -20,10 +20,20 @@ import (
 // one of Serial, Parallel, Child or a Runners field set. Run is not safe for
 // concurrent use, though Parallel Runs execute safely, concurrently.
 type Run struct {
-	Serial   Serial   // lists Runs to be executed sequentially
-	Parallel Parallel // lists Runs to be executed concurrently
-	Child    *Child   // a Run hierarchy to run on a child Node
-	Runners           // the union of runners
+	// Serial lists Runs to be executed sequentially
+	Serial Serial
+
+	// Parallel lists Runs to be executed concurrently
+	Parallel Parallel
+
+	// Child is a Run to be executed on a child Node
+	Child *Child
+
+	// Runners is a union of the available runner implementations.
+	//
+	// NOTE: In the future, this may be an interface field, if CUE can be made
+	// to choose a concrete type without using a field for each runner.
+	Runners
 }
 
 // run runs the Run.
@@ -149,11 +159,13 @@ func (r *Runners) do(ctx context.Context, chl *child, ifb Feedback,
 	rec *recorder, cxl chan canceler, ev chan event) (ofb Feedback, ok bool) {
 	var u runner
 	if u = r.runner(); u == nil {
-		panic("Run must have Serial, Parallel, Child or a runner set")
+		e := rec.NewErrorf("Run has no runner set")
+		ev <- errorEvent{e, false}
+		return
 	}
 	rr := rec.WithTag(typeBaseName(u))
 	var err error
-	ofb, err = u.Run(ctx, chl, ifb, rr)
+	ofb, err = u.Run(ctx, chl, ifb, rr, cxl)
 	if ofb == nil {
 		ofb = Feedback{}
 	}
@@ -162,9 +174,6 @@ func (r *Runners) do(ctx context.Context, chl *child, ifb Feedback,
 		return
 	}
 	ok = true
-	if c, ok := u.(canceler); ok {
-		cxl <- c
-	}
 	return
 }
 
@@ -185,7 +194,8 @@ func (r *Runners) do(ctx context.Context, chl *child, ifb Feedback,
 // The Feedback argument contains incoming Feedback from prior runners, while
 // the returned Feedback contains outgoing Feedback for subsequent runners.
 type runner interface {
-	Run(context.Context, *child, Feedback, *recorder) (Feedback, error)
+	Run(context.Context, *child, Feedback, *recorder, chan canceler) (
+		Feedback, error)
 }
 
 // canceler is the interface that wraps the Cancel method. If a runner

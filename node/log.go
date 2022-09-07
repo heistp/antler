@@ -45,6 +45,10 @@ func (l LogEntry) handle(node *node) {
 
 // String returns the entry for display.
 func (e LogEntry) String() string {
+	t := e.Text
+	if strings.Contains(t, "\n") {
+		t = "\n" + t
+	}
 	return fmt.Sprintf("%s %s %s: %s", e.Time.Format(readableTimeFormat),
-		e.NodeID, e.Tag, e.Text)
+		e.NodeID, e.Tag, t)
 }

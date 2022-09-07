@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"runtime/debug"
 	"sync"
 )
@@ -179,15 +180,6 @@ func (n *node) advance() bool {
 	return false
 }
 
-// runsDone is sent after the runs goroutine is done.
-type runsDone struct {
-}
-
-// handle implements event
-func (r runsDone) handle(node *node) {
-	node.runsDone = true
-}
-
 // runs reads and runs Runs from the runc channel, then cancels the cancelers.
 func (n *node) runs() {
 	defer func() {
@@ -293,4 +285,42 @@ func (s state) String() string {
 	default:
 		panic(fmt.Sprintf("invalid state value %d", s))
 	}
+}
+
+//
+// event interface and related types
+//
+
+// An event can be handled by the node upon receipt on its event channel.
+type event interface {
+	handle(*node)
+}
+
+// errorEvent is sent when an error occurs.
+type errorEvent struct {
+	err error
+	io  bool
+}
+
+// handle implements event
+func (e errorEvent) handle(node *node) {
+	node.cancel = true
+	if node.err == nil {
+		node.err = e.err
+	}
+	if e.io {
+		fmt.Fprintf(os.Stderr, "%s\n", e.err)
+		return
+	}
+	ee := node.rec.NewErrore(e.err)
+	node.parent.Send(ee)
+}
+
+// runsDone is an event sent after the runs goroutine is done.
+type runsDone struct {
+}
+
+// handle implements event
+func (r runsDone) handle(node *node) {
+	node.runsDone = true
 }

@@ -88,6 +88,13 @@ server: {
 run: {
 	Child: {
 		Node: ns.left.node
-		System: Command: "iperf3 -t 1 -c 10.0.0.2"
+		Serial: [
+			{System: {
+				Command:    "tcpdump -i left.r -s 128 -w left.pcap"
+				Background: true
+			}},
+			{Sleep:           "500ms"},
+			{System: Command: "iperf3 -t 3 -c 10.0.0.2"},
+		]
 	}
 }

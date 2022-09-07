@@ -6,6 +6,9 @@
 .tags
 .exrc
 
+# examples output
+examples/**/*.pcap
+
 # node/bin directory
 node/bin/
 

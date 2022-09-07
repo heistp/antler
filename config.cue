@@ -52,9 +52,14 @@ Run: #TestRun
 // node.Runners
 #Runners: {
 	{} | {
+		Sleep?: #Sleep
+	} | {
 		System?: #System
 	}
 }
+
+// node.Sleep
+#Sleep: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
 
 // node.System
 #System: {

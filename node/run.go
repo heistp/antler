@@ -139,6 +139,7 @@ func (r *Child) do(ctx context.Context, chl *child, ifb Feedback,
 // Runners is a union of the available runner implementations. Only one of the
 // runners may be non-nil.
 type Runners struct {
+	Sleep  *Sleep
 	System *System
 	Setup  *setup
 }
@@ -146,6 +147,8 @@ type Runners struct {
 // Runner returns the only non-nil runner implementation.
 func (r *Runners) runner() runner {
 	switch {
+	case r.Sleep != nil:
+		return r.Sleep
 	case r.System != nil:
 		return r.System
 	case r.Setup != nil:

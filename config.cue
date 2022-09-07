@@ -69,6 +69,7 @@ Run: #TestRun
 	IgnoreErrors?: bool
 	Stdout?:       string & !=""
 	Stderr?:       string & !=""
+	Kill?:         bool
 }
 
 // node.Child

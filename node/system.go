@@ -9,9 +9,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 )
 
 // System is a runner that executes a system command.
@@ -51,10 +53,15 @@ type System struct {
 	// Stdout.
 	Stderr string
 
-	cmd     *exec.Cmd
-	outw    sync.WaitGroup
-	gatherc chan string
-	gathern int
+	// Kill indicates whether to kill the process on cancellation (true) or
+	// signal it with an interrupt (false).
+	Kill bool
+
+	cmd      *exec.Cmd
+	outw     sync.WaitGroup
+	gatherc  chan string
+	gathern  int
+	procDone chan struct{}
 }
 
 // Run implements runner
@@ -69,7 +76,12 @@ func (s *System) Run(ctx context.Context, chl *child, ifb Feedback,
 		}
 	}()
 	n, a := s.params()
-	c := exec.CommandContext(ctx, n, a...)
+	var c *exec.Cmd
+	if s.Kill {
+		c = exec.CommandContext(ctx, n, a...)
+	} else {
+		c = exec.Command(n, a...)
+	}
 	rec.Logf("%s", c)
 	if err = s.handleOutput(s.Stdout, c.StdoutPipe, rec); err != nil {
 		return
@@ -80,12 +92,17 @@ func (s *System) Run(ctx context.Context, chl *child, ifb Feedback,
 	if err = c.Start(); err != nil {
 		return
 	}
+	s.procDone = make(chan struct{})
+	if !s.Kill {
+		s.interrupt(ctx, c.Process)
+	}
 	if s.Background {
 		s.cmd = c
 		cxl <- s
 		return
 	}
 	err = c.Wait()
+	close(s.procDone)
 	s.outw.Wait()
 	return
 }
@@ -96,8 +113,29 @@ func (s *System) Cancel(rec *recorder) (err error) {
 		rec.Logf("%s", err)
 		err = nil
 	}
+	close(s.procDone)
 	s.outw.Wait()
 	return
+}
+
+// interrupt starts a goroutine to interrupt the started process after the
+// Context is canceled, then kill it if it hasn't completed after 2 seconds.
+func (s *System) interrupt(ctx context.Context, proc *os.Process) {
+	go func() {
+		select {
+		case <-ctx.Done():
+			go func() {
+				select {
+				case <-time.After(2 * time.Second):
+					proc.Kill()
+				case <-s.procDone:
+				}
+			}()
+			// NOTE this should not attempt to interrupt on Windows
+			proc.Signal(os.Interrupt)
+		case <-s.procDone:
+		}
+	}()
 }
 
 // handleOutput is called to start processing of stdout and stderr.

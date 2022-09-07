@@ -133,11 +133,13 @@ const gatherDone = "cf799836-40d7-488d-9a87-a8bf5c92691b"
 func (s *System) gather(rcl io.ReadCloser, rec *recorder) {
 	s.gathern++
 	go func() {
+		defer func() {
+			s.gatherc <- gatherDone
+		}()
 		a := bufio.NewScanner(rcl)
 		for a.Scan() {
 			s.gatherc <- a.Text()
 		}
-		s.gatherc <- gatherDone
 	}()
 	if s.gatherc != nil {
 		return

@@ -7,8 +7,7 @@ via ssh.
 
 The script below is converted to a one-line shell command in the
 scriptToCommand function in ssh.go. scriptToCommand does not handle arbitrary
-script code, so use go test -v in the launch package to verify that the command
-is generated properly, and update it as necessary to handle any new syntax.
+script code, so test and update is as necessary to handle any new syntax.
 
 Several exit codes are returned explicitly for different error conditions. These
 start at 10, to avoid conflicts with any other returned codes:

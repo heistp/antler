@@ -65,11 +65,11 @@ type System struct {
 }
 
 // Run implements runner
-func (s *System) Run(ctx context.Context, g arg) (ofb Feedback, err error) {
+func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
 	defer func() {
 		if s.IgnoreErrors {
 			if err != nil {
-				g.rec.Logf("%s", err)
+				arg.rec.Logf("%s", err)
 			}
 			err = nil
 		}
@@ -81,11 +81,11 @@ func (s *System) Run(ctx context.Context, g arg) (ofb Feedback, err error) {
 	} else {
 		c = exec.Command(n, a...)
 	}
-	g.rec.Logf("%s", c)
-	if err = s.handleOutput(s.Stdout, c.StdoutPipe, g.rec); err != nil {
+	arg.rec.Logf("%s", c)
+	if err = s.handleOutput(s.Stdout, c.StdoutPipe, arg.rec); err != nil {
 		return
 	}
-	if err = s.handleOutput(s.Stderr, c.StderrPipe, g.rec); err != nil {
+	if err = s.handleOutput(s.Stderr, c.StderrPipe, arg.rec); err != nil {
 		return
 	}
 	if err = c.Start(); err != nil {
@@ -97,7 +97,7 @@ func (s *System) Run(ctx context.Context, g arg) (ofb Feedback, err error) {
 	}
 	if s.Background {
 		s.cmd = c
-		g.cxl <- s
+		arg.cxl <- s
 		return
 	}
 	err = c.Wait()

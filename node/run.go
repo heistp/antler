@@ -37,17 +37,17 @@ type Run struct {
 }
 
 // run runs the Run.
-func (r *Run) run(ctx context.Context, g arg, ev chan event) (
+func (r *Run) run(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
 	switch {
 	case len(r.Serial) > 0:
-		ofb, ok = r.Serial.do(ctx, g, ev)
+		ofb, ok = r.Serial.do(ctx, arg, ev)
 	case len(r.Parallel) > 0:
-		ofb, ok = r.Parallel.do(ctx, g, ev)
+		ofb, ok = r.Parallel.do(ctx, arg, ev)
 	case r.Child != nil:
-		ofb, ok = r.Child.do(ctx, g, ev)
+		ofb, ok = r.Child.do(ctx, arg, ev)
 	default:
-		ofb, ok = r.Runners.do(ctx, g, ev)
+		ofb, ok = r.Runners.do(ctx, arg, ev)
 	}
 	return
 }
@@ -56,15 +56,15 @@ func (r *Run) run(ctx context.Context, g arg, ev chan event) (
 type Serial []Run
 
 // do executes the Serial Runs sequentially.
-func (s Serial) do(ctx context.Context, g arg, ev chan event) (
+func (s Serial) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
 	ofb = Feedback{}
 	for _, r := range s {
 		var f Feedback
-		f, ok = r.run(ctx, g, ev)
+		f, ok = r.run(ctx, arg, ev)
 		if e := ofb.merge(f); e != nil {
 			ok = false
-			rr := g.rec.WithTag(typeBaseName(r))
+			rr := arg.rec.WithTag(typeBaseName(r))
 			ev <- errorEvent{rr.NewErrore(e), false}
 		}
 		if !ok {
@@ -85,7 +85,7 @@ type parallelRan struct {
 }
 
 // do executes the Parallel Runs concurrently.
-func (p Parallel) do(ctx context.Context, g arg, ev chan event) (
+func (p Parallel) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
 	ofb = Feedback{}
 	c := make(chan parallelRan)
@@ -97,7 +97,7 @@ func (p Parallel) do(ctx context.Context, g arg, ev chan event) (
 				c <- a
 			}()
 			a.run = &r
-			a.ofb, a.ok = r.run(ctx, g, ev)
+			a.ofb, a.ok = r.run(ctx, arg, ev)
 		}()
 	}
 	ok = true
@@ -105,7 +105,7 @@ func (p Parallel) do(ctx context.Context, g arg, ev chan event) (
 		a := <-c
 		if e := ofb.merge(a.ofb); e != nil {
 			ok = false
-			rr := g.rec.WithTag(typeBaseName(a.run))
+			rr := arg.rec.WithTag(typeBaseName(a.run))
 			ev <- errorEvent{rr.NewErrore(e), false}
 		}
 		if !a.ok {
@@ -125,11 +125,11 @@ type Child struct {
 }
 
 // do executes Child's Run on a child node.
-func (r *Child) do(ctx context.Context, g arg, ev chan event) (
+func (r *Child) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
-	c := g.child.Get(r.Node)
+	c := arg.child.Get(r.Node)
 	rc := make(chan ran, 1)
-	c.Run(&r.Run, g.ifb, rc)
+	c.Run(&r.Run, arg.ifb, rc)
 	a := <-rc
 	ofb = a.Feedback
 	ok = a.OK
@@ -158,17 +158,17 @@ func (r *Runners) runner() runner {
 }
 
 // do executes the runner.
-func (r *Runners) do(ctx context.Context, g arg, ev chan event) (
+func (r *Runners) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
 	var u runner
 	if u = r.runner(); u == nil {
-		e := g.rec.NewErrorf("Run has no runner set")
+		e := arg.rec.NewErrorf("Run has no runner set")
 		ev <- errorEvent{e, false}
 		return
 	}
-	rr := g.rec.WithTag(typeBaseName(u))
+	rr := arg.rec.WithTag(typeBaseName(u))
 	var err error
-	ofb, err = u.Run(ctx, g)
+	ofb, err = u.Run(ctx, arg)
 	if ofb == nil {
 		ofb = Feedback{}
 	}
@@ -192,11 +192,11 @@ func (r *Runners) do(ctx context.Context, g arg, ev chan event) (
 // Context.Err() as the returned error if the cancellation materially affects
 // the results.
 type runner interface {
-	Run(context.Context, arg) (Feedback, error)
+	Run(context.Context, runArg) (Feedback, error)
 }
 
-// arg contains the arguments supplied to a runner.
-type arg struct {
+// runArg contains the arguments supplied to a runner.
+type runArg struct {
 	child *child        // caches child conns
 	ifb   Feedback      // incoming Feedback from prior runners
 	rec   *recorder     // recorder for logging, data and errors

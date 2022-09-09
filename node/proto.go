@@ -112,16 +112,16 @@ func init() {
 //
 // Run launches and runs setup on child nodes, recursively through the node
 // tree. After successful setup, the node is ready to execute Run's.
-func (s setup) Run(ctx context.Context, g arg) (ofb Feedback, err error) {
+func (s setup) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
 	if err = repo.AddSource(s.Exes); err != nil {
 		return
 	}
-	r := g.rec.WithTag("launch")
+	r := arg.rec.WithTag("launch")
 	rc := make(chan ran, len(s.Children))
 	for n, t := range s.Children {
 		cr := r.WithTag(fmt.Sprintf("launch.%s", n))
 		var c *conn
-		if c, err = g.child.Launch(n, cr.Logf); err != nil {
+		if c, err = arg.child.Launch(n, cr.Logf); err != nil {
 			return
 		}
 		var x exes
@@ -130,9 +130,9 @@ func (s setup) Run(ctx context.Context, g arg) (ofb Feedback, err error) {
 		}
 		x.Remove(n.Platform)
 		s := &setup{0, t, x}
-		c.Run(&Run{Runners: Runners{Setup: s}}, g.ifb, rc)
+		c.Run(&Run{Runners: Runners{Setup: s}}, arg.ifb, rc)
 	}
-	for i := 0; i < g.child.Count(); i++ {
+	for i := 0; i < arg.child.Count(); i++ {
 		select {
 		case a := <-rc:
 			if !a.OK {

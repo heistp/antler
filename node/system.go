@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// System is a runner that executes a system command.
+// System executes a system command.
 type System struct {
 	// Command is the command to run. The string is split into command name and
 	// arguments using space as a delimiter, with no support for escaping. If

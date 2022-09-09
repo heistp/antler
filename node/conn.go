@@ -97,17 +97,16 @@ func (c *conn) Canceled() {
 	c.tq <- canceled{}
 }
 
-// Stream sets a filter used to select which messages will be sent immediately.
-// These messages, and those with flagPush set, will be streamed. All other
-// messages will be buffered. If the conn was canceled or closed, this call does
-// nothing.
-func (c *conn) Stream(include filter) {
+// Stream selects which messages will be sent immediately. These messages, and
+// those with flagPush set, will be streamed. All other messages will be
+// buffered. If the conn was canceled or closed, this call does nothing.
+func (c *conn) Stream(s *Stream) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	if c.canceled {
 		return
 	}
-	c.tq <- include
+	c.tq <- s
 }
 
 // Close closes the transport, if it wasn't already, cancels the conn and fails
@@ -149,10 +148,9 @@ func (c *conn) start(ev chan<- event) {
 // closed.
 func (c *conn) buffer() {
 	defer close(c.tx)
-	var stream filter
-	stream = unconditionalFilter{false}
+	var stream *Stream = &Stream{}
 	t := make([]message, 0, 1024)
-	b := make([]DataPointer, 0, 8192)
+	b := make([]message, 0, 8192)
 	txc := func() chan message {
 		if len(t) > 0 {
 			return c.tx
@@ -182,32 +180,23 @@ func (c *conn) buffer() {
 			}
 			var m message
 			switch v := a.(type) {
-			case DataPointer:
-				p := v.DataPoint()
-				if v.flags()&flagPush != 0 || stream.accept(p.Series) {
+			case message:
+				if v.flags()&flagPush != 0 || stream.accept(v) {
 					m = v
 					break
 				}
 				b = append(b, v)
-			case message:
-				m = v
-			case filter:
+			case *Stream:
 				stream = v
-				switch stream {
-				case (unconditionalFilter{true}):
-					release()
-				case (unconditionalFilter{false}):
-				default:
-					dd := make([]DataPointer, 0, len(b)+8192)
-					for _, p := range b {
-						if stream.accept(p.DataPoint().Series) {
-							t = append(t, p)
-						} else {
-							dd = append(dd, p)
-						}
+				bb := make([]message, 0, len(b)+8192)
+				for _, m := range b {
+					if stream.accept(m) {
+						t = append(t, m)
+					} else {
+						bb = append(bb, m)
 					}
-					b = dd
 				}
+				b = bb
 			}
 			if m != nil {
 				if m.flags()&flagFinal != 0 {
@@ -311,21 +300,6 @@ func (c *conn) ioError(err error, ev chan<- event) {
 
 // ioError
 type ioErrorEvent struct {
-}
-
-// A filter is used to accept or reject Series.
-type filter interface {
-	accept(Series) bool
-}
-
-// unconditionalFilter accepts or rejects all Series per the accepts field.
-type unconditionalFilter struct {
-	accepts bool
-}
-
-// accept implements filter
-func (u unconditionalFilter) accept(Series) bool {
-	return u.accepts
 }
 
 // connDone is sent after a conn's goroutines are done and the underlying

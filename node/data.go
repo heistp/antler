@@ -24,11 +24,6 @@ func newDataPoint(series Series, time time.Time, value interface{}) DataPoint {
 	return DataPoint{series, Time{time}, value}
 }
 
-// DataPoint implements DataPointer
-func (d DataPoint) DataPoint() DataPoint {
-	return d
-}
-
 // flags implements message
 func (d DataPoint) flags() flag {
 	return flagForward
@@ -70,10 +65,4 @@ func (t *Time) MarshalJSON() ([]byte, error) {
 	b.WriteString((*t).Format(dataTimeFormat))
 	b.WriteByte('"')
 	return []byte(b.String()), nil
-}
-
-// DataPointer wraps the DataPoint method, which returns a DataPoint.
-type DataPointer interface {
-	DataPoint() DataPoint
-	message
 }

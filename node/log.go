@@ -23,20 +23,6 @@ func init() {
 	gob.Register(LogEntry{})
 }
 
-// logTag is used when creating the DataPoint Series for LogEntry's.
-const logTag = ".log."
-
-// DataPoint implements DataPointer
-func (l LogEntry) DataPoint() DataPoint {
-	b := strings.Builder{}
-	b.Grow(len(l.NodeID) + len(logTag) + len(l.Tag))
-	b.WriteString(l.NodeID)
-	b.WriteString(logTag)
-	b.WriteString(l.Tag)
-	s := Series(b.String())
-	return DataPoint{s, Time{l.Time}, l.Text}
-}
-
 // flags implements message
 func (LogEntry) flags() flag {
 	return flagForward

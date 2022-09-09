@@ -43,19 +43,23 @@ func (r *recorder) WithTag(tag string) *recorder {
 func (r *recorder) Logf(format string, a ...interface{}) {
 	t := time.Now()
 	m := fmt.Sprintf(format, a...)
-	r.parent.Send(LogEntry{t, r.nodeID, r.tag, m})
+	r.send(LogEntry{t, r.nodeID, r.tag, m})
 }
 
 // Log sends a LogEntry with the given message.
 func (r *recorder) Log(message string) {
 	t := time.Now()
-	r.parent.Send(LogEntry{t, r.nodeID, r.tag, message})
+	r.send(LogEntry{t, r.nodeID, r.tag, message})
 }
 
 // FileData sends a FileData.
 func (r *recorder) FileData(name string, data []byte) {
-	t := time.Now()
-	r.parent.Send(FileData{t, r.nodeID, name, data})
+	r.send(FileData{r.nodeID, name, data})
+}
+
+// send sends a message to the parent conn.
+func (r *recorder) send(msg message) {
+	r.parent.Send(msg)
 }
 
 // logFunc is called to log a message with the given format and text.

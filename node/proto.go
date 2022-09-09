@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -228,20 +227,6 @@ type Error struct {
 // init registers Error with the gob encoder
 func init() {
 	gob.Register(Error{})
-}
-
-// errorTag is used when creating the DataPoint Series for Errors.
-const errorTag = ".error."
-
-// DataPoint implements DataPointer
-func (e Error) DataPoint() DataPoint {
-	b := strings.Builder{}
-	b.Grow(len(e.NodeID) + len(errorTag) + len(e.Tag))
-	b.WriteString(e.NodeID)
-	b.WriteString(errorTag)
-	b.WriteString(e.Tag)
-	s := Series(b.String())
-	return DataPoint{s, Time{e.Time}, e.Message}
 }
 
 // flags implements message

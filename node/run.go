@@ -140,6 +140,7 @@ func (r *Child) do(ctx context.Context, arg runArg, ev chan event) (
 // runners may be non-nil.
 type Runners struct {
 	Sleep  *Sleep
+	Stream *Stream
 	System *System
 	Setup  *setup
 }
@@ -149,6 +150,8 @@ func (r *Runners) runner() runner {
 	switch {
 	case r.Sleep != nil:
 		return r.Sleep
+	case r.Stream != nil:
+		return r.Stream
 	case r.System != nil:
 		return r.System
 	case r.Setup != nil:

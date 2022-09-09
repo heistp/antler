@@ -29,6 +29,7 @@ func (s *Stream) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 			return
 		}
 	}
+	arg.rec.Stream(s)
 	return
 }
 
@@ -45,7 +46,6 @@ func (s *Stream) accept(msg message) (stream bool) {
 			return
 		}
 	}
-	stream = true
 	return
 }
 

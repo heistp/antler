@@ -148,7 +148,7 @@ func (c *conn) start(ev chan<- event) {
 // closed.
 func (c *conn) buffer() {
 	defer close(c.tx)
-	var stream *Stream = &Stream{}
+	var s *Stream
 	t := make([]message, 0, 1024)
 	b := make([]message, 0, 8192)
 	txc := func() chan message {
@@ -181,16 +181,16 @@ func (c *conn) buffer() {
 			var m message
 			switch v := a.(type) {
 			case message:
-				if v.flags()&flagPush != 0 || stream.accept(v) {
+				if v.flags()&flagPush != 0 || (s != nil && s.accept(v)) {
 					m = v
 					break
 				}
 				b = append(b, v)
 			case *Stream:
-				stream = v
+				s = v
 				bb := make([]message, 0, len(b)+8192)
 				for _, m := range b {
-					if stream.accept(m) {
+					if s.accept(m) {
 						t = append(t, m)
 					} else {
 						bb = append(bb, m)

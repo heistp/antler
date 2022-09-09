@@ -16,6 +16,6 @@ func Run(ctrl *node.Control) (err error) {
 	if cfg, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = cfg.Run.Do(ctrl)
+	err = cfg.Run.do(ctrl)
 	return
 }

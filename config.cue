@@ -18,11 +18,17 @@ Run: #TestRun
 	// the syntax below ensures only one of Test, Serial or Parallel are set.
 	{} | {
 		Test?: #Test
+		#DoArg
 	} | {
 		Serial?: [#TestRun, ...#TestRun]
 	} | {
 		Parallel?: [#TestRun, ...#TestRun]
 	}
+}
+
+// antler.DoArg
+#DoArg: {
+	Log?: bool
 }
 
 // antler.Test
@@ -54,12 +60,30 @@ Run: #TestRun
 	{} | {
 		Sleep?: #Sleep
 	} | {
+		Stream?: #Stream
+	} | {
 		System?: #System
 	}
 }
 
+// node.Series
+#Series: string & !=""
+
 // node.Sleep
 #Sleep: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
+
+// node.Stream
+#Stream: {
+	Include?: #StreamFilter
+	Exclude?: #StreamFilter
+}
+
+// node.StreamFilter
+#StreamFilter: {
+	File?: [string, ...]
+	Log?:    bool
+	Series?: #Series
+}
 
 // node.System
 #System: {

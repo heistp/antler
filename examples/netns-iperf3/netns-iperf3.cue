@@ -7,12 +7,16 @@
 
 package netns_iperf3
 
+// stream streams logs during the test
+stream: {Stream: Include: Log: true}
+
 // Run contains a single Test that runs setup and run in serial
 Run: {
 	Test: {
 		Props: {Name: "netns-iperf3"}
-		Serial: [setup, server, run]
+		Serial: [stream, setup, server, run]
 	}
+	Log: true
 }
 
 // setup runs the setup commands in each namespace
@@ -21,7 +25,7 @@ setup: {
 		for n in [ ns.right, ns.mid, ns.left] {
 			Child: {
 				Node: n.node
-				Serial: [ for c in n.setup {System: Command: c}]
+				Serial: [stream, for c in n.setup {System: Command: c}]
 			}
 		},
 	]
@@ -90,11 +94,12 @@ run: {
 		Node: ns.left.node
 		Serial: [
 			{System: {
-				Command:    "tcpdump -i left.r -s 128 -w left.pcap"
+				Command:    "tcpdump -i left.r -s 128 -w -"
 				Background: true
+				Stdout:     "left.pcap"
 			}},
 			{Sleep:           "500ms"},
-			{System: Command: "iperf3 -t 3 -c 10.0.0.2"},
+			{System: Command: "iperf3 -t 10 -c 10.0.0.2"},
 		]
 	}
 }

@@ -19,6 +19,12 @@ var nodeBin embed.FS
 // nodeBinDir
 const nodeBinDir = "node/bin"
 
+// openNodeExe opens an embedded node executable for the given platform.
+func openNodeExe(platform string) (fs.File, error) {
+	n := node.PlatformExeName(platform)
+	return nodeBin.Open(filepath.Join(nodeBinDir, n.String()))
+}
+
 // exeSource provides a node.ExeSource implementation for antler.
 type exeSource struct {
 }
@@ -45,7 +51,7 @@ func (e *exeSource) Size(platform string) (size int64, err error) {
 // Platforms implements ExeSource
 func (e *exeSource) Platforms() (platforms []string, err error) {
 	var d []fs.DirEntry
-	if d, err = nodeBin.ReadDir("node/bin"); err != nil {
+	if d, err = nodeBin.ReadDir(nodeBinDir); err != nil {
 		return
 	}
 	for _, e := range d {
@@ -54,10 +60,4 @@ func (e *exeSource) Platforms() (platforms []string, err error) {
 	}
 	sort.Strings(platforms)
 	return
-}
-
-// openNodeExe opens an embedded node executable for the given platform.
-func openNodeExe(platform string) (fs.File, error) {
-	n := node.PlatformExeName(platform)
-	return nodeBin.Open(filepath.Join(nodeBinDir, n.String()))
 }

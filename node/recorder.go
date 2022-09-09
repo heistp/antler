@@ -54,7 +54,12 @@ func (r *recorder) Log(message string) {
 
 // FileData sends a FileData.
 func (r *recorder) FileData(name string, data []byte) {
-	r.send(FileData{r.nodeID, name, data})
+	r.send(FileData{name, data})
+}
+
+// Stream sends a Stream filter to the parent conn.
+func (r *recorder) Stream(s *Stream) {
+	r.parent.Stream(s)
 }
 
 // send sends a message to the parent conn.

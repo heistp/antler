@@ -5,6 +5,7 @@ package node
 
 import (
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -81,7 +82,7 @@ func addNetns(name string, log logFunc) (err error) {
 	var out []byte
 	out, err = c.CombinedOutput()
 	if len(out) > 0 {
-		log("%s", string(out))
+		log("%s", strings.TrimSpace(string(out)))
 	}
 	return
 }
@@ -155,7 +156,7 @@ func (d deleteNetns) Close(log logFunc) (err error) {
 	log("%s", c.String())
 	var out []byte
 	if out, err = c.CombinedOutput(); len(out) > 0 {
-		log("%s", string(out))
+		log("%s", strings.TrimSpace(string(out)))
 	}
 	return
 }

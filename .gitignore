@@ -8,6 +8,7 @@
 
 # examples output
 examples/**/*.pcap
+examples/**/*.gob
 
 # node/bin directory
 node/bin/

@@ -68,9 +68,6 @@ type System struct {
 func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
 	defer func() {
 		if s.IgnoreErrors {
-			if err != nil {
-				arg.rec.Logf("%s", err)
-			}
 			err = nil
 		}
 	}()
@@ -87,6 +84,9 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 	}
 	if err = s.handleOutput(s.Stderr, c.StderrPipe, arg.rec); err != nil {
 		return
+	}
+	if s.gathern > 0 {
+		s.gatherLog(arg.rec)
 	}
 	if err = c.Start(); err != nil {
 		return
@@ -140,21 +140,22 @@ func (s *System) interrupt(ctx context.Context, proc *os.Process) {
 // handleOutput is called to start processing of stdout and stderr.
 func (s *System) handleOutput(treatment string, pipe pipeFunc,
 	rec *recorder) (err error) {
-	if treatment != "quiet" {
-		var r io.ReadCloser
-		if r, err = pipe(); err != nil {
-			return
-		}
-		switch treatment {
-		case "":
-			fallthrough
-		case "gather":
-			s.gather(r, rec)
-		case "stream":
-			s.stream(r, rec)
-		default:
-			err = fmt.Errorf("Stdout/Stderr files not supported")
-		}
+	if treatment == "quiet" {
+		return
+	}
+	var r io.ReadCloser
+	if r, err = pipe(); err != nil {
+		return
+	}
+	switch treatment {
+	case "":
+		fallthrough
+	case "gather":
+		s.gather(r, rec)
+	case "stream":
+		s.stream(r, rec)
+	default:
+		s.file(r, treatment, rec)
 	}
 	return
 }
@@ -165,10 +166,12 @@ type pipeFunc func() (io.ReadCloser, error)
 // gatherDone is a magic string indicating a gather goroutine is done.
 const gatherDone = "cf799836-40d7-488d-9a87-a8bf5c92691b"
 
-// gather contains goroutines that gather lines from rcl, and log them after
-// completion.
+// gather contains a goroutine to read lines from rcl and send them to gatherc.
 func (s *System) gather(rcl io.ReadCloser, rec *recorder) {
 	s.gathern++
+	if s.gatherc == nil {
+		s.gatherc = make(chan string)
+	}
 	go func() {
 		defer func() {
 			s.gatherc <- gatherDone
@@ -178,10 +181,11 @@ func (s *System) gather(rcl io.ReadCloser, rec *recorder) {
 			s.gatherc <- a.Text()
 		}
 	}()
-	if s.gatherc != nil {
-		return
-	}
-	s.gatherc = make(chan string)
+}
+
+// gatherLog contains a goroutine to read lines from gatherc, and log them with
+// one call when once gathern reaches zero.
+func (s *System) gatherLog(rec *recorder) {
 	s.outw.Add(1)
 	go func() {
 		defer s.outw.Done()
@@ -215,6 +219,29 @@ func (s *System) stream(rcl io.ReadCloser, rec *recorder) {
 		c := bufio.NewScanner(rcl)
 		for c.Scan() {
 			rec.Logf("%s", c.Text())
+		}
+	}()
+}
+
+// file contains a goroutine to send data from the given ReadCloser as FileData.
+func (s *System) file(rcl io.ReadCloser, name string, rec *recorder) {
+	s.outw.Add(1)
+	go func() {
+		defer s.outw.Done()
+		var e error
+		for {
+			b := make([]byte, 64*1024)
+			var n int
+			n, e = rcl.Read(b)
+			if n > 0 {
+				rec.FileData(name, b[:n])
+			}
+			if e != nil {
+				if e != io.EOF {
+					rec.Logf("%s", e)
+				}
+				break
+			}
 		}
 	}()
 }

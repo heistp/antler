@@ -12,6 +12,7 @@ import (
 	"os"
 	"runtime/debug"
 	"sync"
+	"time"
 )
 
 // node is a combined client and server that runs Run trees. The main antler
@@ -82,16 +83,17 @@ func Serve(nodeID string, ctrl *Control, conn io.ReadWriteCloser) error {
 	return n.err
 }
 
-// bootstrapNodeID is the ID used for the in-process node in node.Do.
-const bootstrapNodeID = "-"
+// RootNodeID is the ID used for the root node in node.Do.
+const RootNodeID = "-"
 
-// Do runs a Run tree, and sends results back on the given channel. The types
-// returned can include DataPoint, FileData, LogEntry, Feedback and Error.
+// Do runs a Run tree in an in-process "root" node, and sends results back on
+// the given channel. The types sent can include DataPoint, FileData, LogEntry
+// and Error.
 //
-// This is used by the antler package and executable.
-func Do(rn *Run, src ExeSource, ctrl *Control, result chan<- interface{}) {
+// Do is used by the antler package and executable.
+func Do(rn *Run, src ExeSource, ctrl *Control, result chan interface{}) {
 	defer close(result)
-	f := ErrorFactory{bootstrapNodeID, "execute"}
+	f := ErrorFactory{RootNodeID, "execute"}
 	// run tree
 	t := newTree(rn)
 	x, e := newExes(src, t.Platforms())
@@ -99,7 +101,7 @@ func Do(rn *Run, src ExeSource, ctrl *Control, result chan<- interface{}) {
 		result <- f.NewErrore(e)
 		return
 	}
-	// bootstrap conn
+	// root conn
 	ev := make(chan event)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -127,8 +129,8 @@ func Do(rn *Run, src ExeSource, ctrl *Control, result chan<- interface{}) {
 		c.Cancel()
 		wg.Wait()
 	}()
-	// bootstrap node
-	n := newNode(bootstrapNodeID, tr.peer())
+	// root node
+	n := newNode(RootNodeID, tr.peer())
 	if ctrl != nil {
 		go ctrl.run(n.ev)
 		defer ctrl.stop()
@@ -143,7 +145,8 @@ func Do(rn *Run, src ExeSource, ctrl *Control, result chan<- interface{}) {
 		return
 	}
 	c.Run(rn, r.Feedback, rc)
-	result <- (<-rc).Feedback
+	result <- LogEntry{time.Now(), RootNodeID, "feedback",
+		fmt.Sprintf("feedback: %s", (<-rc).Feedback)}
 	return
 }
 

@@ -13,30 +13,37 @@ import (
 // respectively. TestRun's may thus be arranged in a tree to coordinate the
 // serial and parallel execution of Tests.
 type TestRun struct {
-	Test     *Test    // Test to run (non-nil on leaf TestRun's)
-	Serial   Serial   // lists TestRun's to be executed sequentially
-	Parallel Parallel // lists TestRun's to be executed concurrently
+	// Test is the Test to run (non-nil on leaf TestRun's).
+	Test *Test
+
+	// Serial lists TestRun's to be executed sequentially.
+	Serial Serial
+
+	// Parallel lists TestRun's to be executed concurrently.
+	Parallel Parallel
+
+	doArg
 }
 
-// Do executes the TestRun.
-func (r *TestRun) Do(ctrl *node.Control) error {
+// do executes the TestRun.
+func (r *TestRun) do(ctrl *node.Control) error {
 	switch {
 	case len(r.Serial) > 0:
-		return r.Serial.Do(ctrl)
+		return r.Serial.do(ctrl)
 	case len(r.Parallel) > 0:
-		return r.Parallel.Do(ctrl)
+		return r.Parallel.do(ctrl)
 	default:
-		return r.Test.Do(ctrl)
+		return r.Test.do(ctrl, r.doArg)
 	}
 }
 
 // Serial is a list of TestRun's executed sequentially.
 type Serial []TestRun
 
-// Do executes the TestRun's sequentially.
-func (s Serial) Do(ctrl *node.Control) (err error) {
+// do executes the TestRun's sequentially.
+func (s Serial) do(ctrl *node.Control) (err error) {
 	for _, u := range s {
-		if err = u.Do(ctrl); err != nil {
+		if err = u.do(ctrl); err != nil {
 			return
 		}
 	}
@@ -46,8 +53,14 @@ func (s Serial) Do(ctrl *node.Control) (err error) {
 // Parallel is a list of TestRun's executed concurrently.
 type Parallel []TestRun
 
-// Do executes the TestRun's concurrently.
-func (p Parallel) Do(ctrl *node.Control) (err error) {
+// do executes the TestRun's concurrently.
+func (p Parallel) do(ctrl *node.Control) (err error) {
 	// TODO implement Parallel TestRuns
 	return
+}
+
+// doArg contains TestRun level arguments controlling the execution of a Test.
+type doArg struct {
+	// Log, if true, emits LogEntry's to stdout as the Test is run.
+	Log bool
 }

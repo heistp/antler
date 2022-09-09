@@ -18,16 +18,20 @@ type LogEntry struct {
 	Text   string    // the text message for the LogEntry
 }
 
+// init registers LogEntry with the gob encoder
 func init() {
 	gob.Register(LogEntry{})
 }
 
+// logTag is used when creating the DataPoint Series for LogEntry's.
+const logTag = ".log."
+
 // DataPoint implements DataPointer
 func (l LogEntry) DataPoint() DataPoint {
 	b := strings.Builder{}
-	b.Grow(len(l.NodeID) + 5 + len(l.Tag))
+	b.Grow(len(l.NodeID) + len(logTag) + len(l.Tag))
 	b.WriteString(l.NodeID)
-	b.WriteString(".log.")
+	b.WriteString(logTag)
 	b.WriteString(l.Tag)
 	s := Series(b.String())
 	return DataPoint{s, Time{l.Time}, l.Text}

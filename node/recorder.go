@@ -52,5 +52,11 @@ func (r *recorder) Log(message string) {
 	r.parent.Send(LogEntry{t, r.nodeID, r.tag, message})
 }
 
+// FileData sends a FileData.
+func (r *recorder) FileData(name string, data []byte) {
+	t := time.Now()
+	r.parent.Send(FileData{t, r.nodeID, name, data})
+}
+
 // logFunc is called to log a message with the given format and text.
 type logFunc func(format string, a ...interface{})

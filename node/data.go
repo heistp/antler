@@ -15,7 +15,7 @@ type Series string
 // DataPoint is a single time series data point.
 type DataPoint struct {
 	Series Series      // series the DataPoint belongs to
-	Time   Time        // node time that DataPoint was created
+	Time   Time        // node time that the DataPoint was created
 	Value  interface{} // the DataPoint value
 }
 

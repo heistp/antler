@@ -3,6 +3,5 @@
 
 package node
 
-// readableTimeFormat is the time format used for human consumption, such as
-// LogEntry's, Errors, etc.
+// readableTimeFormat is the time format used for human consumption.
 const readableTimeFormat = "2006-01-02 15:04:05.000000"

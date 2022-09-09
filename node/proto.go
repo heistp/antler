@@ -45,6 +45,7 @@ type run struct {
 	ran      chan ran
 }
 
+// init registers run with the gob encoder
 func init() {
 	gob.Register(run{})
 }
@@ -76,6 +77,7 @@ type ran struct {
 	conn     *conn
 }
 
+// init registers ran with the gob encoder
 func init() {
 	gob.Register(ran{})
 }
@@ -101,6 +103,7 @@ type setup struct {
 	Exes     exes
 }
 
+// init registers setup with the gob encoder
 func init() {
 	gob.Register(setup{})
 }
@@ -109,17 +112,16 @@ func init() {
 //
 // Run launches and runs setup on child nodes, recursively through the node
 // tree. After successful setup, the node is ready to execute Run's.
-func (s setup) Run(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder, cxl chan canceler) (ofb Feedback, err error) {
+func (s setup) Run(ctx context.Context, g arg) (ofb Feedback, err error) {
 	if err = repo.AddSource(s.Exes); err != nil {
 		return
 	}
-	r := rec.WithTag("launch")
+	r := g.rec.WithTag("launch")
 	rc := make(chan ran, len(s.Children))
 	for n, t := range s.Children {
-		cr := rec.WithTag(fmt.Sprintf("launch-%s", n))
+		cr := r.WithTag(fmt.Sprintf("launch.%s", n))
 		var c *conn
-		if c, err = chl.Launch(n, cr.Logf); err != nil {
+		if c, err = g.child.Launch(n, cr.Logf); err != nil {
 			return
 		}
 		var x exes
@@ -128,9 +130,9 @@ func (s setup) Run(ctx context.Context, chl *child, ifb Feedback,
 		}
 		x.Remove(n.Platform)
 		s := &setup{0, t, x}
-		c.Run(&Run{Runners: Runners{Setup: s}}, ifb, rc)
+		c.Run(&Run{Runners: Runners{Setup: s}}, g.ifb, rc)
 	}
-	for i := 0; i < chl.Count(); i++ {
+	for i := 0; i < g.child.Count(); i++ {
 		select {
 		case a := <-rc:
 			if !a.OK {
@@ -164,6 +166,7 @@ type cancel struct {
 	Reason string
 }
 
+// init registers cancel with the gob encoder
 func init() {
 	gob.Register(cancel{})
 }
@@ -196,6 +199,7 @@ func (c cancel) String() string {
 // canceled is the final message sent from child to parent.
 type canceled struct{}
 
+// init registers canceled with the gob encoder
 func init() {
 	gob.Register(canceled{})
 }
@@ -221,6 +225,7 @@ type Error struct {
 	Message string    // the error text
 }
 
+// init registers Error with the gob encoder
 func init() {
 	gob.Register(Error{})
 }

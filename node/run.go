@@ -37,17 +37,17 @@ type Run struct {
 }
 
 // run runs the Run.
-func (r *Run) run(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder, cxl chan canceler, ev chan event) (ofb Feedback, ok bool) {
+func (r *Run) run(ctx context.Context, g arg, ev chan event) (
+	ofb Feedback, ok bool) {
 	switch {
 	case len(r.Serial) > 0:
-		ofb, ok = r.Serial.do(ctx, chl, ifb, rec, cxl, ev)
+		ofb, ok = r.Serial.do(ctx, g, ev)
 	case len(r.Parallel) > 0:
-		ofb, ok = r.Parallel.do(ctx, chl, ifb, rec, cxl, ev)
+		ofb, ok = r.Parallel.do(ctx, g, ev)
 	case r.Child != nil:
-		ofb, ok = r.Child.do(ctx, chl, ifb, rec, cxl, ev)
+		ofb, ok = r.Child.do(ctx, g, ev)
 	default:
-		ofb, ok = r.Runners.do(ctx, chl, ifb, rec, cxl, ev)
+		ofb, ok = r.Runners.do(ctx, g, ev)
 	}
 	return
 }
@@ -56,15 +56,15 @@ func (r *Run) run(ctx context.Context, chl *child, ifb Feedback,
 type Serial []Run
 
 // do executes the Serial Runs sequentially.
-func (s Serial) do(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder, cxl chan canceler, ev chan event) (ofb Feedback, ok bool) {
+func (s Serial) do(ctx context.Context, g arg, ev chan event) (
+	ofb Feedback, ok bool) {
 	ofb = Feedback{}
 	for _, r := range s {
 		var f Feedback
-		f, ok = r.run(ctx, chl, ifb, rec, cxl, ev)
+		f, ok = r.run(ctx, g, ev)
 		if e := ofb.merge(f); e != nil {
 			ok = false
-			rr := rec.WithTag(typeBaseName(r))
+			rr := g.rec.WithTag(typeBaseName(r))
 			ev <- errorEvent{rr.NewErrore(e), false}
 		}
 		if !ok {
@@ -85,8 +85,8 @@ type parallelRan struct {
 }
 
 // do executes the Parallel Runs concurrently.
-func (p Parallel) do(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder, cxl chan canceler, ev chan event) (ofb Feedback, ok bool) {
+func (p Parallel) do(ctx context.Context, g arg, ev chan event) (
+	ofb Feedback, ok bool) {
 	ofb = Feedback{}
 	c := make(chan parallelRan)
 	for _, r := range p {
@@ -97,7 +97,7 @@ func (p Parallel) do(ctx context.Context, chl *child, ifb Feedback,
 				c <- a
 			}()
 			a.run = &r
-			a.ofb, a.ok = r.run(ctx, chl, ifb, rec, cxl, ev)
+			a.ofb, a.ok = r.run(ctx, g, ev)
 		}()
 	}
 	ok = true
@@ -105,7 +105,7 @@ func (p Parallel) do(ctx context.Context, chl *child, ifb Feedback,
 		a := <-c
 		if e := ofb.merge(a.ofb); e != nil {
 			ok = false
-			rr := rec.WithTag(typeBaseName(a.run))
+			rr := g.rec.WithTag(typeBaseName(a.run))
 			ev <- errorEvent{rr.NewErrore(e), false}
 		}
 		if !a.ok {
@@ -125,11 +125,11 @@ type Child struct {
 }
 
 // do executes Child's Run on a child node.
-func (r *Child) do(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder, cxl chan canceler, ev chan event) (ofb Feedback, ok bool) {
-	c := chl.Get(r.Node)
+func (r *Child) do(ctx context.Context, g arg, ev chan event) (
+	ofb Feedback, ok bool) {
+	c := g.child.Get(r.Node)
 	rc := make(chan ran, 1)
-	c.Run(&r.Run, ifb, rc)
+	c.Run(&r.Run, g.ifb, rc)
 	a := <-rc
 	ofb = a.Feedback
 	ok = a.OK
@@ -158,17 +158,17 @@ func (r *Runners) runner() runner {
 }
 
 // do executes the runner.
-func (r *Runners) do(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder, cxl chan canceler, ev chan event) (ofb Feedback, ok bool) {
+func (r *Runners) do(ctx context.Context, g arg, ev chan event) (
+	ofb Feedback, ok bool) {
 	var u runner
 	if u = r.runner(); u == nil {
-		e := rec.NewErrorf("Run has no runner set")
+		e := g.rec.NewErrorf("Run has no runner set")
 		ev <- errorEvent{e, false}
 		return
 	}
-	rr := rec.WithTag(typeBaseName(u))
+	rr := g.rec.WithTag(typeBaseName(u))
 	var err error
-	ofb, err = u.Run(ctx, chl, ifb, rr, cxl)
+	ofb, err = u.Run(ctx, g)
 	if ofb == nil {
 		ofb = Feedback{}
 	}
@@ -191,14 +191,16 @@ func (r *Runners) do(ctx context.Context, chl *child, ifb Feedback,
 // When Context is canceled, runners should return as soon as possible, using
 // Context.Err() as the returned error if the cancellation materially affects
 // the results.
-//
-// The child argument caches child conns.
-//
-// The Feedback argument contains incoming Feedback from prior runners, while
-// the returned Feedback contains outgoing Feedback for subsequent runners.
 type runner interface {
-	Run(context.Context, *child, Feedback, *recorder, chan canceler) (
-		Feedback, error)
+	Run(context.Context, arg) (Feedback, error)
+}
+
+// arg contains the arguments supplied to a runner.
+type arg struct {
+	child *child        // caches child conns
+	ifb   Feedback      // incoming Feedback from prior runners
+	rec   *recorder     // recorder for logging, data and errors
+	cxl   chan canceler // canceler stack
 }
 
 // canceler is the interface that wraps the Cancel method. If a runner

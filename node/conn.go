@@ -151,25 +151,25 @@ func (c *conn) buffer() {
 	defer close(c.tx)
 	var stream filter
 	stream = unconditionalFilter{false}
-	b := make([]message, 0, 1024)
-	d := make([]DataPointer, 0, 8192)
+	t := make([]message, 0, 1024)
+	b := make([]DataPointer, 0, 8192)
 	txc := func() chan message {
-		if len(b) > 0 {
+		if len(t) > 0 {
 			return c.tx
 		}
 		return nil
 	}
 	txm := func() message {
-		if len(b) > 0 {
-			return b[0]
+		if len(t) > 0 {
+			return t[0]
 		}
 		return nil
 	}
 	release := func() {
-		for _, p := range d {
-			b = append(b, p)
+		for _, p := range b {
+			t = append(t, p)
 		}
-		d = d[:0]
+		b = b[:0]
 	}
 	tq := c.tq
 	for tq != nil || txc() != nil {
@@ -188,7 +188,7 @@ func (c *conn) buffer() {
 					m = v
 					break
 				}
-				d = append(d, v)
+				b = append(b, v)
 			case message:
 				m = v
 			case filter:
@@ -198,15 +198,15 @@ func (c *conn) buffer() {
 					release()
 				case (unconditionalFilter{false}):
 				default:
-					dd := make([]DataPointer, 0, len(d)+8192)
-					for _, p := range d {
+					dd := make([]DataPointer, 0, len(b)+8192)
+					for _, p := range b {
 						if stream.accept(p.DataPoint().Series) {
-							b = append(b, p)
+							t = append(t, p)
 						} else {
 							dd = append(dd, p)
 						}
 					}
-					d = dd
+					b = dd
 				}
 			}
 			if m != nil {
@@ -214,10 +214,10 @@ func (c *conn) buffer() {
 					tq = nil
 					release()
 				}
-				b = append(b, m)
+				t = append(t, m)
 			}
 		case txc() <- txm():
-			b = b[1:]
+			t = t[1:]
 		}
 	}
 }
@@ -326,28 +326,6 @@ type unconditionalFilter struct {
 // accept implements filter
 func (u unconditionalFilter) accept(Series) bool {
 	return u.accepts
-}
-
-// cacheFilter saves the filter results for each Series in a map.
-type cacheFilter struct {
-	filter filter
-	cache  map[Series]bool
-}
-
-// newCacheFilter returns a new cacheFilter for the given filter.
-func newCacheFilter(f filter) cacheFilter {
-	return cacheFilter{f, make(map[Series]bool)}
-}
-
-// accept implements filter
-func (c cacheFilter) accept(s Series) (b bool) {
-	var ok bool
-	if b, ok = c.cache[s]; ok {
-		return
-	}
-	b = c.filter.accept(s)
-	c.cache[s] = b
-	return
 }
 
 // connDone is sent after a conn's goroutines are done and the underlying

@@ -13,8 +13,7 @@ import (
 type Sleep string
 
 // Run implements runner
-func (s Sleep) Run(ctx context.Context, chl *child, ifb Feedback,
-	rec *recorder, cxl chan canceler) (ofb Feedback, err error) {
+func (s Sleep) Run(ctx context.Context, g arg) (ofb Feedback, err error) {
 	var d time.Duration
 	if d, err = time.ParseDuration(string(s)); err != nil {
 		return

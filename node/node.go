@@ -85,8 +85,8 @@ func Serve(nodeID string, ctrl *Control, conn io.ReadWriteCloser) error {
 // bootstrapNodeID is the ID used for the in-process node in node.Do.
 const bootstrapNodeID = "-"
 
-// Do runs a Run tree, and sends results back on the given channel. The
-// types returned can include DataPoint, LogEntry, Feedback and Error.
+// Do runs a Run tree, and sends results back on the given channel. The types
+// returned can include DataPoint, FileData, LogEntry, Feedback and Error.
 //
 // This is used by the antler package and executable.
 func Do(rn *Run, src ExeSource, ctrl *Control, result chan<- interface{}) {
@@ -108,6 +108,8 @@ func Do(rn *Run, src ExeSource, ctrl *Control, result chan<- interface{}) {
 		for e := range ev {
 			switch v := e.(type) {
 			case DataPoint:
+				result <- v
+			case FileData:
 				result <- v
 			case LogEntry:
 				result <- v
@@ -214,7 +216,7 @@ func (n *node) runs() {
 				}
 				n.parent.Send(ran{r.ID, f, ok, r.conn})
 			}()
-			f, ok = r.Run.run(ctx, n.child, r.Feedback, n.rec, c, n.ev)
+			f, ok = r.Run.run(ctx, arg{n.child, r.Feedback, n.rec, c}, n.ev)
 		}()
 	}
 }

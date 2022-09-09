@@ -6,6 +6,7 @@ package antler
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 
 	"github.com/heistp/antler/node"
@@ -18,6 +19,7 @@ type Result struct {
 	Log      []node.LogEntry
 	Feedback node.Feedback
 	Error    []node.Error
+	file     map[string]*os.File
 }
 
 // newResult creates and returns a new Result.
@@ -28,6 +30,7 @@ func newResult(t Test) Result {
 		make([]node.LogEntry, 0),
 		node.Feedback{},
 		make([]node.Error, 0),
+		make(map[string]*os.File),
 	}
 }
 
@@ -36,10 +39,17 @@ func newResult(t Test) Result {
 // done channel and returns.
 func (r *Result) gather(result <-chan interface{}, done chan struct{}) {
 	defer close(done)
+	defer func() {
+		for _, f := range r.file {
+			f.Close()
+		}
+	}()
 	for i := range result {
 		switch v := i.(type) {
 		case node.DataPoint:
 			r.Data = append(r.Data, v)
+		case node.FileData:
+			r.writeFileData(v)
 		case node.LogEntry:
 			r.Log = append(r.Log, v)
 		case node.Feedback:
@@ -59,6 +69,20 @@ func (r *Result) gather(result <-chan interface{}, done chan struct{}) {
 	sort.Slice(r.Error, func(i, j int) bool {
 		return r.Error[i].Time.Before(r.Error[j].Time)
 	})
+}
+
+// writeFileData opens files, as necessary, and appends file data.
+func (r *Result) writeFileData(fd node.FileData) (err error) {
+	var f *os.File
+	var ok bool
+	if f, ok = r.file[fd.Name]; !ok {
+		if f, err = os.Create(fd.Name); err != nil {
+			return
+		}
+		r.file[fd.Name] = f
+	}
+	_, err = f.Write(fd.Data)
+	return
 }
 
 // DumpText emits a text representation of the Result for debugging purposes to

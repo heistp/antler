@@ -100,7 +100,7 @@ func (c *conn) Canceled() {
 // Stream selects which messages will be sent immediately. These messages, and
 // those with flagPush set, will be streamed. All other messages will be
 // buffered. If the conn was canceled or closed, this call does nothing.
-func (c *conn) Stream(s *Stream) {
+func (c *conn) Stream(s *ResultStream) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	if c.canceled {
@@ -148,7 +148,7 @@ func (c *conn) start(ev chan<- event) {
 // closed.
 func (c *conn) buffer() {
 	defer close(c.tx)
-	var s *Stream
+	var s *ResultStream
 	t := make([]message, 0, 1024)
 	b := make([]message, 0, 8192)
 	txc := func() chan message {
@@ -186,7 +186,7 @@ func (c *conn) buffer() {
 					break
 				}
 				b = append(b, v)
-			case *Stream:
+			case *ResultStream:
 				s = v
 				bb := make([]message, 0, len(b)+8192)
 				for _, m := range b {

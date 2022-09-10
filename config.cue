@@ -60,7 +60,7 @@ Run: #TestRun
 	{} | {
 		Sleep?: #Sleep
 	} | {
-		Stream?: #Stream
+		ResultStream?: #ResultStream
 	} | {
 		System?: #System
 	}
@@ -72,14 +72,14 @@ Run: #TestRun
 // node.Sleep
 #Sleep: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
 
-// node.Stream
-#Stream: {
-	Include?: #StreamFilter
-	Exclude?: #StreamFilter
+// node.ResultStream
+#ResultStream: {
+	Include?: #MessageFilter
+	Exclude?: #MessageFilter
 }
 
-// node.StreamFilter
-#StreamFilter: {
+// node.MessageFilter
+#MessageFilter: {
 	File?: [string, ...]
 	Log?:    bool
 	Series?: #Series
@@ -106,12 +106,12 @@ Run: #TestRun
 #Node: {
 	ID:       string & !=""
 	Platform: string & !=""
-	Launcher: #launchers
+	Launcher: #Launchers
 	Netns?:   #Netns
 }
 
 // node.launchers
-#launchers: {
+#Launchers: {
 	{} | {
 		SSH?: {Destination?: string & !=""} // node.SSH
 	} | {

@@ -58,7 +58,7 @@ func (r *recorder) FileData(name string, data []byte) {
 }
 
 // Stream sends a Stream filter to the parent conn.
-func (r *recorder) Stream(s *Stream) {
+func (r *recorder) Stream(s *ResultStream) {
 	r.parent.Stream(s)
 }
 

@@ -30,7 +30,6 @@ func (t *Test) do(ctrl *node.Control, arg doArg) (err error) {
 	go node.Do(&t.Run, &exeSource{}, ctrl, r)
 	g := newGatherer(ctrl)
 	err = g.run(r, arg)
-	//r.DumpText(os.Stdout)
 	return
 }
 

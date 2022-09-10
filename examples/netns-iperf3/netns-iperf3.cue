@@ -7,8 +7,8 @@
 
 package netns_iperf3
 
-// stream streams logs during the test
-stream: {Stream: Include: Log: true}
+// stream includes logs for streaming during the test
+stream: {ResultStream: Include: Log: true}
 
 // Run contains a single Test that runs setup and run in serial
 Run: {

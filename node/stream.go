@@ -8,17 +8,18 @@ import (
 	"path/filepath"
 )
 
-// Stream selects messages for either streaming or buffering.
-type Stream struct {
+// ResultStream selects messages for either streaming or buffering.
+type ResultStream struct {
 	// Include accepts messages to stream.
-	Include *StreamFilter
+	Include *MessageFilter
 
 	// Exclude rejects messages to stream, and buffers them instead.
-	Exclude *StreamFilter
+	Exclude *MessageFilter
 }
 
 // Run implements runner
-func (s *Stream) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
+func (s *ResultStream) Run(ctx context.Context, arg runArg) (ofb Feedback,
+	err error) {
 	if s.Include != nil {
 		if err = s.Include.validate(); err != nil {
 			return
@@ -34,7 +35,7 @@ func (s *Stream) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 }
 
 // accept returns true if the given message should be streamed.
-func (s *Stream) accept(msg message) (stream bool) {
+func (s *ResultStream) accept(msg message) (stream bool) {
 	if s.Include != nil {
 		if stream = s.Include.accept(msg); !stream {
 			return
@@ -49,8 +50,8 @@ func (s *Stream) accept(msg message) (stream bool) {
 	return
 }
 
-// StreamFilter selects messages for either streaming or buffering.
-type StreamFilter struct {
+// MessageFilter selects messages based on some simple type and field criteria.
+type MessageFilter struct {
 	// File is a valid glob pattern of FileData names to accept.
 	File []string
 
@@ -61,8 +62,8 @@ type StreamFilter struct {
 	Series []Series
 }
 
-// accept returns true if the StreamFilter accepts the given message.
-func (f *StreamFilter) accept(msg message) (verdict bool) {
+// accept returns true if the MessageFilter accepts the given message.
+func (f *MessageFilter) accept(msg message) (verdict bool) {
 	switch v := msg.(type) {
 	case FileData:
 		for _, p := range f.File {
@@ -84,8 +85,8 @@ func (f *StreamFilter) accept(msg message) (verdict bool) {
 	return
 }
 
-// validate returns an error if the StreamFilter is invalid.
-func (f *StreamFilter) validate() (err error) {
+// validate returns an error if the MessageFilter is invalid.
+func (f *MessageFilter) validate() (err error) {
 	for _, p := range f.File {
 		if _, err = filepath.Match(p, ""); err != nil {
 			return

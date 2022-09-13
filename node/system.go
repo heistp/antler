@@ -38,8 +38,7 @@ type System struct {
 	Background bool
 
 	// IgnoreErrors indicates whether to discard any errors (true) or not
-	// (false). If errors are discarded, they will still be logged, but an error
-	// will not be returned, so the Run tree may continue.
+	// (false).
 	IgnoreErrors bool
 
 	// Stdout selects the treatment for stdout. If empty, stdout is gathered and
@@ -66,11 +65,11 @@ type System struct {
 
 // Run implements runner
 func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
-	defer func() {
-		if s.IgnoreErrors {
+	if s.IgnoreErrors {
+		defer func() {
 			err = nil
-		}
-	}()
+		}()
+	}
 	n, a := s.params()
 	var c *exec.Cmd
 	if s.Kill {

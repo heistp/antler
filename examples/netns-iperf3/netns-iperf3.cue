@@ -13,7 +13,7 @@ stream: {ResultStream: Include: Log: true}
 // Run contains a single Test that runs setup and run in serial
 Run: {
 	Test: {
-		Props: {Name: "netns-iperf3"}
+		ID: {"Name": "netns-iperf3"}
 		Serial: [stream, setup, server, run]
 	}
 	Log: true

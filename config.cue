@@ -33,8 +33,7 @@ Run: #TestRun
 
 // antler.Test
 #Test: {
-	//_check_props: len(Props) & >0
-	Props: {...}
+	ID: {...}
 	#Run
 }
 

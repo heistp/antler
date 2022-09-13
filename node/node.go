@@ -86,19 +86,19 @@ func Serve(nodeID string, ctrl *Control, conn io.ReadWriteCloser) error {
 // RootNodeID is the ID used for the root node in node.Do.
 const RootNodeID = "-"
 
-// Do runs a Run tree in an in-process "root" node, and sends results back on
-// the given channel. The types sent can include DataPoint, FileData, LogEntry
-// and Error.
+// Do runs a Run tree in an in-process "root" node, and sends data items back on
+// the given channel. The item type sent can include DataPoint, FileData,
+// LogEntry and Error.
 //
 // Do is used by the antler package and executable.
-func Do(rn *Run, src ExeSource, ctrl *Control, result chan interface{}) {
-	defer close(result)
+func Do(rn *Run, src ExeSource, ctrl *Control, data chan interface{}) {
+	defer close(data)
 	f := ErrorFactory{RootNodeID, "execute"}
 	// run tree
 	t := newTree(rn)
 	x, e := newExes(src, t.Platforms())
 	if e != nil {
-		result <- f.NewErrore(e)
+		data <- f.NewErrore(e)
 		return
 	}
 	// root conn
@@ -110,13 +110,13 @@ func Do(rn *Run, src ExeSource, ctrl *Control, result chan interface{}) {
 		for e := range ev {
 			switch v := e.(type) {
 			case DataPoint:
-				result <- v
+				data <- v
 			case FileData:
-				result <- v
+				data <- v
 			case LogEntry:
-				result <- v
+				data <- v
 			case errorEvent:
-				result <- f.NewErrore(v.err)
+				data <- f.NewErrore(v.err)
 			case connDone:
 				return
 			}
@@ -145,7 +145,7 @@ func Do(rn *Run, src ExeSource, ctrl *Control, result chan interface{}) {
 		return
 	}
 	c.Run(rn, r.Feedback, rc)
-	result <- LogEntry{time.Now(), RootNodeID, "feedback",
+	data <- LogEntry{time.Now(), RootNodeID, "feedback",
 		fmt.Sprintf("feedback: %s", (<-rc).Feedback)}
 	return
 }

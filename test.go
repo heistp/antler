@@ -14,26 +14,30 @@ import (
 
 // Test is an Antler test.
 type Test struct {
-	// Props maps property names to values, which together are used to uniquely
-	// identify a Test within a CUE package. These properties may be used to
-	// generate output filenames and/or report lists/tables that identify the
-	// key Test properties, e.g. bandwidth, rtt, etc.
-	Props map[string]interface{}
+	// ID uniquely identifies a Test within a CUE package. The ID's key/value
+	// pairs may be used to generate output filenames and/or report lists/tables
+	// that identify the key Test properties, e.g. bandwidth, rtt, etc.
+	ID ID
 
 	// Run is the top-level Run instance.
 	node.Run
 }
 
-// do runs the Test and saves the results.
+// do runs the Test and tees the data stream to reporters.
 func (t *Test) do(ctrl *node.Control, arg doArg) (err error) {
-	r := make(chan interface{}, 64)
-	go node.Do(&t.Run, &exeSource{}, ctrl, r)
+	d := make(chan interface{}, 64)
+	go node.Do(&t.Run, &exeSource{}, ctrl, d)
 	g := newGatherer(ctrl)
-	err = g.run(r, arg)
+	err = g.run(d, arg)
 	return
 }
 
-// gatherer reads the results and writes them to the appropriate output files.
+// ID represents a compound identifier consisting of key/value pairs.
+type ID map[string]string
+
+// gatherer reads the data and writes it to the appropriate output files.
+//
+// TODO update gatherer for reporter architecture
 type gatherer struct {
 	ctrl *node.Control
 	file map[string]*os.File
@@ -47,18 +51,15 @@ func newGatherer(ctrl *node.Control) *gatherer {
 	return &gatherer{ctrl, make(map[string]*os.File), nil, nil, nil}
 }
 
-// run gathers all results from the given channel, until closed, and returns the
+// run gathers all data from the given channel, until closed, and returns the
 // first error. On error, Cancel is called on Control.
-func (g *gatherer) run(result chan interface{}, arg doArg) error {
+func (g *gatherer) run(data chan interface{}, arg doArg) error {
 	var e error
 	if e = g.openData(); e != nil {
 		g.handleError(e)
 	}
-	defer func() {
-		g.closeFiles()
-		g.closeData()
-	}()
-	for r := range result {
+	defer g.closeFiles()
+	for r := range data {
 		switch v := r.(type) {
 		case node.DataPoint:
 			if e = g.appendData(v); e != nil {
@@ -84,7 +85,7 @@ func (g *gatherer) run(result chan interface{}, arg doArg) error {
 				g.handleError(e)
 			}
 		default:
-			panic(fmt.Sprintf("gather received unknown result type: %T", r))
+			panic(fmt.Sprintf("gather received unknown data type: %T", r))
 		}
 	}
 	return g.err
@@ -105,13 +106,18 @@ func (g *gatherer) appendFile(fd node.FileData) (err error) {
 	return
 }
 
-// closeFiles closes all the FileData files and returns the first error.
+// closeFiles closes all the opened files and returns the first error.
 func (g *gatherer) closeFiles() (err error) {
 	for n, f := range g.file {
 		if e := f.Close(); e != nil && err == nil {
 			err = e
 		}
 		delete(g.file, n)
+	}
+	if g.data != nil {
+		if e := g.data.Close(); e != nil && err == nil {
+			err = e
+		}
 	}
 	return
 }
@@ -136,17 +142,9 @@ func (g *gatherer) appendData(v interface{}) error {
 	return g.enc.Encode(v)
 }
 
-// closeData closes the data file.
-func (g *gatherer) closeData() (err error) {
-	if g.data != nil {
-		return g.data.Close()
-	}
-	return nil
-}
-
 // handleError handles an error during run.
 func (g *gatherer) handleError(e error) {
-	e = fmt.Errorf("error gathering results: %w", e)
+	e = fmt.Errorf("error gathering data: %w", e)
 	if g.err == nil {
 		g.err = e
 		g.ctrl.Cancel(e.Error())

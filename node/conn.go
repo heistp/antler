@@ -123,14 +123,20 @@ func (c *conn) doClose() (err error) {
 	if c.closed {
 		return
 	}
-	for i, r := range c.rpc {
-		r.ran <- ran{r.ID, Feedback{}, false, c}
-		delete(c.rpc, i)
-	}
+	c.failRPC()
 	err = c.tr.Close()
 	c.canceled = true
 	c.closed = true
 	return
+}
+
+// failRPC causes all RPCs to return a failure. This method is for internal use,
+// and must be called with c.mtx locked.
+func (c *conn) failRPC() {
+	for i, r := range c.rpc {
+		r.ran <- ran{r.ID, Feedback{}, false, c}
+		delete(c.rpc, i)
+	}
 }
 
 // start starts the send and receive goroutines. The caller must read from the
@@ -271,6 +277,9 @@ func (c *conn) received(m message, ev chan<- event) (err error) {
 	case event:
 		ev <- v
 	case canceled:
+		c.mtx.Lock()
+		defer c.mtx.Unlock()
+		c.failRPC()
 	case Error:
 		ev <- errorEvent{v, false}
 	default:

@@ -16,7 +16,8 @@ var configCUE string
 
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
-	Run TestRun // the top-level antler.Run instance
+	// Run is the top-level TestRun instance.
+	Run TestRun
 }
 
 // LoadConfig uses the CUE API to load and return the Antler Config.

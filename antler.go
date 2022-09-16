@@ -16,6 +16,13 @@ func Run(ctrl *node.Control) (err error) {
 	if cfg, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = cfg.Run.do(ctrl)
+	s := reporterStack{}
+	s.push([]reporter{&stdReporter{}})
+	defer func() {
+		if e := s.pop(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	err = cfg.Run.do(ctrl, s)
 	return
 }

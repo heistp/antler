@@ -18,22 +18,29 @@ Run: #TestRun
 	// the syntax below ensures only one of Test, Serial or Parallel are set.
 	{} | {
 		Test?: #Test
-		#DoArg
 	} | {
 		Serial?: [#TestRun, ...#TestRun]
 	} | {
 		Parallel?: [#TestRun, ...#TestRun]
 	}
+	Report?: [#Report, ...]
 }
 
-// antler.DoArg
-#DoArg: {
-	Log?: bool
+// antler.Report
+#Report: {
+	{} | {
+		EmitLog?: #EmitLog
+	}
+}
+
+// antler.EmitLog
+#EmitLog: {
 }
 
 // antler.Test
 #Test: {
 	ID: {...}
+	OutPath: string & !="" | *"."
 	#Run
 }
 

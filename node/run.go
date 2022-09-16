@@ -145,7 +145,7 @@ type Runners struct {
 	Setup        *setup
 }
 
-// Runner returns the only non-nil runner implementation.
+// runner returns the only non-nil runner implementation.
 func (r *Runners) runner() runner {
 	switch {
 	case r.Sleep != nil:

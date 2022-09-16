@@ -22,28 +22,37 @@ type TestRun struct {
 	// Parallel lists TestRun's to be executed concurrently.
 	Parallel Parallel
 
-	doArg
+	// Report lists Reports to be run on this TestRun and any below it in the
+	// TestRun tree.
+	Report reports
 }
 
 // do executes the TestRun.
-func (r *TestRun) do(ctrl *node.Control) error {
+func (t *TestRun) do(ctrl *node.Control, rst reporterStack) (err error) {
+	rst.push(t.Report.reporters())
+	defer func() {
+		if e := rst.pop(); e != nil && err == nil {
+			err = e
+		}
+	}()
 	switch {
-	case len(r.Serial) > 0:
-		return r.Serial.do(ctrl)
-	case len(r.Parallel) > 0:
-		return r.Parallel.do(ctrl)
+	case len(t.Serial) > 0:
+		err = t.Serial.do(ctrl, rst)
+	case len(t.Parallel) > 0:
+		err = t.Parallel.do(ctrl, rst)
 	default:
-		return r.Test.do(ctrl, r.doArg)
+		err = t.Test.do(ctrl, rst)
 	}
+	return
 }
 
 // Serial is a list of TestRun's executed sequentially.
 type Serial []TestRun
 
 // do executes the TestRun's sequentially.
-func (s Serial) do(ctrl *node.Control) (err error) {
+func (s Serial) do(ctrl *node.Control, rst reporterStack) (err error) {
 	for _, u := range s {
-		if err = u.do(ctrl); err != nil {
+		if err = u.do(ctrl, rst); err != nil {
 			return
 		}
 	}
@@ -54,13 +63,7 @@ func (s Serial) do(ctrl *node.Control) (err error) {
 type Parallel []TestRun
 
 // do executes the TestRun's concurrently.
-func (p Parallel) do(ctrl *node.Control) (err error) {
+func (p Parallel) do(ctrl *node.Control, rst reporterStack) (err error) {
 	// TODO implement Parallel TestRuns
 	return
-}
-
-// doArg contains TestRun level arguments controlling the execution of a Test.
-type doArg struct {
-	// Log, if true, emits LogEntry's to stdout as the Test is run.
-	Log bool
 }

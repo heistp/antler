@@ -4,11 +4,6 @@
 package antler
 
 import (
-	"encoding/gob"
-	"fmt"
-	"os"
-	"time"
-
 	"github.com/heistp/antler/node"
 )
 
@@ -19,25 +14,70 @@ type Test struct {
 	// that identify the key Test properties, e.g. bandwidth, rtt, etc.
 	ID ID
 
+	// OutPath is the base path for test output files, relative to the output
+	// directory. The default is ".".
+	OutPath string
+
 	// Run is the top-level Run instance.
 	node.Run
 }
 
+// ID represents a compound Test identifier consisting of key/value pairs.
+type ID map[string]string
+
+// dataChanBuf is used as the buffer size for data channels.
+const dataChanBuf = 64
+
 // do runs the Test and tees the data stream to reporters.
-func (t *Test) do(ctrl *node.Control, arg doArg) (err error) {
-	d := make(chan interface{}, 64)
+func (t *Test) do(ctrl *node.Control, rst reporterStack) (err error) {
+	d := make(chan interface{}, dataChanBuf)
 	go node.Do(&t.Run, &exeSource{}, ctrl, d)
-	g := newGatherer(ctrl)
-	err = g.run(d, arg)
+	err = t.tee(ctrl, rst, d)
 	return
 }
 
-// ID represents a compound identifier consisting of key/value pairs.
-type ID map[string]string
+// tee receives data from the given channel, and sends it to each reporter in
+// the stack. On the first error, the node is canceled and the error returned.
+func (t *Test) tee(ctrl *node.Control, rst reporterStack,
+	data chan interface{}) (err error) {
+	ec := make(chan error)
+	var cc []chan interface{}
+	for _, r := range rst.list() {
+		c := make(chan interface{}, dataChanBuf)
+		cc = append(cc, c)
+		r.report(reportIn{t, c, ec})
+	}
+	n := rst.size()
+	dc := data
+	for n > 0 || dc != nil {
+		select {
+		case e := <-ec:
+			if e == reportDone {
+				n--
+				break
+			}
+			if err == nil {
+				err = e
+				ctrl.Cancel(e.Error())
+			}
+		case d, ok := <-dc:
+			if !ok {
+				dc = nil
+				for _, c := range cc {
+					close(c)
+				}
+				break
+			}
+			for _, c := range cc {
+				c <- d
+			}
+		}
+	}
+	return
+}
 
+/*
 // gatherer reads the data and writes it to the appropriate output files.
-//
-// TODO update gatherer for reporter architecture
 type gatherer struct {
 	ctrl *node.Control
 	file map[string]*os.File
@@ -53,7 +93,7 @@ func newGatherer(ctrl *node.Control) *gatherer {
 
 // run gathers all data from the given channel, until closed, and returns the
 // first error. On error, Cancel is called on Control.
-func (g *gatherer) run(data chan interface{}, arg doArg) error {
+func (g *gatherer) run(data chan interface{}) error {
 	var e error
 	if e = g.openData(); e != nil {
 		g.handleError(e)
@@ -70,9 +110,7 @@ func (g *gatherer) run(data chan interface{}, arg doArg) error {
 				g.handleError(e)
 			}
 		case node.LogEntry:
-			if arg.Log {
-				fmt.Printf("%s\n", v)
-			}
+			fmt.Printf("%s\n", v)
 			if e = g.appendData(v); e != nil {
 				g.handleError(e)
 			}
@@ -151,3 +189,4 @@ func (g *gatherer) handleError(e error) {
 	}
 	g.appendData(node.Error{time.Now(), node.RootNodeID, "gather", e.Error()})
 }
+*/

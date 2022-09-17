@@ -4,6 +4,9 @@
 package antler
 
 import (
+	"encoding/gob"
+	"errors"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -30,15 +33,53 @@ type Test struct {
 // ID represents a compound Test identifier consisting of key/value pairs.
 type ID map[string]string
 
-// dataChanBuf is used as the buffer size for data channels.
-const dataChanBuf = 64
+// dataChanBufSize is used as the buffer size for data channels.
+const dataChanBufSize = 64
 
 // do runs the Test and tees the data stream to reporters.
 func (t *Test) do(ctrl *node.Control, rst reporterStack) (err error) {
-	d := make(chan interface{}, dataChanBuf)
-	go node.Do(&t.Run, &exeSource{}, ctrl, d)
+	d := make(chan interface{}, dataChanBufSize)
+	g := t.outPath("data.gob")
+	var f *os.File
+	if f, err = os.Open(g); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return
+		}
+		rst.push([]reporter{&saveData{g}})
+		defer func() {
+			if e := rst.pop(); e != nil && err == nil {
+				err = e
+			}
+		}()
+		go node.Do(&t.Run, &exeSource{}, ctrl, d)
+	} else {
+		go decodeData(f, d)
+	}
 	err = t.tee(ctrl, rst, d)
 	return
+}
+
+// decodeData decodes all gob data items from the given reader and writes them
+// to the given data channel. The data channel is closed when complete.
+func decodeData(reader io.Reader, data chan interface{}) {
+	var e error
+	defer func() {
+		if e != nil {
+			data <- e
+		}
+		defer close(data)
+	}()
+	d := gob.NewDecoder(reader)
+	var a interface{}
+	for {
+		if e = d.Decode(&a); e != nil {
+			if e == io.EOF {
+				e = nil
+			}
+			return
+		}
+		data <- a
+	}
 }
 
 // outPath returns the path to an output file with the given suffix. OutputPath
@@ -65,7 +106,7 @@ func (t *Test) tee(ctrl *node.Control, rst reporterStack,
 	ec := make(chan error)
 	var cc []chan interface{}
 	for _, r := range rst.list() {
-		c := make(chan interface{}, dataChanBuf)
+		c := make(chan interface{}, dataChanBufSize)
 		cc = append(cc, c)
 		r.report(reportIn{t, c, ec})
 	}
@@ -90,7 +131,7 @@ func (t *Test) tee(ctrl *node.Control, rst reporterStack,
 				}
 				break
 			}
-			if e, ok := d.(node.Error); ok && err == nil {
+			if e, ok := d.(error); ok && err == nil {
 				err = e
 			}
 			for _, c := range cc {

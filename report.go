@@ -143,8 +143,9 @@ func (s *SaveFiles) report(in reportIn) {
 	return
 }
 
-// saveData is an reporter added internally to save all data to data.gob.
+// saveData is an reporter that saves all data using gob to the named file.
 type saveData struct {
+	name string
 }
 
 // report implements reporter
@@ -160,13 +161,13 @@ func (s *saveData) report(in reportIn) {
 			in.errc <- reportDone
 		}()
 		var f *os.File
-		if f, e = os.Create(in.test.outPath("data.gob")); e != nil {
+		if f, e = os.Create(s.name); e != nil {
 			return
 		}
 		defer f.Close()
 		c := gob.NewEncoder(f)
 		for d := range in.data {
-			if e = c.Encode(d); e != nil {
+			if e = c.Encode(&d); e != nil {
 				return
 			}
 		}
@@ -182,7 +183,7 @@ func (s *reporterStack) push(r []reporter) {
 	*s = append(*s, r)
 }
 
-// pop popr a slice of reporters from the stack, runs Close on each if it
+// pop pops a slice of reporters from the stack, runs Close on each if it
 // implements io.Closer, and returns the first error.
 func (s *reporterStack) pop() (err error) {
 	rr := (*s)[len(*s)-1]

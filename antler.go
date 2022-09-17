@@ -17,12 +17,6 @@ func Run(ctrl *node.Control) (err error) {
 		return
 	}
 	s := reporterStack{}
-	s.push([]reporter{&saveData{}})
-	defer func() {
-		if e := s.pop(); e != nil && err == nil {
-			err = e
-		}
-	}()
 	err = cfg.Run.do(ctrl, s)
 	return
 }

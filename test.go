@@ -41,31 +41,21 @@ func (t *Test) do(ctrl *node.Control, rst reporterStack) (err error) {
 	return
 }
 
-// outputPath returns a normalized version of OutputPath, appending '/' to the
-// path if it refers to a directory.
-func (t *Test) outputPath() (path string) {
-	path = t.OutputPath
-	if strings.HasSuffix(path, "/") {
-		return
-	}
-	fi, err := os.Stat(path)
-	if err != nil || !fi.IsDir() {
-		return
-	}
-	path += "/"
-	return
-}
-
-// outputFilename joins the given filename suffix with OutputPath to return an
-// output filename.
-func (t *Test) outputFilename(suffix string) (name string) {
-	p := t.outputPath()
+// outPath returns the path to an output file with the given suffix. OutputPath
+// is first normalized, appending "/" to the path if it refers to a directory.
+func (t *Test) outPath(suffix string) string {
+	p := t.OutputPath
+	var d bool
 	if strings.HasSuffix(p, "/") {
-		name = path.Join(p, suffix)
-		return
+		d = true
+	} else if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+		d = true
+		p += "/"
 	}
-	name = p + "_" + suffix
-	return
+	if d {
+		return path.Join(p, suffix)
+	}
+	return p + "_" + suffix
 }
 
 // tee receives data from the given channel, and sends it to each reporter in

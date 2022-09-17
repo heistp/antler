@@ -97,13 +97,12 @@ func (l *EmitLog) report(in reportIn) {
 	return
 }
 
-// stdReporter is an reporter added internally that performs any reporting
-// actions common to all tests.
-type stdReporter struct {
+// saveData is an reporter added internally to save all data to data.gob.
+type saveData struct {
 }
 
 // report implements reporter
-func (s *stdReporter) report(in reportIn) {
+func (s *saveData) report(in reportIn) {
 	go func() {
 		var e error
 		defer func() {
@@ -114,17 +113,13 @@ func (s *stdReporter) report(in reportIn) {
 			}
 			in.errc <- reportDone
 		}()
-		n := in.test.outputFilename("data.gob")
 		var f *os.File
-		if f, e = os.Create(n); e != nil {
+		if f, e = os.Create(in.test.outPath("data.gob")); e != nil {
 			return
 		}
 		defer f.Close()
 		c := gob.NewEncoder(f)
 		for d := range in.data {
-			if _, ok := d.(node.FileData); ok {
-				continue
-			}
 			if e = c.Encode(d); e != nil {
 				return
 			}

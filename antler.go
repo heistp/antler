@@ -17,7 +17,7 @@ func Run(ctrl *node.Control) (err error) {
 		return
 	}
 	s := reporterStack{}
-	s.push([]reporter{&stdReporter{}})
+	s.push([]reporter{&saveData{}})
 	defer func() {
 		if e := s.pop(); e != nil && err == nil {
 			err = e

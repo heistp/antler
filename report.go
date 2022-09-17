@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/heistp/antler/node"
 )
@@ -115,9 +114,9 @@ func (s *stdReporter) report(in reportIn) {
 			}
 			in.errc <- reportDone
 		}()
-		p := filepath.Join(in.test.OutPath, "data.gob")
+		n := in.test.outputFilename("data.gob")
 		var f *os.File
-		if f, e = os.Create(p); e != nil {
+		if f, e = os.Create(n); e != nil {
 			return
 		}
 		defer f.Close()

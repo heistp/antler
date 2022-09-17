@@ -4,6 +4,10 @@
 package antler
 
 import (
+	"os"
+	"path"
+	"strings"
+
 	"github.com/heistp/antler/node"
 )
 
@@ -14,9 +18,10 @@ type Test struct {
 	// that identify the key Test properties, e.g. bandwidth, rtt, etc.
 	ID ID
 
-	// OutPath is the base path for test output files, relative to the output
-	// directory. The default is ".".
-	OutPath string
+	// OutputPath is the base path for test output files, relative to the output
+	// directory. Paths ending in '/' are a directory, and '/' is appended
+	// automatically if the path is a directory. The default is "./".
+	OutputPath string
 
 	// Run is the top-level Run instance.
 	node.Run
@@ -33,6 +38,33 @@ func (t *Test) do(ctrl *node.Control, rst reporterStack) (err error) {
 	d := make(chan interface{}, dataChanBuf)
 	go node.Do(&t.Run, &exeSource{}, ctrl, d)
 	err = t.tee(ctrl, rst, d)
+	return
+}
+
+// outputPath returns a normalized version of OutputPath, appending '/' to the
+// path if it refers to a directory.
+func (t *Test) outputPath() (path string) {
+	path = t.OutputPath
+	if strings.HasSuffix(path, "/") {
+		return
+	}
+	fi, err := os.Stat(path)
+	if err != nil || !fi.IsDir() {
+		return
+	}
+	path += "/"
+	return
+}
+
+// outputFilename joins the given filename suffix with OutputPath to return an
+// output filename.
+func (t *Test) outputFilename(suffix string) (name string) {
+	p := t.outputPath()
+	if strings.HasSuffix(p, "/") {
+		name = path.Join(p, suffix)
+		return
+	}
+	name = p + "_" + suffix
 	return
 }
 

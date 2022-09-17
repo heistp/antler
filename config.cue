@@ -40,7 +40,7 @@ Run: #TestRun
 // antler.Test
 #Test: {
 	ID: {...}
-	OutPath: string & !="" | *"."
+	OutputPath: string & !="" | *"./"
 	#Run
 }
 

@@ -90,6 +90,9 @@ func (t *Test) tee(ctrl *node.Control, rst reporterStack,
 				}
 				break
 			}
+			if e, ok := d.(node.Error); ok && err == nil {
+				err = e
+			}
 			for _, c := range cc {
 				c <- d
 			}

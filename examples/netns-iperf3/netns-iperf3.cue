@@ -16,9 +16,10 @@ Run: {
 		ID: {"Name": "netns-iperf3"}
 		Serial: [stream, setup, server, run]
 	}
-	Report: [{
-		EmitLog: {}
-	}]
+	Report: [
+		{EmitLog: {}},
+		{SaveFiles: {}},
+	]
 }
 
 // setup runs the setup commands in each namespace

@@ -30,11 +30,17 @@ Run: #TestRun
 #Report: {
 	{} | {
 		EmitLog?: #EmitLog
+	} | {
+		SaveFiles?: #SaveFiles
 	}
 }
 
 // antler.EmitLog
 #EmitLog: {
+}
+
+// antler.SaveFiles
+#SaveFiles: {
 }
 
 // antler.Test

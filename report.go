@@ -52,7 +52,8 @@ type Report struct {
 
 // reporters is a union of the available reporters.
 type reporters struct {
-	EmitLog *EmitLog
+	EmitLog   *EmitLog
+	SaveFiles *SaveFiles
 }
 
 // reporter returns the only non-nil reporter implementation.
@@ -60,6 +61,8 @@ func (r *reporters) reporter() reporter {
 	switch {
 	case r.EmitLog != nil:
 		return r.EmitLog
+	case r.SaveFiles != nil:
+		return r.SaveFiles
 	}
 	return nil
 }
@@ -75,7 +78,7 @@ func (s reports) reporters() (reps []reporter) {
 	return
 }
 
-// EmitLog is a report that emits logs to the console.
+// EmitLog is a reporter that emits LogEntry's to the console.
 type EmitLog struct {
 }
 
@@ -91,6 +94,49 @@ func (l *EmitLog) report(in reportIn) {
 				fmt.Println(v)
 			case node.Error:
 				fmt.Println(v)
+			}
+		}
+	}()
+	return
+}
+
+// SaveFiles is a reporter that saves FileData.
+type SaveFiles struct {
+}
+
+// report implements reporter
+func (s *SaveFiles) report(in reportIn) {
+	go func() {
+		m := make(map[string]*os.File)
+		var e error
+		defer func() {
+			if e != nil {
+				in.errc <- e
+			}
+			for n, f := range m {
+				f.Close()
+				delete(m, n)
+			}
+			for range in.data {
+			}
+			in.errc <- reportDone
+		}()
+		for d := range in.data {
+			var fd node.FileData
+			var ok bool
+			if fd, ok = d.(node.FileData); !ok {
+				continue
+			}
+			var f *os.File
+			if f, ok = m[fd.Name]; !ok {
+				n := in.test.outPath(fd.Name)
+				if f, e = os.Create(n); e != nil {
+					return
+				}
+				m[fd.Name] = f
+			}
+			if _, e = f.Write(fd.Data); e != nil {
+				return
 			}
 		}
 	}()

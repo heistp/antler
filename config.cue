@@ -37,6 +37,7 @@ Run: #TestRun
 
 // antler.EmitLog
 #EmitLog: {
+	To?: [string & !="", ...]
 }
 
 // antler.SaveFiles

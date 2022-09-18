@@ -78,22 +78,55 @@ func (s reports) reporters() (reps []reporter) {
 	return
 }
 
-// EmitLog is a reporter that emits LogEntry's to the console.
+// EmitLog is a reporter that emits LogEntry's to files and/or stdout.
 type EmitLog struct {
+	// To lists the destinations to send output to. "-" sends output to stdout,
+	// and everything else sends output to the named file. If To is empty,
+	// output is emitted to stdout.
+	To []string
 }
 
 // report implements reporter
 func (l *EmitLog) report(in reportIn) {
 	go func() {
+		var e error
+		var ff []*os.File
 		defer func() {
+			if e != nil {
+				in.errc <- e
+			}
+			for _, f := range ff {
+				f.Close()
+			}
+			for range in.data {
+			}
 			in.errc <- reportDone
 		}()
+		ww := []io.Writer{os.Stdout}
+		if len(l.To) > 0 {
+			ww = ww[:0]
+			for _, s := range l.To {
+				if s == "-" {
+					ww = append(ww, os.Stdout)
+					continue
+				}
+				n := in.test.outPath(s)
+				var f *os.File
+				if f, e = os.Create(n); e != nil {
+					return
+				}
+				ww = append(ww, f)
+				ff = append(ff, f)
+			}
+		}
 		for d := range in.data {
 			switch v := d.(type) {
-			case node.LogEntry:
-				fmt.Println(v)
-			case node.Error:
-				fmt.Println(v)
+			case node.LogEntry, node.Error:
+				for _, w := range ww {
+					if _, e = fmt.Fprintln(w, v); e != nil {
+						return
+					}
+				}
 			}
 		}
 	}()

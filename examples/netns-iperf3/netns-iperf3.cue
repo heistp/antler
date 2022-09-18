@@ -17,7 +17,9 @@ Run: {
 		Serial: [stream, setup, server, run]
 	}
 	Report: [
-		{EmitLog: {}},
+		{EmitLog: {
+			To: ["-", "node.log"]
+		}},
 		{SaveFiles: {}},
 	]
 }

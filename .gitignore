@@ -7,8 +7,9 @@
 .exrc
 
 # examples output
-examples/**/*.pcap
 examples/**/*.gob
+examples/**/*.log
+examples/**/*.pcap
 
 # node/bin directory
 node/bin/

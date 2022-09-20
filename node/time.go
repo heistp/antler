@@ -21,3 +21,8 @@ func (d *Duration) UnmarshalText(text []byte) (err error) {
 	*d = Duration(dd)
 	return
 }
+
+// Duration returns the time.Duration.
+func (d *Duration) Duration() time.Duration {
+	return time.Duration(*d)
+}

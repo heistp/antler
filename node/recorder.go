@@ -43,18 +43,18 @@ func (r *recorder) WithTag(tag string) *recorder {
 func (r *recorder) Logf(format string, a ...interface{}) {
 	t := time.Now()
 	m := fmt.Sprintf(format, a...)
-	r.send(LogEntry{t, r.nodeID, r.tag, m})
+	r.Send(LogEntry{t, r.nodeID, r.tag, m})
 }
 
 // Log sends a LogEntry with the given message.
 func (r *recorder) Log(message string) {
 	t := time.Now()
-	r.send(LogEntry{t, r.nodeID, r.tag, message})
+	r.Send(LogEntry{t, r.nodeID, r.tag, message})
 }
 
 // FileData sends a FileData.
 func (r *recorder) FileData(name string, data []byte) {
-	r.send(FileData{name, data})
+	r.Send(FileData{name, data})
 }
 
 // Stream sends a Stream filter to the parent conn.
@@ -64,21 +64,21 @@ func (r *recorder) Stream(s *ResultStream) {
 
 // SendError sends an Error created by NewError.
 func (r *recorder) SendError(message string) {
-	r.send(r.NewError(message))
+	r.Send(r.NewError(message))
 }
 
 // SendErrore sends an error created by NewErrore.
 func (r *recorder) SendErrore(err error) {
-	r.send(r.NewErrore(err))
+	r.Send(r.NewErrore(err))
 }
 
 // SendErrorf sends an error created by NewErrorf.
 func (r *recorder) SendErrorf(format string, a ...interface{}) {
-	r.send(r.NewErrorf(format, a...))
+	r.Send(r.NewErrorf(format, a...))
 }
 
-// send sends a message to the parent conn.
-func (r *recorder) send(msg message) {
+// Send sends a message to the parent conn.
+func (r *recorder) Send(msg message) {
 	r.parent.Send(msg)
 }
 

@@ -62,6 +62,21 @@ func (r *recorder) Stream(s *ResultStream) {
 	r.parent.Stream(s)
 }
 
+// SendError sends an Error created by NewError.
+func (r *recorder) SendError(message string) {
+	r.send(r.NewError(message))
+}
+
+// SendErrore sends an error created by NewErrore.
+func (r *recorder) SendErrore(err error) {
+	r.send(r.NewErrore(err))
+}
+
+// SendErrorf sends an error created by NewErrorf.
+func (r *recorder) SendErrorf(format string, a ...interface{}) {
+	r.send(r.NewErrorf(format, a...))
+}
+
 // send sends a message to the parent conn.
 func (r *recorder) send(msg message) {
 	r.parent.Send(msg)

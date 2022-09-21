@@ -63,8 +63,9 @@ func (r *reporters) reporter() reporter {
 		return r.EmitLog
 	case r.SaveFiles != nil:
 		return r.SaveFiles
+	default:
+		panic("no reporter set in reporters union")
 	}
-	return nil
 }
 
 // reports is a slice of Report's, with some convenience methods.

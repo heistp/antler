@@ -17,14 +17,14 @@ import (
 
 // TCPStreamServer is a server used for TCP stream tests.
 type TCPStreamServer struct {
+	// ListenAddr is the TCP listen address, as specified to the address
+	// parameter in net.Listen (e.g. ":port" or "addr:port").
+	ListenAddr string
+
 	// AddrKey is the key used in the returned Feedback for the listen address,
 	// obtained using Listen.Addr.String(). If empty, the listen address will
 	// not be included in the Feedback.
 	AddrKey string
-
-	// ListenAddr is the TCP listen address, as specified to the address
-	// parameter in net.Listen (e.g. ":port" or "addr:port").
-	ListenAddr string
 
 	// TCPStream embeds the TCP stream parameters.
 	TCPStream
@@ -35,7 +35,7 @@ type TCPStreamServer struct {
 // Run implements runner
 func (s *TCPStreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
-	c := net.ListenConfig{Control: s.listenControl}
+	c := net.ListenConfig{Control: s.control}
 	var l net.Listener
 	if l, err = c.Listen(ctx, "tcp", s.ListenAddr); err != nil {
 		return
@@ -45,21 +45,6 @@ func (s *TCPStreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	}
 	s.run(ctx, l, arg.rec)
 	arg.cxl <- s
-	return
-}
-
-// listenControl is the ListenConfig.Control func for the server.
-func (s *TCPStreamServer) listenControl(network, address string,
-	conn syscall.RawConn) (err error) {
-	c := func(fd uintptr) {
-		if s.CCA != "" {
-			err = unix.SetsockoptString(int(fd), unix.IPPROTO_TCP,
-				unix.TCP_CONGESTION, s.CCA)
-		}
-	}
-	if e := conn.Control(c); e != nil && err == nil {
-		err = e
-	}
 	return
 }
 
@@ -131,6 +116,7 @@ func (s *TCPStreamServer) serve(conn *net.TCPConn, rec *recorder,
 	errc chan error) {
 	var e error
 	defer func() {
+		conn.Close()
 		if e != nil {
 			errc <- e
 		}
@@ -153,43 +139,15 @@ func (s *TCPStreamServer) serve(conn *net.TCPConn, rec *recorder,
 			t := time.Now()
 			dt, ds := t.Sub(t0), t.Sub(ts)
 			l += uint64(n)
-			done = dt > dur
-			if n > 0 && (e != nil || ds > in || done) {
+			done = dt > dur || e != nil
+			if n > 0 && (ds > in || done) {
 				rec.Send(TCPByteTotal{s.Series, dt, l})
-			}
-			if e != nil {
-				if e == io.EOF {
-					e = nil
-				}
-				break
 			}
 		}
 	} else {
 		e = fmt.Errorf("upload not supported")
 		return
 	}
-}
-
-// TCPStreamInfo is a data point at the beginning of the TCP stream containing
-// meta-information about the stream.
-type TCPStreamInfo struct {
-	T0        time.Time // T0 is the stream start time
-	TCPStream           // TCPStream contains the stream parameters
-}
-
-// init registers TCPStreamInfo with the gob encoder
-func init() {
-	gob.Register(TCPStreamInfo{})
-}
-
-// flags implements message
-func (TCPStreamInfo) flags() flag {
-	return flagForward
-}
-
-// handle implements event
-func (i TCPStreamInfo) handle(node *node) {
-	node.parent.Send(i)
 }
 
 // TCPByteTotal is a time series data point containing a total number of bytes
@@ -212,6 +170,95 @@ func (TCPByteTotal) flags() flag {
 
 // handle implements event
 func (i TCPByteTotal) handle(node *node) {
+	node.parent.Send(i)
+}
+
+// TCPStreamClient is a client used for TCP stream tests.
+type TCPStreamClient struct {
+	// Addr is the TCP dial address, as specified to the address parameter in
+	// net.Dial (e.g. "addr:port").
+	Addr string
+
+	// AddrKey is a key used to obtain the dial address from the incoming
+	// Feedback, if Addr is not specified.
+	AddrKey string
+
+	// TCPStream embeds the TCP stream parameters.
+	TCPStream
+}
+
+// Run implements runner
+func (s *TCPStreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
+	err error) {
+	var a string
+	if a, err = s.addr(arg.ifb); err != nil {
+		return
+	}
+	d := net.Dialer{Control: s.control}
+	var c net.Conn
+	if c, err = d.Dial("tcp", a); err != nil {
+		return
+	}
+	defer c.Close()
+	if s.Download {
+		b := make([]byte, s.ReadBufLen)
+		in := s.Interval.Duration()
+		t0 := time.Now()
+		arg.rec.Send(TCPStreamInfo{t0, s.TCPStream})
+		ts := t0
+		for {
+			var n int
+			var l uint64
+			n, err = c.Read(b)
+			t := time.Now()
+			dt, ds := t.Sub(t0), t.Sub(ts)
+			l += uint64(n)
+			if n > 0 && (ds > in || err != nil) {
+				arg.rec.Send(TCPByteTotal{s.Series, dt, l})
+			}
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				break
+			}
+		}
+	}
+	return
+}
+
+// addr returns the dial address, from either Addr or AddrKey.
+func (s *TCPStreamClient) addr(ifb Feedback) (a string, err error) {
+	if a = s.Addr; a != "" {
+		return
+	}
+	if v, ok := ifb[s.AddrKey]; ok {
+		a = v.(string)
+	} else {
+		err = fmt.Errorf("no address specified in Addr or AddrKey")
+	}
+	return
+}
+
+// TCPStreamInfo is a data point at the beginning of the TCP stream containing
+// meta-information about the stream.
+type TCPStreamInfo struct {
+	T0        time.Time // T0 is the stream start time
+	TCPStream           // TCPStream contains the stream parameters
+}
+
+// init registers TCPStreamInfo with the gob encoder
+func init() {
+	gob.Register(TCPStreamInfo{})
+}
+
+// flags implements message
+func (TCPStreamInfo) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (i TCPStreamInfo) handle(node *node) {
 	node.parent.Send(i)
 }
 
@@ -240,4 +287,19 @@ type TCPStream struct {
 
 	// WriteBufLen is the size of the buffer used to write to the conn.
 	WriteBufLen int
+}
+
+// control provides ListenConfig.Control and Dialer.Control.
+func (s *TCPStream) control(network, address string, conn syscall.RawConn) (
+	err error) {
+	c := func(fd uintptr) {
+		if s.CCA != "" {
+			err = unix.SetsockoptString(int(fd), unix.IPPROTO_TCP,
+				unix.TCP_CONGESTION, s.CCA)
+		}
+	}
+	if e := conn.Control(c); e != nil && err == nil {
+		err = e
+	}
+	return
 }

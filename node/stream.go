@@ -74,9 +74,9 @@ func (f *MessageFilter) accept(msg message) (verdict bool) {
 	case LogEntry:
 		verdict = f.Log
 		return
-	case DataPoint:
+	case Serieser:
 		for _, s := range f.Series {
-			if v.Series == s {
+			if v.Series() == s {
 				verdict = true
 				return
 			}

@@ -8,10 +8,9 @@ import (
 	"time"
 )
 
-// recorder is a helper used for logging, recording DataPoint's and creating
+// recorder is a helper used for logging, recording data points and creating
 // Error's. recorder must be created using newRecorder, and is safe for
-// concurrent use. Close must be called after use to stop the internal goroutine
-// used for data buffering.
+// concurrent use.
 type recorder struct {
 	nodeID string
 	tag    string

@@ -21,10 +21,10 @@ type TCPStreamServer struct {
 	// parameter in net.Listen (e.g. ":port" or "addr:port").
 	ListenAddr string
 
-	// AddrKey is the key used in the returned Feedback for the listen address,
-	// obtained using Listen.Addr.String(). If empty, the listen address will
-	// not be included in the Feedback.
-	AddrKey string
+	// ListenAddrKey is the key used in the returned Feedback for the listen
+	// address, obtained using Listen.Addr.String(). If empty, the listen
+	// address will not be included in the Feedback.
+	ListenAddrKey string
 
 	// TCPStream embeds the TCP stream parameters.
 	TCPStream
@@ -40,10 +40,11 @@ func (s *TCPStreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if l, err = c.Listen(ctx, "tcp", s.ListenAddr); err != nil {
 		return
 	}
-	if s.AddrKey != "" {
-		ofb[s.AddrKey] = l.Addr().String()
+	if s.ListenAddrKey != "" {
+		ofb[s.ListenAddrKey] = l.Addr().String()
 	}
-	s.run(ctx, l, arg.rec)
+	s.errc = make(chan error)
+	s.start(ctx, l, arg.rec)
 	arg.cxl <- s
 	return
 }
@@ -53,10 +54,9 @@ func (s *TCPStreamServer) Cancel(rec *recorder) error {
 	return <-s.errc
 }
 
-// run is the entry point for the server goroutine.
-func (s *TCPStreamServer) run(ctx context.Context, lst net.Listener,
+// start starts the main and accept goroutines.
+func (s *TCPStreamServer) start(ctx context.Context, lst net.Listener,
 	rec *recorder) {
-	s.errc = make(chan error)
 	ec := make(chan error)
 	cc := make(chan net.Conn)
 	// accept goroutine

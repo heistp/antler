@@ -7,19 +7,19 @@
 
 package netns_iperf3
 
-// stream includes logs for streaming during the test
-stream: {ResultStream: Include: Log: true}
+// stream includes logs for streaming during the test.
+// This is passed to all nodes before setup.
+streamLog: {ResultStream: Include: Log: true}
 
-// Run contains a single Test that runs setup and run in serial
+// Run contains a single Test. After log streaming is configured, setup is
+// run, the server is started, then the test is run.
 Run: {
 	Test: {
 		ID: {"Name": "netns-iperf3"}
-		Serial: [stream, setup, server, run]
+		Serial: [streamLog, setup, server, run]
 	}
 	Report: [
-		{EmitLog: {
-			To: ["-", "node.log"]
-		}},
+		{EmitLog: {To: ["-", "node.log"]}},
 		{SaveFiles: {}},
 	]
 }
@@ -30,7 +30,7 @@ setup: {
 		for n in [ ns.right, ns.mid, ns.left] {
 			Child: {
 				Node: n.node
-				Serial: [stream, for c in n.setup {System: Command: c}]
+				Serial: [streamLog, for c in n.setup {System: Command: c}]
 			}
 		},
 	]

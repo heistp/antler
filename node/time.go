@@ -9,7 +9,7 @@ import "time"
 const readableTimeFormat = "2006-01-02 15:04:05.000000"
 
 // Duration wraps a time.Duration and adds a TextUnmarshaler for conversion from
-// a string in CUE.
+// a string in CUE, using time.ParseDuration.
 type Duration time.Duration
 
 // UnmarshalText implements encoding.TextUnmarshaler.

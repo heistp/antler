@@ -8,19 +8,24 @@ import (
 	"time"
 )
 
-// Sleep is a runner that sleeps for the given duration, with the format
-// expected by time.ParseDuration.
-type Sleep string
+// Sleep is a runner that sleeps for the given Duration, or until canceled.
+type Sleep Duration
 
-// Run implements runner
-func (s Sleep) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
-	var d time.Duration
-	if d, err = time.ParseDuration(string(s)); err != nil {
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *Sleep) UnmarshalText(text []byte) (err error) {
+	d := Duration(*s)
+	if err = d.UnmarshalText(text); err != nil {
 		return
 	}
+	*s = Sleep(d)
+	return
+}
+
+// Run implements runner
+func (s *Sleep) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
 	select {
 	case <-ctx.Done():
-	case <-time.After(d):
+	case <-time.After(time.Duration(*s)):
 	}
 	return
 }

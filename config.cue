@@ -71,19 +71,23 @@ Run: #TestRun
 // node.Runners
 #Runners: {
 	{} | {
-		Sleep?: #Sleep
+		Sleep?: #Duration
 	} | {
 		ResultStream?: #ResultStream
 	} | {
 		System?: #System
+	} | {
+		TCPStreamClient?: #TCPStreamClient
+	} | {
+		TCPStreamServer?: #TCPStreamServer
 	}
 }
 
+// node.Duration
+#Duration: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
+
 // node.Series
 #Series: string & !=""
-
-// node.Sleep
-#Sleep: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
 
 // node.ResultStream
 #ResultStream: {
@@ -107,6 +111,37 @@ Run: #TestRun
 	Stdout?:       string & !=""
 	Stderr?:       string & !=""
 	Kill?:         bool
+}
+
+// node.TCPStream
+#TCPStream: {
+	Series:       #Series
+	Download?:    bool
+	CCA?:         string & !=""
+	Duration?:    #Duration | *"1m"
+	Interval?:    #Duration | *"50ms"
+	ReadBufLen?:  int | *16384
+	WriteBufLen?: int | *16384
+}
+
+// node.TCPStreamClient
+#TCPStreamClient: {
+	{} | {
+		Addr?: string & !=""
+	} | {
+		AddrKey?: string & !=""
+	}
+	#TCPStream
+}
+
+// node.TCPStreamServer
+#TCPStreamServer: {
+	{} | {
+		ListenAddr?: string & !=""
+	} | {
+		ListenAddrKey?: string & !=""
+	}
+	#TCPStream
 }
 
 // node.Child

@@ -115,13 +115,13 @@ Run: #TestRun
 
 // node.TCPStream
 #TCPStream: {
-	Series:       #Series
-	Download?:    bool
-	CCA?:         string & !=""
-	Duration?:    #Duration | *"1m"
-	Interval?:    #Duration | *"50ms"
-	ReadBufLen?:  int | *16384
-	WriteBufLen?: int | *16384
+	Series:      #Series
+	Download?:   bool
+	CCA?:        string & !=""
+	Duration?:   #Duration | *"1m"
+	Interval?:   #Duration | *"50ms"
+	ReadBufLen:  int & >0 | *16384
+	WriteBufLen: int & >0 | *16384
 }
 
 // node.TCPStreamClient

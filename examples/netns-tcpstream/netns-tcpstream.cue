@@ -59,7 +59,7 @@ ns: {
 			"ip link set dev mid.b up",
 			"ethtool -K mid.l \(#offloads)",
 			"ethtool -K mid.r \(#offloads)",
-			"tc qdisc add dev mid.r root cake bandwidth 50Mbit datacentre",
+			"tc qdisc add dev mid.l root cake bandwidth 50Mbit datacentre",
 		]
 	}
 	left: {

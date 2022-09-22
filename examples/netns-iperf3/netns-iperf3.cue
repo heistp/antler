@@ -59,7 +59,8 @@ ns: {
 			"ip link set dev mid.b up",
 			"ethtool -K mid.l \(#offloads)",
 			"ethtool -K mid.r \(#offloads)",
-			"tc qdisc add dev mid.r root cake bandwidth 50Mbit datacentre",
+			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
+			"tc qdisc add dev mid.l root netem delay 20ms limit 100000",
 		]
 	}
 	left: {

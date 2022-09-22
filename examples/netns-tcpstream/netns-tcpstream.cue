@@ -40,6 +40,7 @@ setup: {
 ns: {
 	right: {
 		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip link add dev right.l type veth peer name mid.r",
 			"ip link set dev mid.r netns mid",
 			"ip addr add 10.0.0.2/24 dev right.l",
@@ -49,6 +50,7 @@ ns: {
 	}
 	mid: {
 		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip link set mid.r up",
 			"ip link add dev mid.l type veth peer name left.r",
 			"ip link set dev left.r netns left",
@@ -59,8 +61,8 @@ ns: {
 			"ip link set dev mid.b up",
 			"ethtool -K mid.l \(#offloads)",
 			"ethtool -K mid.r \(#offloads)",
-			"tc qdisc add dev mid.l root cake bandwidth 50Mbit",
-			"tc qdisc add dev mid.r root netem delay 20ms limit 100000",
+			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
+			"tc qdisc add dev mid.l root netem delay 20ms limit 100000",
 			//"modprobe ifb",
 			//"ip link add dev i.mid.r type ifb",
 			//"tc qdisc add dev i.mid.r root handle 1: netem delay 10ms limit 100000",
@@ -71,6 +73,7 @@ ns: {
 	}
 	left: {
 		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip addr add 10.0.0.1/24 dev left.r",
 			"ip link set left.r up",
 			"ethtool -K left.r \(#offloads)",
@@ -92,15 +95,19 @@ ns: [id=_]: node: {
 // serverAddr is the server listen and client dial address
 #serverAddr: "10.0.0.2:777"
 
+// tcpStream contains common TCPStream parameters
+tcpStream: {
+	Duration: "20s"
+	Download: false
+}
+
 // server runs TCPStreamServer in the right namespace
 server: {
 	Child: {
-		Node: ns.right.node
-		TCPStreamServer: {
+		Node:            ns.right.node
+		TCPStreamServer: tcpStream & {
 			ListenAddr: #serverAddr
-			Series:     "tcp.server"
-			Duration:   "3s"
-			Download:   true
+			Series:     "bytes.server"
 		}
 	}
 }
@@ -116,12 +123,10 @@ run: {
 				Background: true
 				Stdout:     "left.pcap"
 			}},
-			{Sleep: "500ms"},
-			{TCPStreamClient: {
-				Addr:     #serverAddr
-				Series:   "tcp.client"
-				Duration: "3s"
-				Download: true
+			{Sleep:           "500ms"},
+			{TCPStreamClient: tcpStream & {
+				Addr:   #serverAddr
+				Series: "bytes.client"
 			}},
 		]
 	}

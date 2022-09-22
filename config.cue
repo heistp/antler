@@ -120,8 +120,8 @@ Run: #TestRun
 	CCA?:        string & !=""
 	Duration?:   #Duration | *"1m"
 	Interval?:   #Duration | *"50ms"
-	ReadBufLen:  int & >0 | *16384
-	WriteBufLen: int & >0 | *16384
+	ReadBufLen:  int & >0 | *(1024 * 128)
+	WriteBufLen: int & >0 | *(1024 * 128)
 }
 
 // node.TCPStreamClient

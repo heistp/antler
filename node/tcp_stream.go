@@ -92,7 +92,7 @@ func (s *TCPStreamServer) start(ctx context.Context, lst net.Listener,
 			case c := <-cc:
 				t := c.(*net.TCPConn)
 				g++
-				go s.serve(t, rec, ec)
+				go s.serve(ctx, t, rec, ec)
 			case <-d:
 				d = nil
 				err = lst.Close()
@@ -112,8 +112,8 @@ func (s *TCPStreamServer) start(ctx context.Context, lst net.Listener,
 }
 
 // serve serves one connection.
-func (s *TCPStreamServer) serve(conn *net.TCPConn, rec *recorder,
-	errc chan error) {
+func (s *TCPStreamServer) serve(ctx context.Context, conn *net.TCPConn,
+	rec *recorder, errc chan error) {
 	var e error
 	defer func() {
 		conn.Close()
@@ -123,30 +123,9 @@ func (s *TCPStreamServer) serve(conn *net.TCPConn, rec *recorder,
 		errc <- errDone
 	}()
 	if s.Download {
-		b := make([]byte, s.WriteBufLen)
-		for i := 0; i < s.WriteBufLen; i++ {
-			b[i] = 0xfe
-		}
-		in, dur := s.Interval.Duration(), s.Duration.Duration()
-		t0 := time.Now()
-		rec.Send(TCPStreamInfo{t0, s.TCPStream})
-		ts := t0
-		var l uint64
-		var done bool
-		for !done {
-			var n int
-			n, e = conn.Write(b)
-			t := time.Now()
-			dt, ds := t.Sub(t0), t.Sub(ts)
-			l += uint64(n)
-			done = dt > dur || e != nil
-			if n > 0 && (ds > in || done) {
-				rec.Send(TCPByteTotal{s.Series, dt, l})
-				ts = t
-			}
-		}
+		e = s.send(ctx, conn, rec)
 	} else {
-		e = fmt.Errorf("upload not supported")
+		e = s.receive(conn, rec)
 	}
 }
 
@@ -196,36 +175,14 @@ func (s *TCPStreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	}
 	d := net.Dialer{Control: s.control}
 	var c net.Conn
-	if c, err = d.Dial("tcp", a); err != nil {
+	if c, err = d.DialContext(ctx, "tcp", a); err != nil {
 		return
 	}
 	defer c.Close()
 	if s.Download {
-		b := make([]byte, s.ReadBufLen)
-		in := s.Interval.Duration()
-		t0 := time.Now()
-		arg.rec.Send(TCPStreamInfo{t0, s.TCPStream})
-		ts := t0
-		var l uint64
-		for {
-			var n int
-			n, err = c.Read(b)
-			t := time.Now()
-			dt, ds := t.Sub(t0), t.Sub(ts)
-			l += uint64(n)
-			if n > 0 && (ds > in || err != nil) {
-				arg.rec.Send(TCPByteTotal{s.Series, dt, l})
-				ts = t
-			}
-			if err != nil {
-				if err == io.EOF {
-					err = nil
-				}
-				break
-			}
-		}
+		err = s.receive(c, arg.rec)
 	} else {
-		err = fmt.Errorf("upload not supported")
+		err = s.send(ctx, c, arg.rec)
 	}
 	return
 }
@@ -303,6 +260,67 @@ func (s *TCPStream) control(network, address string, conn syscall.RawConn) (
 	}
 	if e := conn.Control(c); e != nil && err == nil {
 		err = e
+	}
+	return
+}
+
+// send runs the send side of a stream.
+func (s *TCPStream) send(ctx context.Context, w io.Writer, rec *recorder) (
+	err error) {
+	b := make([]byte, s.WriteBufLen)
+	for i := 0; i < s.WriteBufLen; i++ {
+		b[i] = 0xfe
+	}
+	in, dur := s.Interval.Duration(), s.Duration.Duration()
+	t0 := time.Now()
+	rec.Send(TCPStreamInfo{t0, *s})
+	ts := t0
+	var l uint64
+	var done bool
+	for !done {
+		var n int
+		n, err = w.Write(b)
+		t := time.Now()
+		dt, ds := t.Sub(t0), t.Sub(ts)
+		l += uint64(n)
+		select {
+		case <-ctx.Done():
+			done = true
+		default:
+			done = dt > dur || err != nil
+		}
+		if n > 0 && (ds > in || done) {
+			rec.Send(TCPByteTotal{s.Series, dt, l})
+			ts = t
+		}
+	}
+	return
+}
+
+// receive runs the receive side of a stream.
+func (s *TCPStream) receive(r io.Reader, rec *recorder) (err error) {
+	b := make([]byte, s.ReadBufLen)
+	in := s.Interval.Duration()
+	t0 := time.Now()
+	rec.Send(TCPStreamInfo{t0, *s})
+	ts := t0
+	var l uint64
+	for {
+		var n int
+		n, err = r.Read(b)
+		t := time.Now()
+		dt, ds := t.Sub(t0), t.Sub(ts)
+		l += uint64(n)
+		if n > 0 && (ds > in || err != nil) {
+			rec.Send(TCPByteTotal{s.Series, dt, l})
+			ts = t
+		}
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			break
+		}
 	}
 	return
 }

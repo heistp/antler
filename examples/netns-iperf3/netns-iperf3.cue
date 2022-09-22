@@ -40,6 +40,7 @@ setup: {
 ns: {
 	right: {
 		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip link add dev right.l type veth peer name mid.r",
 			"ip link set dev mid.r netns mid",
 			"ip addr add 10.0.0.2/24 dev right.l",
@@ -49,6 +50,7 @@ ns: {
 	}
 	mid: {
 		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip link set mid.r up",
 			"ip link add dev mid.l type veth peer name left.r",
 			"ip link set dev left.r netns left",
@@ -65,6 +67,7 @@ ns: {
 	}
 	left: {
 		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip addr add 10.0.0.1/24 dev left.r",
 			"ip link set left.r up",
 			"ethtool -K left.r \(#offloads)",

@@ -26,7 +26,7 @@ func (c *Control) Cancel(reason string) {
 	}
 }
 
-// run is the Control goroutine's main entry point.
+// run is the Control goroutine's main entry point, called by the node.
 func (c *Control) run(ev chan<- event) {
 	var e chan<- event
 	var h event

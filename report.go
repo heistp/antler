@@ -45,7 +45,7 @@ type reportIn struct {
 // done processing.
 var reportDone = errors.New("report done")
 
-// Report is a union of the available reporters.
+// Report represents the report configuration.
 type Report struct {
 	reporters
 }
@@ -244,6 +244,52 @@ func (s *reporterStack) list() (l []reporter) {
 func (s *reporterStack) size() (sz int) {
 	for _, r := range *s {
 		sz += len(r)
+	}
+	return
+}
+
+// tee receives data from the given channel, and sends it to each reporter in
+// the stack. On the first error, the node is canceled if the Control is not
+// nil. After data is read in full, the first error, if any, is returned.
+func (s *reporterStack) tee(data chan interface{}, test *Test,
+	ctrl *node.Control) (err error) {
+	ec := make(chan error)
+	var cc []chan interface{}
+	for _, r := range s.list() {
+		c := make(chan interface{}, dataChanBufSize)
+		cc = append(cc, c)
+		r.report(reportIn{test, c, ec})
+	}
+	n := s.size()
+	dc := data
+	for n > 0 || dc != nil {
+		select {
+		case e := <-ec:
+			if e == reportDone {
+				n--
+				break
+			}
+			if err == nil {
+				err = e
+				if ctrl != nil {
+					ctrl.Cancel(e.Error())
+				}
+			}
+		case d, ok := <-dc:
+			if !ok {
+				dc = nil
+				for _, c := range cc {
+					close(c)
+				}
+				break
+			}
+			if e, ok := d.(error); ok && err == nil {
+				err = e
+			}
+			for _, c := range cc {
+				c <- d
+			}
+		}
 	}
 	return
 }

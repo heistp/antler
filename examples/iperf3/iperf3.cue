@@ -5,7 +5,7 @@
 // and runs an iperf3 test between the left and right endpoints. The middlebox
 // (mid namespace) has the cake qdisc added at 50 Mbit.
 
-package netns_iperf3
+package iperf3
 
 // stream includes logs for streaming during the test.
 // This is passed to all nodes before setup.
@@ -15,7 +15,7 @@ streamLog: {ResultStream: Include: Log: true}
 // run, the server is started, then the test is run.
 Run: {
 	Test: {
-		ID: {"Name": "netns-iperf3"}
+		ID: {"Name": "iperf3"}
 		Serial: [streamLog, setup, server, run]
 	}
 	Report: [
@@ -108,7 +108,7 @@ run: {
 				Stdout:     "left.pcap"
 			}},
 			{Sleep:           "500ms"},
-			{System: Command: "iperf3 -t 10 -c 10.0.0.2"},
+			{System: Command: "iperf3 -t 60 -c 10.0.0.2"},
 		]
 	}
 }

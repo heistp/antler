@@ -5,7 +5,7 @@
 // and runs a single TCP stream from the right to the left endpoint. The
 // middlebox ("mid" namespace) has the cake qdisc added at 50 Mbit.
 
-package netns_tcpstream
+package tcpstream
 
 // stream includes logs for streaming during the test
 // This is passed to all nodes before setup.
@@ -15,12 +15,16 @@ stream: {ResultStream: Include: Log: true}
 // run, the server is started, then the test is run.
 Run: {
 	Test: {
-		ID: {"Name": "netns-tcpstream"}
+		ID: {"Name": "tcpstream"}
 		Serial: [stream, setup, server, run]
 	}
 	Report: [
 		{EmitLog: {To: ["-", "node.log"]}},
 		{SaveFiles: {}},
+		{ExecuteTemplate: {
+			From: ["throughput.tpl"]
+			To: "throughput.html"
+		}},
 	]
 }
 
@@ -97,8 +101,10 @@ ns: [id=_]: node: {
 
 // tcpStream contains common TCPStream parameters
 tcpStream: {
-	Duration: "20s"
-	Download: false
+	Duration:         "3s"
+	Download:         false
+	SampleIO:         true
+	SampleIOInterval: "10ms"
 }
 
 // server runs TCPStreamServer in the right namespace
@@ -131,3 +137,8 @@ run: {
 		]
 	}
 }
+
+// throughputGchart is the throughput plot template for Google Charts.
+#throughputGchart: """
+	Hello World!
+	"""

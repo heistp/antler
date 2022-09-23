@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"text/template"
 
 	"github.com/heistp/antler/node"
 )
@@ -52,8 +53,9 @@ type Report struct {
 
 // reporters is a union of the available reporters.
 type reporters struct {
-	EmitLog   *EmitLog
-	SaveFiles *SaveFiles
+	EmitLog         *EmitLog
+	ExecuteTemplate *ExecuteTemplate
+	SaveFiles       *SaveFiles
 }
 
 // reporter returns the only non-nil reporter implementation.
@@ -61,6 +63,8 @@ func (r *reporters) reporter() reporter {
 	switch {
 	case r.EmitLog != nil:
 		return r.EmitLog
+	case r.ExecuteTemplate != nil:
+		return r.ExecuteTemplate
 	case r.SaveFiles != nil:
 		return r.SaveFiles
 	default:
@@ -173,6 +177,69 @@ func (s *SaveFiles) report(in reportIn) {
 				return
 			}
 		}
+	}()
+	return
+}
+
+// ExecuteTemplate is a reporter that executes a Go template and saves the
+// results to a file.
+type ExecuteTemplate struct {
+	// Name is the name of the template.
+	Name string
+
+	// From is the names of files to parse the template from
+	// (template.ParseFiles).
+	From []string
+
+	// Text is the body of the template, to be parsed by Template.Parse.
+	Text string
+
+	// To is the name of a file to execute the template to, or "-" for stdout.
+	To string
+}
+
+// report implements reporter
+func (x *ExecuteTemplate) report(in reportIn) {
+	type templateData struct {
+		Test *Test
+		Data chan interface{}
+	}
+	go func() {
+		var w io.WriteCloser
+		var e error
+		defer func() {
+			if e != nil {
+				in.errc <- e
+			}
+			if w != nil && w != os.Stdout {
+				w.Close()
+			}
+			for range in.data {
+			}
+			in.errc <- reportDone
+		}()
+		var t *template.Template
+		if x.Text != "" {
+			t = template.New(x.Name)
+			if t, e = t.Parse(x.Text); e != nil {
+				return
+			}
+		} else {
+			var f []string
+			for _, n := range x.From {
+				f = append(f, in.test.outPath(n))
+			}
+			if t, e = template.ParseFiles(f...); e != nil {
+				return
+			}
+		}
+		w = os.Stdout
+		if x.To != "-" {
+			if w, e = os.Create(x.To); e != nil {
+				return
+			}
+		}
+		e = t.Execute(w, templateData{in.test, in.data})
 	}()
 	return
 }

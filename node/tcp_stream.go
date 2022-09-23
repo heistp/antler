@@ -129,27 +129,32 @@ func (s *TCPStreamServer) serve(ctx context.Context, conn *net.TCPConn,
 	}
 }
 
-// TCPByteTotal is a time series data point containing a total number of bytes
+// IOSample is a time series data point containing a total number of bytes
 // sent or received by the TCPStream runner.
-type TCPByteTotal struct {
-	Series Series        // series the ByteCount belongs to
-	Time   time.Duration // duration since stream began (T0 in TCPStreamInfo)
+type IOSample struct {
+	Series Series        // series the IOSample belongs to
+	T      time.Duration // duration since stream began (T0 in TCPStreamInfo)
 	Total  uint64        // total byte count sent or received
 }
 
-// init registers TCPByteTotal with the gob encoder
+// init registers IOSample with the gob encoder
 func init() {
-	gob.Register(TCPByteTotal{})
+	gob.Register(IOSample{})
 }
 
 // flags implements message
-func (TCPByteTotal) flags() flag {
+func (IOSample) flags() flag {
 	return flagForward
 }
 
 // handle implements event
-func (i TCPByteTotal) handle(node *node) {
+func (i IOSample) handle(node *node) {
 	node.parent.Send(i)
+}
+
+func (i IOSample) String() string {
+	return fmt.Sprintf("IOSample[Series:%s T:%s Total:%d]",
+		i.Series, i.T, i.Total)
 }
 
 // TCPStreamClient is a client used for TCP stream tests.
@@ -222,6 +227,11 @@ func (i TCPStreamInfo) handle(node *node) {
 	node.parent.Send(i)
 }
 
+func (i TCPStreamInfo) String() string {
+	return fmt.Sprintf("TCPStreamInfo[T0:%s Stream:%s]",
+		i.T0, i.TCPStream.String())
+}
+
 // TCPStream contains the parameters for a TCP stream, used in the client,
 // server and TCPStreamInfo.
 type TCPStream struct {
@@ -238,9 +248,13 @@ type TCPStream struct {
 	// Duration is the length of time the stream runs.
 	Duration Duration
 
-	// Interval is the minimum time between ByteCount samples. If Interval is 0,
-	// a ByteCount sample will be returned for every read and write.
-	Interval Duration
+	// SampleIO, if true, sends IOSamples to record the progress of read and
+	// write syscalls.
+	SampleIO bool
+
+	// SampleIOInterval is the minimum time between IOSamples. Zero means a
+	// sample will be returned for every read and write.
+	SampleIOInterval Duration
 
 	// ReadBufLen is the size of the buffer used to read from the conn.
 	ReadBufLen int
@@ -271,7 +285,7 @@ func (s *TCPStream) send(ctx context.Context, w io.Writer, rec *recorder) (
 	for i := 0; i < s.WriteBufLen; i++ {
 		b[i] = 0xfe
 	}
-	in, dur := s.Interval.Duration(), s.Duration.Duration()
+	in, dur := s.SampleIOInterval.Duration(), s.Duration.Duration()
 	t0 := time.Now()
 	rec.Send(TCPStreamInfo{t0, *s})
 	ts := t0
@@ -281,7 +295,7 @@ func (s *TCPStream) send(ctx context.Context, w io.Writer, rec *recorder) (
 		var n int
 		n, err = w.Write(b)
 		t := time.Now()
-		dt, ds := t.Sub(t0), t.Sub(ts)
+		dt := t.Sub(t0)
 		l += uint64(n)
 		select {
 		case <-ctx.Done():
@@ -289,9 +303,12 @@ func (s *TCPStream) send(ctx context.Context, w io.Writer, rec *recorder) (
 		default:
 			done = dt > dur || err != nil
 		}
-		if n > 0 && (ds > in || done) {
-			rec.Send(TCPByteTotal{s.Series, dt, l})
-			ts = t
+		if s.SampleIO && n > 0 {
+			ds := t.Sub(ts)
+			if ds > in || done {
+				rec.Send(IOSample{s.Series, dt, l})
+				ts = t
+			}
 		}
 	}
 	return
@@ -300,7 +317,7 @@ func (s *TCPStream) send(ctx context.Context, w io.Writer, rec *recorder) (
 // receive runs the receive side of a stream.
 func (s *TCPStream) receive(r io.Reader, rec *recorder) (err error) {
 	b := make([]byte, s.ReadBufLen)
-	in := s.Interval.Duration()
+	in := s.SampleIOInterval.Duration()
 	t0 := time.Now()
 	rec.Send(TCPStreamInfo{t0, *s})
 	ts := t0
@@ -309,11 +326,14 @@ func (s *TCPStream) receive(r io.Reader, rec *recorder) (err error) {
 		var n int
 		n, err = r.Read(b)
 		t := time.Now()
-		dt, ds := t.Sub(t0), t.Sub(ts)
+		dt := t.Sub(t0)
 		l += uint64(n)
-		if n > 0 && (ds > in || err != nil) {
-			rec.Send(TCPByteTotal{s.Series, dt, l})
-			ts = t
+		if s.SampleIO && n > 0 {
+			ds := t.Sub(ts)
+			if ds > in || err != nil {
+				rec.Send(IOSample{s.Series, dt, l})
+				ts = t
+			}
 		}
 		if err != nil {
 			if err == io.EOF {
@@ -323,4 +343,9 @@ func (s *TCPStream) receive(r io.Reader, rec *recorder) (err error) {
 		}
 	}
 	return
+}
+
+func (s *TCPStream) String() string {
+	return fmt.Sprintf("TCPStream[Series:%s Download:%t CCA:%s]",
+		s.Series, s.Download, s.CCA)
 }

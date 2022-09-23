@@ -40,6 +40,17 @@ Run: #TestRun
 	To?: [string & !="", ...]
 }
 
+// antler.ExecuteTemplate
+#ExecuteTemplate: {
+	Name?: string & !=""
+	To:    string & !=""
+	{} | {
+		Text?: string & !=""
+	} | {
+		From?: [string & !="", ...]
+	}
+}
+
 // antler.SaveFiles
 #SaveFiles: {
 }
@@ -115,13 +126,14 @@ Run: #TestRun
 
 // node.TCPStream
 #TCPStream: {
-	Series:      #Series
-	Download?:   bool
-	CCA?:        string & !=""
-	Duration?:   #Duration | *"1m"
-	Interval?:   #Duration | *"50ms"
-	ReadBufLen:  int & >0 | *(1024 * 128)
-	WriteBufLen: int & >0 | *(1024 * 128)
+	Series:           #Series
+	Download?:        bool
+	CCA?:             string & !=""
+	Duration?:        #Duration | *"1m"
+	SampleIO?:        bool
+	SampleIOInterval: #Duration | *"10ms"
+	ReadBufLen:       int & >0 | *(1024 * 128)
+	WriteBufLen:      int & >0 | *(1024 * 128)
 }
 
 // node.TCPStreamClient

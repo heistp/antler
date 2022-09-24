@@ -244,6 +244,24 @@ func (x *ExecuteTemplate) report(in reportIn) {
 	return
 }
 
+// GTimeSeries is a reporter that makes time series plots using Google Charts.
+type GTimeSeries struct {
+}
+
+// report implements reporter
+func (g *GTimeSeries) report(in reportIn) {
+	go g.reportOne(in)
+}
+
+// report runs one time series report.
+func (g *GTimeSeries) reportOne(in reportIn) {
+	// read data to create a map of included series
+
+	// from series, choose y axis types
+
+	// plot all series that use those axis types
+}
+
 // saveData is an reporter that saves all data using gob to the named file.
 type saveData struct {
 	name string

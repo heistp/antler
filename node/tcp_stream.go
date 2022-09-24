@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/heistp/antler/node/metric"
 	"golang.org/x/sys/unix"
 )
 
@@ -134,7 +135,7 @@ func (s *TCPStreamServer) serve(ctx context.Context, conn *net.TCPConn,
 type IOSample struct {
 	Series Series        // series the IOSample belongs to
 	T      time.Duration // duration since stream began (T0 in TCPStreamInfo)
-	Total  uint64        // total byte count sent or received
+	Total  metric.Bytes  // total byte count sent or received
 }
 
 // init registers IOSample with the gob encoder
@@ -246,7 +247,7 @@ type TCPStream struct {
 	CCA string
 
 	// Duration is the length of time the stream runs.
-	Duration Duration
+	Duration metric.Duration
 
 	// SampleIO, if true, sends IOSamples to record the progress of read and
 	// write syscalls.
@@ -254,7 +255,7 @@ type TCPStream struct {
 
 	// SampleIOInterval is the minimum time between IOSamples. Zero means a
 	// sample will be returned for every read and write.
-	SampleIOInterval Duration
+	SampleIOInterval metric.Duration
 
 	// ReadBufLen is the size of the buffer used to read from the conn.
 	ReadBufLen int
@@ -289,14 +290,14 @@ func (s *TCPStream) send(ctx context.Context, w io.Writer, rec *recorder) (
 	t0 := time.Now()
 	rec.Send(TCPStreamInfo{t0, *s})
 	ts := t0
-	var l uint64
+	var l metric.Bytes
 	var done bool
 	for !done {
 		var n int
 		n, err = w.Write(b)
 		t := time.Now()
 		dt := t.Sub(t0)
-		l += uint64(n)
+		l += metric.Bytes(n)
 		select {
 		case <-ctx.Done():
 			done = true
@@ -321,13 +322,13 @@ func (s *TCPStream) receive(r io.Reader, rec *recorder) (err error) {
 	t0 := time.Now()
 	rec.Send(TCPStreamInfo{t0, *s})
 	ts := t0
-	var l uint64
+	var l metric.Bytes
 	for {
 		var n int
 		n, err = r.Read(b)
 		t := time.Now()
 		dt := t.Sub(t0)
-		l += uint64(n)
+		l += metric.Bytes(n)
 		if s.SampleIO && n > 0 {
 			ds := t.Sub(ts)
 			if ds > in || err != nil {

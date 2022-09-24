@@ -6,14 +6,16 @@ package node
 import (
 	"context"
 	"time"
+
+	"github.com/heistp/antler/node/metric"
 )
 
 // Sleep is a runner that sleeps for the given Duration, or until canceled.
-type Sleep Duration
+type Sleep metric.Duration
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *Sleep) UnmarshalText(text []byte) (err error) {
-	d := Duration(*s)
+	d := metric.Duration(*s)
 	if err = d.UnmarshalText(text); err != nil {
 		return
 	}

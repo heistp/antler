@@ -21,8 +21,7 @@ Run: {
 	Report: [
 		{EmitLog: {To: ["-", "node.log"]}},
 		{SaveFiles: {}},
-		{ExecuteTemplate: {
-			From: ["throughput.tpl"]
+		{GTimeSeries: {
 			To: "throughput.html"
 		}},
 	]

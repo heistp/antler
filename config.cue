@@ -31,6 +31,10 @@ Run: #TestRun
 	{} | {
 		EmitLog?: #EmitLog
 	} | {
+		ExecuteTemplate?: #ExecuteTemplate
+	} | {
+		GTimeSeries?: #GTimeSeries
+	} | {
 		SaveFiles?: #SaveFiles
 	}
 }
@@ -49,6 +53,11 @@ Run: #TestRun
 	} | {
 		From?: [string & !="", ...]
 	}
+}
+
+// antler.GTimeSeries
+#GTimeSeries: {
+	To: string & !=""
 }
 
 // antler.SaveFiles

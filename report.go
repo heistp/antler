@@ -4,14 +4,17 @@
 package antler
 
 import (
+	_ "embed"
+
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"os"
-	"text/template"
 
 	"github.com/heistp/antler/node"
+	"github.com/heistp/antler/node/metric"
 )
 
 // A reporter can process data items from the node and take some action, such as
@@ -55,6 +58,7 @@ type Report struct {
 type reporters struct {
 	EmitLog         *EmitLog
 	ExecuteTemplate *ExecuteTemplate
+	GTimeSeries     *GTimeSeries
 	SaveFiles       *SaveFiles
 }
 
@@ -65,6 +69,8 @@ func (r *reporters) reporter() reporter {
 		return r.EmitLog
 	case r.ExecuteTemplate != nil:
 		return r.ExecuteTemplate
+	case r.GTimeSeries != nil:
+		return r.GTimeSeries
 	case r.SaveFiles != nil:
 		return r.SaveFiles
 	default:
@@ -83,6 +89,27 @@ func (s reports) reporters() (reps []reporter) {
 	return
 }
 
+// simpleReportFunc is a function that may be called in a separate goroutine for
+// each Test, independently and concurrently. It implements reporter to run a
+// goroutine for each call, and provide boilerplate cleanup.
+type simpleReportFunc func(reportIn) error
+
+// report implements reporter
+func (r simpleReportFunc) report(in reportIn) {
+	go func() {
+		var e error
+		defer func() {
+			if e != nil {
+				in.errc <- e
+			}
+			for range in.data {
+			}
+			in.errc <- reportDone
+		}()
+		e = r(in)
+	}()
+}
+
 // EmitLog is a reporter that emits LogEntry's to files and/or stdout.
 type EmitLog struct {
 	// To lists the destinations to send output to. "-" sends output to stdout,
@@ -93,48 +120,45 @@ type EmitLog struct {
 
 // report implements reporter
 func (l *EmitLog) report(in reportIn) {
-	go func() {
-		var e error
-		var ff []*os.File
-		defer func() {
-			if e != nil {
-				in.errc <- e
-			}
-			for _, f := range ff {
-				f.Close()
-			}
-			for range in.data {
-			}
-			in.errc <- reportDone
-		}()
-		ww := []io.Writer{os.Stdout}
-		if len(l.To) > 0 {
-			ww = ww[:0]
-			for _, s := range l.To {
-				if s == "-" {
-					ww = append(ww, os.Stdout)
-					continue
-				}
-				n := in.test.outPath(s)
-				var f *os.File
-				if f, e = os.Create(n); e != nil {
-					return
-				}
-				ww = append(ww, f)
-				ff = append(ff, f)
-			}
-		}
-		for d := range in.data {
-			switch v := d.(type) {
-			case node.LogEntry, node.Error:
-				for _, w := range ww {
-					if _, e = fmt.Fprintln(w, v); e != nil {
-						return
-					}
-				}
-			}
+	var f simpleReportFunc = l.reportOne
+	f.report(in)
+}
+
+// reportOne runs one EmitLog reporter.
+func (l *EmitLog) reportOne(in reportIn) (err error) {
+	var ff []*os.File
+	defer func() {
+		for _, f := range ff {
+			f.Close()
 		}
 	}()
+	ww := []io.Writer{os.Stdout}
+	if len(l.To) > 0 {
+		ww = ww[:0]
+		for _, s := range l.To {
+			if s == "-" {
+				ww = append(ww, os.Stdout)
+				continue
+			}
+			n := in.test.outPath(s)
+			var f *os.File
+			if f, err = os.Create(n); err != nil {
+				return
+			}
+			ww = append(ww, f)
+			ff = append(ff, f)
+		}
+	}
+	for d := range in.data {
+		switch v := d.(type) {
+		case node.LogEntry, node.Error:
+			for _, w := range ww {
+				if _, err = fmt.Fprintln(w, v); err != nil {
+					return
+				}
+			}
+		}
+	}
 	return
 }
 
@@ -144,40 +168,37 @@ type SaveFiles struct {
 
 // report implements reporter
 func (s *SaveFiles) report(in reportIn) {
-	go func() {
-		m := make(map[string]*os.File)
-		var e error
-		defer func() {
-			if e != nil {
-				in.errc <- e
-			}
-			for n, f := range m {
-				f.Close()
-				delete(m, n)
-			}
-			for range in.data {
-			}
-			in.errc <- reportDone
-		}()
-		for d := range in.data {
-			var fd node.FileData
-			var ok bool
-			if fd, ok = d.(node.FileData); !ok {
-				continue
-			}
-			var f *os.File
-			if f, ok = m[fd.Name]; !ok {
-				n := in.test.outPath(fd.Name)
-				if f, e = os.Create(n); e != nil {
-					return
-				}
-				m[fd.Name] = f
-			}
-			if _, e = f.Write(fd.Data); e != nil {
-				return
-			}
+	var f simpleReportFunc = s.reportOne
+	f.report(in)
+}
+
+// reportOne runs one SaveFiles reporter.
+func (s *SaveFiles) reportOne(in reportIn) (err error) {
+	m := make(map[string]*os.File)
+	defer func() {
+		for n, f := range m {
+			f.Close()
+			delete(m, n)
 		}
 	}()
+	for d := range in.data {
+		var fd node.FileData
+		var ok bool
+		if fd, ok = d.(node.FileData); !ok {
+			continue
+		}
+		var f *os.File
+		if f, ok = m[fd.Name]; !ok {
+			n := in.test.outPath(fd.Name)
+			if f, err = os.Create(n); err != nil {
+				return
+			}
+			m[fd.Name] = f
+		}
+		if _, err = f.Write(fd.Data); err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -200,66 +221,121 @@ type ExecuteTemplate struct {
 
 // report implements reporter
 func (x *ExecuteTemplate) report(in reportIn) {
+	var f simpleReportFunc = x.reportOne
+	f.report(in)
+}
+
+// reportOne runs one ExecuteTemplate report.
+func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 	type templateData struct {
 		Test *Test
 		Data chan interface{}
 	}
-	go func() {
-		var w io.WriteCloser
-		var e error
-		defer func() {
-			if e != nil {
-				in.errc <- e
-			}
-			if w != nil && w != os.Stdout {
-				w.Close()
-			}
-			for range in.data {
-			}
-			in.errc <- reportDone
-		}()
-		var t *template.Template
-		if x.Text != "" {
-			t = template.New(x.Name)
-			if t, e = t.Parse(x.Text); e != nil {
-				return
-			}
-		} else {
-			var f []string
-			for _, n := range x.From {
-				f = append(f, in.test.outPath(n))
-			}
-			if t, e = template.ParseFiles(f...); e != nil {
-				return
-			}
+	var w io.WriteCloser
+	defer func() {
+		if w != nil && w != os.Stdout {
+			w.Close()
 		}
-		w = os.Stdout
-		if x.To != "-" {
-			if w, e = os.Create(x.To); e != nil {
-				return
-			}
-		}
-		e = t.Execute(w, templateData{in.test, in.data})
 	}()
+	var t *template.Template
+	if x.Text != "" {
+		if t, err = template.New(x.Name).Parse(x.Text); err != nil {
+			return
+		}
+	} else {
+		var f []string
+		for _, n := range x.From {
+			f = append(f, in.test.outPath(n))
+		}
+		if t, err = template.ParseFiles(f...); err != nil {
+			return
+		}
+	}
+	w = os.Stdout
+	if x.To != "-" {
+		if w, err = os.Create(x.To); err != nil {
+			return
+		}
+	}
+	err = t.Execute(w, templateData{in.test, in.data})
 	return
 }
 
+// goodputPoint is a single goodput data point.
+type goodputPoint struct {
+	// T is the time offset, in seconds, relative to the start of the earliest
+	// stream.
+	T float64
+
+	// Goodput
+	Goodput metric.Bitrate
+}
+
+// streamData contains the data collected for a Stream.
+type streamData struct {
+	Series  node.Series
+	Goodput []goodputPoint
+}
+
+// gTimeSeriesTemplate is the template for the GTimeSeries reporter.
+//
+//go:embed gtimeseries.tmpl
+var gTimeSeriesTemplate string
+
 // GTimeSeries is a reporter that makes time series plots using Google Charts.
 type GTimeSeries struct {
+	// To is the name of a file to execute the template to, or "-" for stdout.
+	To string
 }
 
 // report implements reporter
 func (g *GTimeSeries) report(in reportIn) {
-	go g.reportOne(in)
+	var f simpleReportFunc = g.reportOne
+	f.report(in)
 }
 
 // report runs one time series report.
-func (g *GTimeSeries) reportOne(in reportIn) {
-	// read data to create a map of included series
-
+func (g *GTimeSeries) reportOne(in reportIn) (err error) {
+	type templateData struct {
+		Data1 [][]interface{}
+		Data2 [][]interface{}
+	}
+	var w io.WriteCloser
+	defer func() {
+		if w != nil && w != os.Stdout {
+			w.Close()
+		}
+	}()
+	t := template.New("GTimeSeries")
+	if t, err = t.Parse(gTimeSeriesTemplate); err != nil {
+		return
+	}
+	for v := range in.data {
+		_ = v
+	}
+	// TODO
+	// read data to create a map of included series, and IDs as titles
 	// from series, choose y axis types
-
-	// plot all series that use those axis types
+	// create data using series with those axis types
+	w = os.Stdout
+	if g.To != "-" {
+		if w, err = os.Create(g.To); err != nil {
+			return
+		}
+	}
+	d := templateData{[][]interface{}{
+		{"", "A"},
+		{1, 5},
+		{1.5, 20},
+		{2, 10},
+	}, [][]interface{}{
+		{"", "B"},
+		{1.5, 5},
+		{2, 20},
+		{3, 10},
+	}}
+	err = t.Execute(w, d)
+	return
 }
 
 // saveData is an reporter that saves all data using gob to the named file.

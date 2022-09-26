@@ -1,0 +1,81 @@
+<html>
+<head>
+  <script type="text/javascript"
+    src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+    function drawChart() {
+      //var data1 = google.visualization.arrayToDataTable({{.Data1}}, false);
+      var data = new google.visualization.DataTable()
+
+      data.addColumn("number", "Time (sec)");
+      data.addColumn("number", "A");
+      data.addColumn("number", "B");
+      data.addRows([
+        [1, 2, null],
+        [2.5, 20, null],
+        [5, 10, null],
+      ]);
+      data.addRows([
+        [2.5, null, 20],
+        [4, null, 2],
+        [5, null, 30],
+      ]);
+
+      var options = {
+        title: 'Title',
+        titleTextStyle: {
+          fontSize: 18,
+        },
+        width: 1280,
+        height: 720,
+        lineWidth: 1.2,
+        //curveType: 'function',
+        vAxis: {
+          title: 'Throughput (Mbps)',
+          titleTextStyle: {
+            italic: false,
+          },
+          viewWindow: {
+            min: 0,
+          },
+          baselineColor: '#cccccc',
+          gridlines: {
+            color: 'transparent',
+          },
+        },
+        hAxis: {
+          title: 'Time (sec)',
+          titleTextStyle: {
+            italic: false,
+          },
+          viewWindow: {
+            min: 0,
+          },
+          baselineColor: '#cccccc',
+          gridlines: {
+            color: 'transparent',
+          },
+        },
+        chartArea: {
+          backgroundColor: '#f7f7f7',
+          top: 50,
+          left: 75,
+          width: '70%',
+          height: '80%',
+        },
+      };
+
+      var chart = new google.visualization.LineChart(
+        document.getElementById('line_top_x'));
+
+      chart.draw(data, options);
+    }
+  </script>
+</head>
+<body>
+  <div id="line_top_x"></div>
+</body>
+</html>

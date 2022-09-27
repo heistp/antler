@@ -109,11 +109,18 @@ tcpStream: {
 // server runs TCPStreamServer in the right namespace
 server: {
 	Child: {
-		Node:            ns.right.node
-		TCPStreamServer: tcpStream & {
-			ListenAddr: #serverAddr
-			Flow:       "cubic"
-		}
+		Node: ns.right.node
+		Serial: [
+			{System: {
+				Command:    "tcpdump -i right.l -s 128 -w -"
+				Background: true
+				Stdout:     "right.pcap"
+			}},
+			{TCPStreamServer: tcpStream & {
+				ListenAddr: #serverAddr
+				Flow:       "cubic"
+			}},
+		]
 	}
 }
 

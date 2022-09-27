@@ -5,6 +5,7 @@ package antler
 
 import (
 	_ "embed"
+	"time"
 
 	"encoding/gob"
 	"errors"
@@ -261,20 +262,82 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 	return
 }
 
-// goodputPoint is a single goodput data point.
-type goodputPoint struct {
+// goodput is a single goodput data point.
+type goodput struct {
 	// T is the time offset, in seconds, relative to the start of the earliest
 	// stream.
-	T float64
+	T metric.Duration
 
 	// Goodput
 	Goodput metric.Bitrate
 }
 
-// streamData contains the data collected for a Stream.
-type streamData struct {
-	Series  node.Series
-	Goodput []goodputPoint
+// stream contains the samples, info and calculated stats for a stream.
+type stream struct {
+	Info    node.StreamInfo
+	Sample  []node.StreamSample
+	Goodput []goodput
+}
+
+// streams aggregates stream data for multiple series.
+type streams map[node.Series]*stream
+
+// newStreams returns a new streams.
+func newStreams() streams {
+	return streams(make(map[node.Series]*stream))
+}
+
+// addInfo adds a new stream with the given info. An error is returned if info
+// for the stream was already added.
+func (m *streams) addInfo(info node.StreamInfo) (err error) {
+	if _, ok := (*m)[info.Series]; ok {
+		err = fmt.Errorf("duplicate SeriesInfo for '%s'", info.Series)
+		return
+	}
+	(*m)[info.Series] = &stream{info, nil, nil}
+	return
+}
+
+// addSample adds a StreamSample. An error is returned if the stream was not
+// already added with addInfo.
+func (mm *streams) addSample(smp node.StreamSample) (err error) {
+	var s *stream
+	var ok bool
+	if s, ok = (*mm)[smp.Series]; !ok {
+		err = fmt.Errorf("sample without SeriesInfo for '%s'", smp.Series)
+		return
+	}
+	s.Sample = append(s.Sample, smp)
+	return
+}
+
+// T0 returns the earliest T0 (start time) among the streams.
+func (m *streams) T0() (t0 time.Time) {
+	for _, s := range *m {
+		if t0.IsZero() || s.Info.T0.Before(t0) {
+			t0 = s.Info.T0
+		}
+	}
+	return
+}
+
+// analyze uses the collected data to calculate relevant metrics and stats.
+func (m *streams) analyze() {
+	t0 := m.T0()
+	for _, s := range *m {
+		o := s.Info.T0.Sub(t0)
+		var p *node.StreamSample
+		for _, ss := range s.Sample {
+			t := metric.Duration(o + ss.T)
+			if p == nil {
+				s.Goodput = append(s.Goodput, goodput{t, 0})
+			} else {
+				g := metric.CalcBitrate(ss.Total-p.Total, ss.T-p.T)
+				s.Goodput = append(s.Goodput, goodput{t, g})
+			}
+			p = &ss
+		}
+	}
 }
 
 // gTimeSeriesTemplate is the template for the GTimeSeries reporter.
@@ -310,13 +373,20 @@ func (g *GTimeSeries) reportOne(in reportIn) (err error) {
 	if t, err = t.Parse(gTimeSeriesTemplate); err != nil {
 		return
 	}
-	for v := range in.data {
-		_ = v
+	s := newStreams()
+	for a := range in.data {
+		switch v := a.(type) {
+		case node.StreamInfo:
+			if err = s.addInfo(v); err != nil {
+				return
+			}
+		case node.StreamSample:
+			if err = s.addSample(v); err != nil {
+				return
+			}
+		}
 	}
-	// TODO
-	// read data to create a map of included series, and IDs as titles
-	// from series, choose y axis types
-	// create data using series with those axis types
+	s.analyze()
 	w = os.Stdout
 	if g.To != "-" {
 		if w, err = os.Create(g.To); err != nil {

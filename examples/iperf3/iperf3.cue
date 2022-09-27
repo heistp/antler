@@ -62,7 +62,7 @@ ns: {
 			"ethtool -K mid.l \(#offloads)",
 			"ethtool -K mid.r \(#offloads)",
 			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
-			"tc qdisc add dev mid.l root netem delay 20ms limit 100000",
+			"tc qdisc add dev mid.l root netem delay 80ms limit 100000",
 		]
 	}
 	left: {
@@ -108,7 +108,7 @@ run: {
 				Stdout:     "left.pcap"
 			}},
 			{Sleep:           "500ms"},
-			{System: Command: "iperf3 -t 60 -c 10.0.0.2"},
+			{System: Command: "iperf3 -t 30 -c 10.0.0.2"},
 		]
 	}
 }

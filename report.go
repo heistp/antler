@@ -5,6 +5,7 @@ package antler
 
 import (
 	_ "embed"
+	"sort"
 	"time"
 
 	"encoding/gob"
@@ -264,50 +265,77 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 
 // goodput is a single goodput data point.
 type goodput struct {
-	// T is the time offset, in seconds, relative to the start of the earliest
-	// stream.
+	// T is the time offset relative to the start of the earliest stream.
 	T metric.Duration
 
 	// Goodput
 	Goodput metric.Bitrate
 }
 
-// stream contains the samples, info and calculated stats for a stream.
-type stream struct {
-	Info    node.StreamInfo
-	Sample  []node.StreamSample
-	Goodput []goodput
+// MbpsRow returns a row of values containing T in the first column, and Goodput
+// in Mbps in the col'th column, with other columns up to cols containing nil.
+func (g goodput) MbpsRow(col, cols int) (a []interface{}) {
+	a = append(a, g.T.Duration().Seconds())
+	for i := 0; i < cols; i++ {
+		if i != col {
+			a = append(a, nil)
+			continue
+		}
+		a = append(a, g.Goodput.Mbps())
+	}
+	return
 }
 
-// streams aggregates stream data for multiple series.
-type streams map[node.Series]*stream
+// stream contains the data and calculated stats for a stream.
+type stream struct {
+	Info     node.StreamInfo
+	Sent     []node.Sent
+	Received []node.Received
+	Goodput  []goodput
+}
+
+// streams aggregates data for multiple streams.
+type streams map[node.Flow]*stream
 
 // newStreams returns a new streams.
 func newStreams() streams {
-	return streams(make(map[node.Series]*stream))
+	return streams(make(map[node.Flow]*stream))
 }
 
 // addInfo adds a new stream with the given info. An error is returned if info
 // for the stream was already added.
 func (m *streams) addInfo(info node.StreamInfo) (err error) {
-	if _, ok := (*m)[info.Series]; ok {
-		err = fmt.Errorf("duplicate SeriesInfo for '%s'", info.Series)
+	if _, ok := (*m)[info.Flow]; ok {
+		err = fmt.Errorf("duplicate StreamInfo for '%s'", info.Flow)
 		return
 	}
-	(*m)[info.Series] = &stream{info, nil, nil}
+	(*m)[info.Flow] = &stream{info, nil, nil, nil}
 	return
 }
 
-// addSample adds a StreamSample. An error is returned if the stream was not
+// addSent adds a Sent sample. An error is returned if the stream was not
 // already added with addInfo.
-func (mm *streams) addSample(smp node.StreamSample) (err error) {
+func (mm *streams) addSent(smp node.Sent) (err error) {
 	var s *stream
 	var ok bool
-	if s, ok = (*mm)[smp.Series]; !ok {
-		err = fmt.Errorf("sample without SeriesInfo for '%s'", smp.Series)
+	if s, ok = (*mm)[smp.Flow]; !ok {
+		err = fmt.Errorf("Sent without StreamInfo for '%s'", smp.Flow)
 		return
 	}
-	s.Sample = append(s.Sample, smp)
+	s.Sent = append(s.Sent, smp)
+	return
+}
+
+// addReceived adds a Received sample. An error is returned if the stream was
+// not already added with addInfo.
+func (mm *streams) addReceived(smp node.Received) (err error) {
+	var s *stream
+	var ok bool
+	if s, ok = (*mm)[smp.Flow]; !ok {
+		err = fmt.Errorf("Received without StreamInfo for '%s'", smp.Flow)
+		return
+	}
+	s.Received = append(s.Received, smp)
 	return
 }
 
@@ -326,18 +354,31 @@ func (m *streams) analyze() {
 	t0 := m.T0()
 	for _, s := range *m {
 		o := s.Info.T0.Sub(t0)
-		var p *node.StreamSample
-		for _, ss := range s.Sample {
-			t := metric.Duration(o + ss.T)
-			if p == nil {
+		var p node.Received
+		for _, r := range s.Received {
+			t := metric.Duration(o + r.T)
+			if p == (node.Received{}) {
 				s.Goodput = append(s.Goodput, goodput{t, 0})
 			} else {
-				g := metric.CalcBitrate(ss.Total-p.Total, ss.T-p.T)
+				g := metric.CalcBitrate(r.Total-p.Total, r.T-p.T)
 				s.Goodput = append(s.Goodput, goodput{t, g})
 			}
-			p = &ss
+			p = r
 		}
 	}
+}
+
+// list returns a slice of streams, sorted by Flow.
+func (m *streams) list() (lst []stream) {
+	var ff []node.Flow
+	for k, _ := range *m {
+		ff = append(ff, k)
+	}
+	sort.Slice(ff, func(i, j int) bool { return ff[i] < ff[j] })
+	for _, f := range ff {
+		lst = append(lst, *(*m)[f])
+	}
+	return
 }
 
 // gTimeSeriesTemplate is the template for the GTimeSeries reporter.
@@ -347,6 +388,12 @@ var gTimeSeriesTemplate string
 
 // GTimeSeries is a reporter that makes time series plots using Google Charts.
 type GTimeSeries struct {
+	// Title is the plot title.
+	Title string
+
+	// VTitle is the title of the vertical axis.
+	VTitle string
+
 	// To is the name of a file to execute the template to, or "-" for stdout.
 	To string
 }
@@ -359,9 +406,9 @@ func (g *GTimeSeries) report(in reportIn) {
 
 // report runs one time series report.
 func (g *GTimeSeries) reportOne(in reportIn) (err error) {
-	type templateData struct {
-		Data1 [][]interface{}
-		Data2 [][]interface{}
+	type tdata struct {
+		GTimeSeries
+		Stream []stream
 	}
 	var w io.WriteCloser
 	defer func() {
@@ -380,30 +427,24 @@ func (g *GTimeSeries) reportOne(in reportIn) (err error) {
 			if err = s.addInfo(v); err != nil {
 				return
 			}
-		case node.StreamSample:
-			if err = s.addSample(v); err != nil {
+		case node.Sent:
+			if err = s.addSent(v); err != nil {
+				return
+			}
+		case node.Received:
+			if err = s.addReceived(v); err != nil {
 				return
 			}
 		}
 	}
 	s.analyze()
+	d := tdata{*g, s.list()}
 	w = os.Stdout
 	if g.To != "-" {
 		if w, err = os.Create(g.To); err != nil {
 			return
 		}
 	}
-	d := templateData{[][]interface{}{
-		{"", "A"},
-		{1, 5},
-		{1.5, 20},
-		{2, 10},
-	}, [][]interface{}{
-		{"", "B"},
-		{1.5, 5},
-		{2, 20},
-		{3, 10},
-	}}
 	err = t.Execute(w, d)
 	return
 }

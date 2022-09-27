@@ -3,12 +3,12 @@
 
 package node
 
-// Series is a string name for a series. By convention, it matches
+// Flow is a string name identifying a flow. By convention, it matches
 // [a-z][a-z\.]*.
-type Series string
+type Flow string
 
-// A Serieser wraps the Series method, to return a Series associated with the
+// A Flower wraps the Flow method, to return a Flow associated with the
 // implementation.
-type Serieser interface {
-	Series() Series
+type Flower interface {
+	Flow() Flow
 }

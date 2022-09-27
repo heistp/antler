@@ -15,65 +15,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// StreamSample is a time series data point containing a total number of bytes
-// sent or received by a stream runner.
-type StreamSample struct {
-	Series Series        // series the StreamSample belongs to
-	T      time.Duration // duration since stream began (T0 in StreamInfo)
-	Total  metric.Bytes  // total byte count sent or received
-}
-
-// init registers StreamSample with the gob encoder
-func init() {
-	gob.Register(StreamSample{})
-}
-
-// flags implements message
-func (StreamSample) flags() flag {
-	return flagForward
-}
-
-// handle implements event
-func (i StreamSample) handle(node *node) {
-	node.parent.Send(i)
-}
-
-func (i StreamSample) String() string {
-	return fmt.Sprintf("StreamSample[Series:%s T:%s Total:%d]",
-		i.Series, i.T, i.Total)
-}
-
-// StreamInfo contains meta-information about a stream.
-type StreamInfo struct {
-	T0     time.Time // T0 is the stream start time
-	Stream           // Stream contains the stream parameters
-}
-
-// init registers StreamInfo with the gob encoder
-func init() {
-	gob.Register(StreamInfo{})
-}
-
-// flags implements message
-func (StreamInfo) flags() flag {
-	return flagForward
-}
-
-// handle implements event
-func (i StreamInfo) handle(node *node) {
-	node.parent.Send(i)
-}
-
-func (i StreamInfo) String() string {
-	return fmt.Sprintf("StreamInfo[T0:%s Stream:%s]",
-		i.T0, i.Stream.String())
-}
-
 // Stream contains the parameters for a stream, used in the client, server and
 // StreamInfo.
 type Stream struct {
-	// Series is the series name.
-	Series Series
+	// Flow identifies the stream.
+	Flow Flow
 
 	// Download indicates whether to run the test from server to client (true)
 	// or client to server (false).
@@ -84,10 +30,6 @@ type Stream struct {
 
 	// Duration is the length of time the stream runs.
 	Duration metric.Duration
-
-	// SampleIO, if true, sends StreamSamples to record the progress of read and
-	// write syscalls.
-	SampleIO bool
 
 	// SampleIOInterval is the minimum time between StreamSamples. Zero means a
 	// sample will be returned for every read and write.
@@ -124,7 +66,7 @@ func (s *Stream) send(ctx context.Context, w io.Writer, rec *recorder) (
 	}
 	in, dur := s.SampleIOInterval.Duration(), s.Duration.Duration()
 	t0 := time.Now()
-	rec.Send(StreamInfo{t0, *s})
+	//rec.Send(StreamInfo{t0, *s})
 	ts := t0
 	var l metric.Bytes
 	var done bool
@@ -140,10 +82,10 @@ func (s *Stream) send(ctx context.Context, w io.Writer, rec *recorder) (
 		default:
 			done = dt > dur || err != nil
 		}
-		if s.SampleIO && n > 0 {
+		if n > 0 {
 			ds := t.Sub(ts)
 			if ds > in || done {
-				rec.Send(StreamSample{s.Series, dt, l})
+				//rec.Send(Sent{s.Flow, dt, l})
 				ts = t
 			}
 		}
@@ -165,10 +107,10 @@ func (s *Stream) receive(r io.Reader, rec *recorder) (err error) {
 		t := time.Now()
 		dt := t.Sub(t0)
 		l += metric.Bytes(n)
-		if s.SampleIO && n > 0 {
+		if n > 0 {
 			ds := t.Sub(ts)
 			if ds > in || err != nil {
-				rec.Send(StreamSample{s.Series, dt, l})
+				rec.Send(Received{s.Flow, dt, l})
 				ts = t
 			}
 		}
@@ -183,6 +125,85 @@ func (s *Stream) receive(r io.Reader, rec *recorder) (err error) {
 }
 
 func (s *Stream) String() string {
-	return fmt.Sprintf("Stream[Series:%s Download:%t CCA:%s]",
-		s.Series, s.Download, s.CCA)
+	return fmt.Sprintf("Stream[Flow:%s Download:%t CCA:%s]",
+		s.Flow, s.Download, s.CCA)
+}
+
+// StreamInfo contains meta-information about a stream.
+type StreamInfo struct {
+	T0     time.Time // T0 is the stream start time
+	Stream           // Stream contains the stream parameters
+}
+
+// init registers StreamInfo with the gob encoder
+func init() {
+	gob.Register(StreamInfo{})
+}
+
+// flags implements message
+func (StreamInfo) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (i StreamInfo) handle(node *node) {
+	node.parent.Send(i)
+}
+
+func (i StreamInfo) String() string {
+	return fmt.Sprintf("StreamInfo[T0:%s Stream:%s]",
+		i.T0, i.Stream.String())
+}
+
+// Sent is a time series data point containing a total number of sent bytes.
+type Sent struct {
+	Flow  Flow          // flow that this Sent belongs to
+	T     time.Duration // duration since sending began (e.g. T0 in StreamInfo)
+	Total metric.Bytes  // total sent bytes
+}
+
+// init registers Sent with the gob encoder
+func init() {
+	gob.Register(Sent{})
+}
+
+// flags implements message
+func (Sent) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (s Sent) handle(node *node) {
+	node.parent.Send(s)
+}
+
+func (s Sent) String() string {
+	return fmt.Sprintf("Sent[Flow:%s T:%s Total:%d]", s.Flow, s.T, s.Total)
+}
+
+// Received is a time series data point containing a total number of received
+// bytes.
+type Received struct {
+	Flow  Flow          // flow that this Received belongs to
+	T     time.Duration // duration since receiving began (e.g. T0 in StreamInfo)
+	Total metric.Bytes  // total received bytes
+}
+
+// init registers Received with the gob encoder
+func init() {
+	gob.Register(Received{})
+}
+
+// flags implements message
+func (Received) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (r Received) handle(node *node) {
+	node.parent.Send(r)
+}
+
+func (r Received) String() string {
+	return fmt.Sprintf("Received[Flow:%s T:%s Total:%d]", r.Flow, r.T, r.Total)
 }

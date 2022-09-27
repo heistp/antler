@@ -58,8 +58,8 @@ type MessageFilter struct {
 	// Log indicates whether to accept (true) or reject (false) LogEntry's.
 	Log bool
 
-	// Series to accept.
-	Series []Series
+	// Flows to accept.
+	Flow []Flow
 }
 
 // accept returns true if the MessageFilter accepts the given message.
@@ -74,9 +74,9 @@ func (f *MessageFilter) accept(msg message) (verdict bool) {
 	case LogEntry:
 		verdict = f.Log
 		return
-	case Serieser:
-		for _, s := range f.Series {
-			if v.Series() == s {
+	case Flower:
+		for _, w := range f.Flow {
+			if v.Flow() == w {
 				verdict = true
 				return
 			}

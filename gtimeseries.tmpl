@@ -7,25 +7,20 @@
       google.charts.setOnLoadCallback(drawChart);
 
     function drawChart() {
-      //var data1 = google.visualization.arrayToDataTable({{.Data1}}, false);
       var data = new google.visualization.DataTable()
 
-      data.addColumn("number", "Time (sec)");
-      data.addColumn("number", "A");
-      data.addColumn("number", "B");
-      data.addRows([
-        [1, 2, null],
-        [2.5, 20, null],
-        [5, 10, null],
+      data.addColumn("number", "");
+      {{range .Stream}}data.addColumn("number", "{{.Info.Flow}}");
+      {{end}}
+      {{$cols := (len .Stream)}}
+      {{range $col, $stream := .Stream}}data.addRows([
+        {{range $stream.Goodput}}{{.MbpsRow $col $cols}},
+        {{end}}
       ]);
-      data.addRows([
-        [2.5, null, 20],
-        [4, null, 2],
-        [5, null, 30],
-      ]);
+      {{end}}
 
       var options = {
-        title: 'Title',
+        title: "{{.Title}}",
         titleTextStyle: {
           fontSize: 18,
         },
@@ -34,7 +29,7 @@
         lineWidth: 1.2,
         //curveType: 'function',
         vAxis: {
-          title: 'Throughput (Mbps)',
+          title: "{{.VTitle}}",
           titleTextStyle: {
             italic: false,
           },
@@ -47,7 +42,7 @@
           },
         },
         hAxis: {
-          title: 'Time (sec)',
+          title: "Time (sec)",
           titleTextStyle: {
             italic: false,
           },

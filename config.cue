@@ -23,7 +23,7 @@ Run: #TestRun
 	} | {
 		Parallel?: [#TestRun, ...#TestRun]
 	}
-	Report?: [#Report, ...]
+	Report?: [#Report, ...#Report]
 }
 
 // antler.Report
@@ -51,13 +51,15 @@ Run: #TestRun
 	{} | {
 		Text?: string & !=""
 	} | {
-		From?: [string & !="", ...]
+		From?: [string & !="", ...string & !=""]
 	}
 }
 
 // antler.GTimeSeries
 #GTimeSeries: {
-	To: string & !=""
+	Title:  string & !="" | *"Time Series"
+	VTitle: string & !="" | *"Goodput (Mbps)"
+	To:     string & !=""
 }
 
 // antler.SaveFiles
@@ -106,8 +108,8 @@ Run: #TestRun
 // node.Duration
 #Duration: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
 
-// node.Series
-#Series: string & !=""
+// node.Flow
+#Flow: string & !=""
 
 // node.ResultStream
 #ResultStream: {
@@ -117,15 +119,15 @@ Run: #TestRun
 
 // node.MessageFilter
 #MessageFilter: {
-	File?: [string, ...]
-	Log?:    bool
-	Series?: #Series
+	File?: [string, ...string]
+	Log?:  bool
+	Flow?: #Flow
 }
 
 // node.System
 #System: {
 	Command?: string & !=""
-	Args?: [string, ...]
+	Args?: [string, ...string]
 	Background?:   bool
 	IgnoreErrors?: bool
 	Stdout?:       string & !=""
@@ -135,7 +137,7 @@ Run: #TestRun
 
 // node.TCPStream
 #TCPStream: {
-	Series:           #Series
+	Flow?:            #Flow
 	Download?:        bool
 	CCA?:             string & !=""
 	Duration?:        #Duration | *"1m"

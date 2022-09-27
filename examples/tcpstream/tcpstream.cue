@@ -22,7 +22,8 @@ Run: {
 		{EmitLog: {To: ["-", "node.log"]}},
 		{SaveFiles: {}},
 		{GTimeSeries: {
-			To: "throughput.html"
+			Title: "CUBIC Goodput through 50 Mbps CAKE bottleneck, 80ms RTT"
+			To:    "throughput.html"
 		}},
 	]
 }
@@ -65,7 +66,7 @@ ns: {
 			"ethtool -K mid.l \(#offloads)",
 			"ethtool -K mid.r \(#offloads)",
 			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
-			"tc qdisc add dev mid.l root netem delay 20ms limit 100000",
+			"tc qdisc add dev mid.l root netem delay 80ms limit 100000",
 			//"modprobe ifb",
 			//"ip link add dev i.mid.r type ifb",
 			//"tc qdisc add dev i.mid.r root handle 1: netem delay 10ms limit 100000",
@@ -100,10 +101,9 @@ ns: [id=_]: node: {
 
 // tcpStream contains common TCPStream parameters
 tcpStream: {
-	Duration:         "3s"
+	Duration:         "30s"
 	Download:         false
-	SampleIO:         true
-	SampleIOInterval: "10ms"
+	SampleIOInterval: "40ms"
 }
 
 // server runs TCPStreamServer in the right namespace
@@ -112,7 +112,7 @@ server: {
 		Node:            ns.right.node
 		TCPStreamServer: tcpStream & {
 			ListenAddr: #serverAddr
-			Series:     "bytes.server"
+			Flow:       "cubic"
 		}
 	}
 }
@@ -130,8 +130,8 @@ run: {
 			}},
 			{Sleep:           "500ms"},
 			{TCPStreamClient: tcpStream & {
-				Addr:   #serverAddr
-				Series: "bytes.client"
+				Addr: #serverAddr
+				Flow: "cubic"
 			}},
 		]
 	}

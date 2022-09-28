@@ -35,11 +35,8 @@ type Stream struct {
 	// sample will be returned for every read and write.
 	SampleIOInterval metric.Duration
 
-	// ReadBufLen is the size of the buffer used to read from the conn.
-	ReadBufLen int
-
-	// WriteBufLen is the size of the buffer used to write to the conn.
-	WriteBufLen int
+	// BufLen is the size of the buffer used to write and read from the conn.
+	BufLen int
 }
 
 // tcpControl provides ListenConfig.Control and Dialer.Control for TCP.
@@ -60,8 +57,8 @@ func (s *Stream) tcpControl(network, address string, conn syscall.RawConn) (
 // send runs the send side of a stream.
 func (s *Stream) send(ctx context.Context, w io.Writer, rec *recorder) (
 	err error) {
-	b := make([]byte, s.WriteBufLen)
-	for i := 0; i < s.WriteBufLen; i++ {
+	b := make([]byte, s.BufLen)
+	for i := 0; i < s.BufLen; i++ {
 		b[i] = 0xfe
 	}
 	in, dur := s.SampleIOInterval.Duration(), s.Duration.Duration()
@@ -95,7 +92,7 @@ func (s *Stream) send(ctx context.Context, w io.Writer, rec *recorder) (
 
 // receive runs the receive side of a stream.
 func (s *Stream) receive(r io.Reader, rec *recorder) (err error) {
-	b := make([]byte, s.ReadBufLen)
+	b := make([]byte, s.BufLen)
 	in := s.SampleIOInterval.Duration()
 	t0 := time.Now()
 	rec.Send(StreamInfo{t0, *s})

@@ -141,10 +141,8 @@ Run: #TestRun
 	Download?:        bool
 	CCA?:             string & !=""
 	Duration?:        #Duration | *"1m"
-	SampleIO?:        bool
 	SampleIOInterval: #Duration | *"10ms"
-	ReadBufLen:       int & >0 | *(1024 * 128)
-	WriteBufLen:      int & >0 | *(1024 * 128)
+	BufLen:           int & >0 | *(1024 * 128)
 }
 
 // node.TCPStreamClient

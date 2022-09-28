@@ -132,7 +132,8 @@ run: {
 			{StreamClient: {
 				Addr:             #serverAddr
 				Flow:             "cubic"
-				Duration:         "30s"
+				CCA:              "reno"
+				Duration:         "3s"
 				Direction:        "upload"
 				SampleIOInterval: "40ms"
 			}},

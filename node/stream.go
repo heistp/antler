@@ -126,6 +126,12 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 	if e = d.Decode(&m); e != nil {
 		return
 	}
+	if m.CCA != "" {
+		if e = setSockoptString(conn, unix.IPPROTO_TCP, unix.TCP_CONGESTION,
+			m.CCA); e != nil {
+			return
+		}
+	}
 	switch m.Direction {
 	case Download:
 		e = m.send(ctx, conn, rec)

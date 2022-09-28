@@ -24,6 +24,9 @@ Run: {
 		{GTimeSeries: {
 			Title: "CUBIC Goodput through 50 Mbps CAKE bottleneck, 80ms RTT"
 			To:    "throughput.html"
+			FlowLabel: {
+				"cubic": "TCP CUBIC"
+			}
 		}},
 	]
 }
@@ -99,14 +102,7 @@ ns: [id=_]: node: {
 // serverAddr is the server listen and client dial address
 #serverAddr: "10.0.0.2:777"
 
-// tcpStream contains common TCPStream parameters
-tcpStream: {
-	Duration:         "30s"
-	Download:         false
-	SampleIOInterval: "40ms"
-}
-
-// server runs TCPStreamServer in the right namespace
+// server runs StreamServer in the right namespace
 server: {
 	Child: {
 		Node: ns.right.node
@@ -116,15 +112,12 @@ server: {
 				Background: true
 				Stdout:     "right.pcap"
 			}},
-			{TCPStreamServer: tcpStream & {
-				ListenAddr: #serverAddr
-				Flow:       "cubic"
-			}},
+			{StreamServer: {ListenAddr: #serverAddr}},
 		]
 	}
 }
 
-// run runs the test using TCPStreamClient, to download from the right
+// run runs the test using StreamClient, to download from the right
 // namespace to the left
 run: {
 	Child: {
@@ -135,10 +128,13 @@ run: {
 				Background: true
 				Stdout:     "left.pcap"
 			}},
-			{Sleep:           "500ms"},
-			{TCPStreamClient: tcpStream & {
-				Addr: #serverAddr
-				Flow: "cubic"
+			{Sleep: "500ms"},
+			{StreamClient: {
+				Addr:             #serverAddr
+				Flow:             "cubic"
+				Duration:         "30s"
+				Direction:        "upload"
+				SampleIOInterval: "40ms"
 			}},
 		]
 	}

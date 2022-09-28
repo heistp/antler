@@ -139,12 +139,12 @@ func (r *Child) do(ctx context.Context, arg runArg, ev chan event) (
 // Runners is a union of the available runner implementations. Only one of the
 // runners may be non-nil.
 type Runners struct {
-	ResultStream    *ResultStream
-	Setup           *setup
-	Sleep           *Sleep
-	System          *System
-	TCPStreamClient *TCPStreamClient
-	TCPStreamServer *TCPStreamServer
+	ResultStream *ResultStream
+	Setup        *setup
+	Sleep        *Sleep
+	System       *System
+	StreamClient *StreamClient
+	StreamServer *StreamServer
 }
 
 // runner returns the only non-nil runner implementation.
@@ -158,10 +158,10 @@ func (r *Runners) runner() runner {
 		return r.Sleep
 	case r.System != nil:
 		return r.System
-	case r.TCPStreamClient != nil:
-		return r.TCPStreamClient
-	case r.TCPStreamServer != nil:
-		return r.TCPStreamServer
+	case r.StreamClient != nil:
+		return r.StreamClient
+	case r.StreamServer != nil:
+		return r.StreamServer
 	}
 	return nil
 }

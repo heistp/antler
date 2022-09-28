@@ -286,64 +286,49 @@ func (g goodput) MbpsRow(col, cols int) (a []interface{}) {
 	return
 }
 
-// stream contains the data and calculated stats for a stream.
-type stream struct {
-	Info     node.StreamInfo
-	Sent     []node.Sent
-	Received []node.Received
-	Goodput  []goodput
+// streamData contains the data and calculated stats for a stream.
+type streamData struct {
+	Stream       node.Stream
+	SentMark     node.SentMark
+	Sent         []node.Sent
+	ReceivedMark node.ReceivedMark
+	Received     []node.Received
+	Goodput      []goodput
+}
+
+// T0 returns the earliest time, from either SentMark or ReceivedMark.
+func (s *streamData) T0() time.Time {
+	if s.SentMark.T0.Before(s.ReceivedMark.T0) {
+		return s.SentMark.T0
+	}
+	return s.ReceivedMark.T0
 }
 
 // streams aggregates data for multiple streams.
-type streams map[node.Flow]*stream
+type streams map[node.Flow]*streamData
 
 // newStreams returns a new streams.
 func newStreams() streams {
-	return streams(make(map[node.Flow]*stream))
+	return streams(make(map[node.Flow]*streamData))
 }
 
-// addInfo adds a new stream with the given info. An error is returned if info
-// for the stream was already added.
-func (m *streams) addInfo(info node.StreamInfo) (err error) {
-	if _, ok := (*m)[info.Flow]; ok {
-		err = fmt.Errorf("duplicate StreamInfo for '%s'", info.Flow)
-		return
-	}
-	(*m)[info.Flow] = &stream{info, nil, nil, nil}
-	return
-}
-
-// addSent adds a Sent sample. An error is returned if the stream was not
-// already added with addInfo.
-func (mm *streams) addSent(smp node.Sent) (err error) {
-	var s *stream
+// data adds streamData for the given flow if it doesn't already exist.
+func (m *streams) data(flow node.Flow) (s *streamData) {
 	var ok bool
-	if s, ok = (*mm)[smp.Flow]; !ok {
-		err = fmt.Errorf("Sent without StreamInfo for '%s'", smp.Flow)
+	if s, ok = (*m)[flow]; ok {
 		return
 	}
-	s.Sent = append(s.Sent, smp)
-	return
-}
-
-// addReceived adds a Received sample. An error is returned if the stream was
-// not already added with addInfo.
-func (mm *streams) addReceived(smp node.Received) (err error) {
-	var s *stream
-	var ok bool
-	if s, ok = (*mm)[smp.Flow]; !ok {
-		err = fmt.Errorf("Received without StreamInfo for '%s'", smp.Flow)
-		return
-	}
-	s.Received = append(s.Received, smp)
+	s = &streamData{}
+	(*m)[flow] = s
 	return
 }
 
 // T0 returns the earliest T0 (start time) among the streams.
 func (m *streams) T0() (t0 time.Time) {
 	for _, s := range *m {
-		if t0.IsZero() || s.Info.T0.Before(t0) {
-			t0 = s.Info.T0
+		st0 := s.T0()
+		if t0.IsZero() || st0.Before(t0) {
+			t0 = st0
 		}
 	}
 	return
@@ -353,7 +338,7 @@ func (m *streams) T0() (t0 time.Time) {
 func (m *streams) analyze() {
 	t0 := m.T0()
 	for _, s := range *m {
-		o := s.Info.T0.Sub(t0)
+		o := s.T0().Sub(t0)
 		var p node.Received
 		for _, r := range s.Received {
 			t := metric.Duration(o + r.T)
@@ -369,7 +354,7 @@ func (m *streams) analyze() {
 }
 
 // list returns a slice of streams, sorted by Flow.
-func (m *streams) list() (lst []stream) {
+func (m *streams) list() (lst []streamData) {
 	var ff []node.Flow
 	for k, _ := range *m {
 		ff = append(ff, k)
@@ -394,6 +379,9 @@ type GTimeSeries struct {
 	// VTitle is the title of the vertical axis.
 	VTitle string
 
+	// FlowLabel sets custom labels for Flows.
+	FlowLabel map[node.Flow]string
+
 	// To is the name of a file to execute the template to, or "-" for stdout.
 	To string
 }
@@ -408,7 +396,7 @@ func (g *GTimeSeries) report(in reportIn) {
 func (g *GTimeSeries) reportOne(in reportIn) (err error) {
 	type tdata struct {
 		GTimeSeries
-		Stream []stream
+		Stream []streamData
 	}
 	var w io.WriteCloser
 	defer func() {
@@ -417,24 +405,36 @@ func (g *GTimeSeries) reportOne(in reportIn) (err error) {
 		}
 	}()
 	t := template.New("GTimeSeries")
+	t = t.Funcs(template.FuncMap{
+		"flowLabel": func(flow node.Flow) (label string) {
+			label, ok := g.FlowLabel[flow]
+			if !ok {
+				return string(flow)
+			}
+			return label
+		},
+	})
 	if t, err = t.Parse(gTimeSeriesTemplate); err != nil {
 		return
 	}
 	s := newStreams()
 	for a := range in.data {
 		switch v := a.(type) {
-		case node.StreamInfo:
-			if err = s.addInfo(v); err != nil {
-				return
-			}
+		case node.Stream:
+			d := s.data(v.Flow)
+			d.Stream = v
+		case node.SentMark:
+			d := s.data(v.Flow)
+			d.SentMark = v
 		case node.Sent:
-			if err = s.addSent(v); err != nil {
-				return
-			}
+			d := s.data(v.Flow)
+			d.Sent = append(d.Sent, v)
+		case node.ReceivedMark:
+			d := s.data(v.Flow)
+			d.ReceivedMark = v
 		case node.Received:
-			if err = s.addReceived(v); err != nil {
-				return
-			}
+			d := s.data(v.Flow)
+			d.Received = append(d.Received, v)
 		}
 	}
 	s.analyze()

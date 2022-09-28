@@ -59,7 +59,10 @@ Run: #TestRun
 #GTimeSeries: {
 	Title:  string & !="" | *"Time Series"
 	VTitle: string & !="" | *"Goodput (Mbps)"
-	To:     string & !=""
+	FlowLabel: {
+		[=~".*"]: string
+	}
+	To: string & !=""
 }
 
 // antler.SaveFiles
@@ -99,9 +102,9 @@ Run: #TestRun
 	} | {
 		System?: #System
 	} | {
-		TCPStreamClient?: #TCPStreamClient
+		StreamClient?: #StreamClient
 	} | {
-		TCPStreamServer?: #TCPStreamServer
+		StreamServer?: #StreamServer
 	}
 }
 
@@ -135,34 +138,36 @@ Run: #TestRun
 	Kill?:         bool
 }
 
-// node.TCPStream
-#TCPStream: {
+// node.Stream
+#Stream: {
 	Flow?:            #Flow
-	Download?:        bool
+	Direction:        #Direction | *"upload"
+	Duration:         #Duration | *"1m"
 	CCA?:             string & !=""
-	Duration?:        #Duration | *"1m"
 	SampleIOInterval: #Duration | *"10ms"
 	BufLen:           int & >0 | *(1024 * 128)
 }
 
-// node.TCPStreamClient
-#TCPStreamClient: {
+// node.Direction
+#Direction: "upload" | "download"
+
+// node.StreamClient
+#StreamClient: {
 	{} | {
 		Addr?: string & !=""
 	} | {
 		AddrKey?: string & !=""
 	}
-	#TCPStream
+	#Stream
 }
 
-// node.TCPStreamServer
-#TCPStreamServer: {
+// node.StreamServer
+#StreamServer: {
 	{} | {
 		ListenAddr?: string & !=""
 	} | {
 		ListenAddrKey?: string & !=""
 	}
-	#TCPStream
 }
 
 // node.Child

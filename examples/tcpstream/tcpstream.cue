@@ -1,15 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2022 Pete Heist
 
-// This Antler example config has a single test that creates a netns dumbbell,
-// and runs a single TCP stream from the right to the left endpoint. The
-// middlebox ("mid" namespace) has the cake qdisc added at 50 Mbit.
+// This Antler example config has a single test that creates a chain of four
+// network namespaces, and runs two TCP streams from the left to the right
+// endpoint. The middleboxes mr and ml are used to provide a delay, and add the
+// CAKE qdisc at 50 Mbit.
 
 package tcpstream
 
 // stream includes logs for streaming during the test
 // This is passed to all nodes before setup.
 stream: {ResultStream: Include: Log: true}
+
+// rtt is the path RTT, in milliseconds
+#rtt: 80
+
+// qdisc is the qdisc to apply
+#qdisc: "cake bandwidth 50Mbit flowblind"
 
 // Run contains a single Test. After log streaming is configured, setup is
 // run, the server is started, then the test is run.
@@ -22,10 +29,11 @@ Run: {
 		{EmitLog: {To: ["-", "node.log"]}},
 		{SaveFiles: {}},
 		{GTimeSeries: {
-			Title: "CUBIC Goodput through 50 Mbps CAKE bottleneck, 80ms RTT"
+			Title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
 			To:    "throughput.html"
 			FlowLabel: {
 				"cubic": "TCP CUBIC"
+				"reno":  "TCP Reno"
 			}
 		}},
 	]
@@ -34,7 +42,7 @@ Run: {
 // setup runs the setup commands in each namespace
 setup: {
 	Serial: [
-		for n in [ ns.right, ns.mid, ns.left] {
+		for n in [ ns.right, ns.mr, ns.ml, ns.left] {
 			Child: {
 				Node: n.node
 				Serial: [stream, for c in n.setup {System: Command: c}]
@@ -48,34 +56,47 @@ ns: {
 	right: {
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link add dev right.l type veth peer name mid.r",
-			"ip link set dev mid.r netns mid",
+			"ip link add dev right.l type veth peer name mr.r",
+			"ip link set dev mr.r netns mr",
 			"ip addr add 10.0.0.2/24 dev right.l",
 			"ip link set right.l up",
 			"ethtool -K right.l \(#offloads)",
 		]
 	}
-	mid: {
+	mr: {
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link set mid.r up",
-			"ip link add dev mid.l type veth peer name left.r",
+			"ip link set mr.r up",
+			"ip link add dev mr.l type veth peer name ml.r",
+			"ip link set dev ml.r netns ml",
+			"ip link set dev mr.l up",
+			"ip link add name mr.b type bridge",
+			"ip link set dev mr.r master mr.b",
+			"ip link set dev mr.l master mr.b",
+			"ip link set dev mr.b up",
+			"ethtool -K mr.l \(#offloads)",
+			"ethtool -K mr.r \(#offloads)",
+			"tc qdisc add dev mr.r root netem delay \(#rtt/2)ms limit 100000",
+		]
+	}
+	ml: {
+		setup: [
+			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+			"ip link set ml.r up",
+			"ip link add dev ml.l type veth peer name left.r",
 			"ip link set dev left.r netns left",
-			"ip link set dev mid.l up",
-			"ip link add name mid.b type bridge",
-			"ip link set dev mid.r master mid.b",
-			"ip link set dev mid.l master mid.b",
-			"ip link set dev mid.b up",
-			"ethtool -K mid.l \(#offloads)",
-			"ethtool -K mid.r \(#offloads)",
-			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
-			"tc qdisc add dev mid.l root netem delay 80ms limit 100000",
-			//"modprobe ifb",
-			//"ip link add dev i.mid.r type ifb",
-			//"tc qdisc add dev i.mid.r root handle 1: netem delay 10ms limit 100000",
-			//"tc qdisc add dev mid.r handle ffff: ingress",
-			//"ip link set i.mid.r up",
-			//"tc filter add dev i.mid.r parent ffff: protocol all prio 0 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev i.mid.r",
+			"ip link set dev ml.l up",
+			"ip link add name ml.b type bridge",
+			"ip link set dev ml.r master ml.b",
+			"ip link set dev ml.l master ml.b",
+			"ip link set dev ml.b up",
+			"ethtool -K ml.l \(#offloads)",
+			"ethtool -K ml.r \(#offloads)",
+			"tc qdisc add dev ml.l root netem delay \(#rtt/2)ms limit 100000",
+			"tc qdisc add dev ml.r root \(#qdisc)",
+			//"tc qdisc add dev ml.r root handle 1: htb default 1",
+			//"tc class add dev ml.r parent 1: classid 1:1 htb rate 50Mbit",
+			//"tc qdisc add dev ml.r parent 1:1 pfifo limit 100",
 		]
 	}
 	left: {
@@ -129,19 +150,27 @@ run: {
 				Stdout:     "left.pcap"
 			}},
 			{Sleep: "500ms"},
-			{StreamClient: {
-				Addr:             #serverAddr
-				Flow:             "cubic"
-				CCA:              "reno"
-				Duration:         "3s"
-				Direction:        "upload"
-				SampleIOInterval: "40ms"
-			}},
+			{Parallel: [
+				{StreamClient: {
+					Addr:             #serverAddr
+					Flow:             "cubic"
+					CCA:              "cubic"
+					Duration:         "30s"
+					Direction:        "upload"
+					SampleIOInterval: "\(#rtt/2)ms"
+				}},
+				{Serial: [
+					{Sleep: "10s"},
+					{StreamClient: {
+						Addr:             #serverAddr
+						Flow:             "reno"
+						CCA:              "reno"
+						Duration:         "10s"
+						Direction:        "upload"
+						SampleIOInterval: "\(#rtt/2)ms"
+					}},
+				]},
+			]},
 		]
 	}
 }
-
-// throughputGchart is the throughput plot template for Google Charts.
-#throughputGchart: """
-	Hello World!
-	"""

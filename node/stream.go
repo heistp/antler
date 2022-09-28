@@ -127,8 +127,8 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 		return
 	}
 	if m.CCA != "" {
-		if e = setSockoptString(conn, unix.IPPROTO_TCP, unix.TCP_CONGESTION,
-			m.CCA); e != nil {
+		if e = setTCPSockoptString(conn, unix.IPPROTO_TCP, unix.TCP_CONGESTION,
+			"CCA", m.CCA); e != nil {
 			return
 		}
 	}
@@ -230,8 +230,8 @@ func (s Stream) tcpControl(network, address string, conn syscall.RawConn) (
 	err error) {
 	c := func(fd uintptr) {
 		if s.CCA != "" {
-			err = unix.SetsockoptString(int(fd), unix.IPPROTO_TCP,
-				unix.TCP_CONGESTION, s.CCA)
+			err = setSockoptString(int(fd), unix.IPPROTO_TCP,
+				unix.TCP_CONGESTION, "CCA", s.CCA)
 		}
 	}
 	if e := conn.Control(c); e != nil && err == nil {

@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -76,6 +77,9 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 		c = exec.CommandContext(ctx, n, a...)
 	} else {
 		c = exec.Command(n, a...)
+	}
+	c.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
 	}
 	arg.rec.Logf("%s", c)
 	if err = s.handleOutput(s.Stdout, c.StdoutPipe, arg.rec); err != nil {

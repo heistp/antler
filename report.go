@@ -379,6 +379,12 @@ type GTimeSeries struct {
 	// VTitle is the title of the vertical axis.
 	VTitle string
 
+	// VMin is the minimum value on the vertical axis.
+	VMin int
+
+	// VMax is the maximum value on the vertical axis.
+	VMax int
+
 	// FlowLabel sets custom labels for Flows.
 	FlowLabel map[node.Flow]string
 

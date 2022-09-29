@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2022 Pete Heist
 
-// This Antler example config has a single test that creates a chain of four
-// network namespaces, and runs two TCP streams from the left to the right
-// endpoint. The middleboxes mr and ml are used to provide a delay, and add the
-// CAKE qdisc at 50 Mbit.
+// This Antler example config has a single test that creates a netns dumbbell,
+// and runs two TCP streams from the left to the right endpoint. The middlebox
+// (mid namespace) has the cake qdisc added at 50 Mbit.
 
 package tcpstream
 
@@ -14,6 +13,9 @@ stream: {ResultStream: Include: Log: true}
 
 // rtt is the path RTT, in milliseconds
 #rtt: 80
+
+// duration is the test duration, in seconds
+#duration: 120
 
 // qdisc is the qdisc to apply
 #qdisc: "cake bandwidth 50Mbit flowblind"
@@ -31,6 +33,7 @@ Run: {
 		{GTimeSeries: {
 			Title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
 			To:    "throughput.html"
+			VMax:  55
 			FlowLabel: {
 				"cubic": "TCP CUBIC"
 				"reno":  "TCP Reno"
@@ -42,7 +45,7 @@ Run: {
 // setup runs the setup commands in each namespace
 setup: {
 	Serial: [
-		for n in [ ns.right, ns.mr, ns.ml, ns.left] {
+		for n in [ ns.right, ns.mid, ns.left] {
 			Child: {
 				Node: n.node
 				Serial: [stream, for c in n.setup {System: Command: c}]
@@ -56,47 +59,32 @@ ns: {
 	right: {
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link add dev right.l type veth peer name mr.r",
-			"ip link set dev mr.r netns mr",
+			"ip link add dev right.l type veth peer name mid.r",
+			"ip link set dev mid.r netns mid",
 			"ip addr add 10.0.0.2/24 dev right.l",
 			"ip link set right.l up",
 			"ethtool -K right.l \(#offloads)",
 		]
 	}
-	mr: {
+	mid: {
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link set mr.r up",
-			"ip link add dev mr.l type veth peer name ml.r",
-			"ip link set dev ml.r netns ml",
-			"ip link set dev mr.l up",
-			"ip link add name mr.b type bridge",
-			"ip link set dev mr.r master mr.b",
-			"ip link set dev mr.l master mr.b",
-			"ip link set dev mr.b up",
-			"ethtool -K mr.l \(#offloads)",
-			"ethtool -K mr.r \(#offloads)",
-			"tc qdisc add dev mr.r root netem delay \(#rtt/2)ms limit 100000",
-		]
-	}
-	ml: {
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link set ml.r up",
-			"ip link add dev ml.l type veth peer name left.r",
+			"ip link set mid.r up",
+			"ethtool -K mid.r \(#offloads)",
+			"ip link add dev mid.l type veth peer name left.r",
 			"ip link set dev left.r netns left",
-			"ip link set dev ml.l up",
-			"ip link add name ml.b type bridge",
-			"ip link set dev ml.r master ml.b",
-			"ip link set dev ml.l master ml.b",
-			"ip link set dev ml.b up",
-			"ethtool -K ml.l \(#offloads)",
-			"ethtool -K ml.r \(#offloads)",
-			"tc qdisc add dev ml.l root netem delay \(#rtt/2)ms limit 100000",
-			"tc qdisc add dev ml.r root \(#qdisc)",
-			//"tc qdisc add dev ml.r root handle 1: htb default 1",
-			//"tc class add dev ml.r parent 1: classid 1:1 htb rate 50Mbit",
-			//"tc qdisc add dev ml.r parent 1:1 pfifo limit 100",
+			"ip link set dev mid.l up",
+			"ethtool -K mid.l \(#offloads)",
+			"ip link add name mid.b type bridge",
+			"ip link set dev mid.r master mid.b",
+			"ip link set dev mid.l master mid.b",
+			"ip link set dev mid.b up",
+			"ip link add dev imid.l type ifb",
+			"tc qdisc add dev imid.l root handle 1: netem delay \(#rtt)ms limit 1000000",
+			"tc qdisc add dev mid.l handle ffff: ingress",
+			"ip link set dev imid.l up",
+			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
+			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
 		]
 	}
 	left: {
@@ -155,19 +143,19 @@ run: {
 					Addr:             #serverAddr
 					Flow:             "cubic"
 					CCA:              "cubic"
-					Duration:         "30s"
+					Duration:         "\(#duration)s"
 					Direction:        "upload"
-					SampleIOInterval: "\(#rtt/2)ms"
+					SampleIOInterval: "\(#rtt*2)ms"
 				}},
 				{Serial: [
-					{Sleep: "10s"},
+					{Sleep: "\(#duration/3)s"},
 					{StreamClient: {
 						Addr:             #serverAddr
 						Flow:             "reno"
 						CCA:              "reno"
-						Duration:         "10s"
+						Duration:         "\(#duration/3)s"
 						Direction:        "upload"
-						SampleIOInterval: "\(#rtt/2)ms"
+						SampleIOInterval: "\(#rtt*2)ms"
 					}},
 				]},
 			]},

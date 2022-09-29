@@ -34,7 +34,8 @@
             italic: false,
           },
           viewWindow: {
-            min: 0,
+            min: {{.VMin}},
+            {{if .VMax}}max: {{.VMax}}{{end}}
           },
           baselineColor: '#cccccc',
           gridlines: {

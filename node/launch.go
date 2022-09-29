@@ -85,7 +85,7 @@ func (l *launchers) launcher() (a launcher) {
 // launching a Node (man ip-netns(8)).
 type Netns struct {
 	// Name is the name of the namespace. If set, this namespace will either be
-	// created or used, depending on the value of the Existing field.
+	// created or used, depending on the value of the Create field.
 	Name string
 
 	// Create indicates whether to create a namespace (true) or use an existing

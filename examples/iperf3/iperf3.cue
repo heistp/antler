@@ -52,17 +52,21 @@ ns: {
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
 			"ip link set mid.r up",
+			"ethtool -K mid.r \(#offloads)",
 			"ip link add dev mid.l type veth peer name left.r",
 			"ip link set dev left.r netns left",
 			"ip link set dev mid.l up",
+			"ethtool -K mid.l \(#offloads)",
 			"ip link add name mid.b type bridge",
 			"ip link set dev mid.r master mid.b",
 			"ip link set dev mid.l master mid.b",
 			"ip link set dev mid.b up",
-			"ethtool -K mid.l \(#offloads)",
-			"ethtool -K mid.r \(#offloads)",
+			"ip link add dev imid.l type ifb",
+			"tc qdisc add dev imid.l root handle 1: netem delay 80ms limit 1000000",
+			"tc qdisc add dev mid.l handle ffff: ingress",
+			"ip link set dev imid.l up",
+			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
 			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
-			"tc qdisc add dev mid.l root netem delay 80ms limit 100000",
 		]
 	}
 	left: {

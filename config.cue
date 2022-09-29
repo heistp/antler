@@ -59,6 +59,8 @@ Run: #TestRun
 #GTimeSeries: {
 	Title:  string & !="" | *"Time Series"
 	VTitle: string & !="" | *"Goodput (Mbps)"
+	VMin:   int | *0
+	VMax?:  int
 	FlowLabel: {
 		[=~".*"]: string
 	}

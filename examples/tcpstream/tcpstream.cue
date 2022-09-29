@@ -145,7 +145,7 @@ run: {
 					CCA:              "cubic"
 					Duration:         "\(#duration)s"
 					Direction:        "upload"
-					SampleIOInterval: "\(#rtt*2)ms"
+					SampleIOInterval: "\(#rtt*4)ms"
 				}},
 				{Serial: [
 					{Sleep: "\(#duration/3)s"},
@@ -155,7 +155,7 @@ run: {
 						CCA:              "reno"
 						Duration:         "\(#duration/3)s"
 						Direction:        "upload"
-						SampleIOInterval: "\(#rtt*2)ms"
+						SampleIOInterval: "\(#rtt*4)ms"
 					}},
 				]},
 			]},

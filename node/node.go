@@ -88,7 +88,7 @@ const RootNodeID = "-"
 
 // Do runs a Run tree in an in-process "root" node, and sends data items back on
 // the given channel. The item types sent can include Stream, SentMark, Sent,
-// ReceivedMark, Received, FileData, LogEntry and Error.
+// RcvdMark, Rcvd, FileData, LogEntry and Error.
 //
 // Do is used by the antler package and executable.
 func Do(rn *Run, src ExeSource, ctrl *Control, data chan interface{}) {
@@ -109,7 +109,7 @@ func Do(rn *Run, src ExeSource, ctrl *Control, data chan interface{}) {
 		defer wg.Done()
 		for e := range ev {
 			switch v := e.(type) {
-			case Stream, Sent, SentMark, Received, ReceivedMark, FileData,
+			case Stream, Sent, SentMark, Rcvd, RcvdMark, FileData,
 				LogEntry:
 				data <- v
 			case errorEvent:

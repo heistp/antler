@@ -403,7 +403,7 @@ func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
 	b := make([]byte, x.BufLen)
 	in := x.SampleIOInterval.Duration()
 	t0 := time.Now()
-	rec.Send(ReceivedMark{x.Flow, t0})
+	rec.Send(RcvdMark{x.Flow, t0})
 	ts := t0
 	var l metric.Bytes
 	for {
@@ -415,7 +415,7 @@ func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
 		if n > 0 {
 			ds := t.Sub(ts)
 			if ds > in || err != nil {
-				rec.Send(Received{x.Flow, dt, l})
+				rec.Send(Rcvd{x.Flow, dt, l})
 				ts = t
 			}
 		}
@@ -480,54 +480,53 @@ func (s Sent) String() string {
 	return fmt.Sprintf("Sent[Flow:%s T:%s Total:%d]", s.Flow, s.T, s.Total)
 }
 
-// ReceivedMark represents the base time that receiving began for a flow.
-type ReceivedMark struct {
-	Flow Flow      // Flow that this ReceivedMark is for
+// RcvdMark represents the base time that receiving began for a flow.
+type RcvdMark struct {
+	Flow Flow      // Flow that this RcvdMark is for
 	T0   time.Time // base time that receiving began
 }
 
-// init registers ReceivedMark with the gob encoder
+// init registers RcvdMark with the gob encoder
 func init() {
-	gob.Register(ReceivedMark{})
+	gob.Register(RcvdMark{})
 }
 
 // flags implements message
-func (ReceivedMark) flags() flag {
+func (RcvdMark) flags() flag {
 	return flagForward
 }
 
 // handle implements event
-func (s ReceivedMark) handle(node *node) {
+func (s RcvdMark) handle(node *node) {
 	node.parent.Send(s)
 }
 
-func (s ReceivedMark) String() string {
-	return fmt.Sprintf("ReceivedMark[Flow:%s T0:%s]", s.Flow, s.T0)
+func (s RcvdMark) String() string {
+	return fmt.Sprintf("RcvdMark[Flow:%s T0:%s]", s.Flow, s.T0)
 }
 
-// Received is a time series data point containing a total number of received
-// bytes.
-type Received struct {
-	Flow  Flow          // flow that this Received is for
-	T     time.Duration // duration since sending began (ReceivedMark.T0)
+// Rcvd is a time series data point containing a total number of received bytes.
+type Rcvd struct {
+	Flow  Flow          // flow that this Rcvd is for
+	T     time.Duration // duration since sending began (RcvdMark.T0)
 	Total metric.Bytes  // total received bytes
 }
 
-// init registers Received with the gob encoder
+// init registers Rcvd with the gob encoder
 func init() {
-	gob.Register(Received{})
+	gob.Register(Rcvd{})
 }
 
 // flags implements message
-func (Received) flags() flag {
+func (Rcvd) flags() flag {
 	return flagForward
 }
 
 // handle implements event
-func (r Received) handle(node *node) {
+func (r Rcvd) handle(node *node) {
 	node.parent.Send(r)
 }
 
-func (r Received) String() string {
-	return fmt.Sprintf("Received[Flow:%s T:%s Total:%d]", r.Flow, r.T, r.Total)
+func (r Rcvd) String() string {
+	return fmt.Sprintf("Rcvd[Flow:%s T:%s Total:%d]", r.Flow, r.T, r.Total)
 }

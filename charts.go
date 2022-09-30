@@ -83,12 +83,12 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 		case node.Sent:
 			d := s.data(v.Flow)
 			d.Sent = append(d.Sent, v)
-		case node.ReceivedMark:
+		case node.RcvdMark:
 			d := s.data(v.Flow)
-			d.ReceivedMark = v
-		case node.Received:
+			d.RcvdMark = v
+		case node.Rcvd:
 			d := s.data(v.Flow)
-			d.Received = append(d.Received, v)
+			d.Rcvd = append(d.Rcvd, v)
 		}
 	}
 	s.analyze()

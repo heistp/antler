@@ -264,20 +264,20 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 
 // streamData contains the data and calculated stats for a stream.
 type streamData struct {
-	Stream       node.Stream
-	SentMark     node.SentMark
-	Sent         []node.Sent
-	ReceivedMark node.ReceivedMark
-	Received     []node.Received
-	Goodput      []goodput
+	Stream   node.Stream
+	SentMark node.SentMark
+	Sent     []node.Sent
+	RcvdMark node.RcvdMark
+	Rcvd     []node.Rcvd
+	Goodput  []goodput
 }
 
-// T0 returns the earliest time, from either SentMark or ReceivedMark.
+// T0 returns the earliest time, from either SentMark or RcvdMark.
 func (s *streamData) T0() time.Time {
-	if s.SentMark.T0.Before(s.ReceivedMark.T0) {
+	if s.SentMark.T0.Before(s.RcvdMark.T0) {
 		return s.SentMark.T0
 	}
-	return s.ReceivedMark.T0
+	return s.RcvdMark.T0
 }
 
 // goodput is a single goodput data point.
@@ -338,10 +338,10 @@ func (m *streams) analyze() {
 	t0 := m.T0()
 	for _, s := range *m {
 		o := s.T0().Sub(t0)
-		var p node.Received
-		for _, r := range s.Received {
+		var p node.Rcvd
+		for _, r := range s.Rcvd {
 			t := metric.Duration(o + r.T)
-			if p == (node.Received{}) {
+			if p == (node.Rcvd{}) {
 				s.Goodput = append(s.Goodput, goodput{t, 0})
 			} else {
 				g := metric.CalcBitrate(r.Total-p.Total, r.T-p.T)

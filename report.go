@@ -354,14 +354,12 @@ func (m *streams) analyze() {
 
 // list returns a slice of streams, sorted by Flow.
 func (m *streams) list() (lst []streamData) {
-	var ff []node.Flow
-	for k, _ := range *m {
-		ff = append(ff, k)
+	for _, d := range *m {
+		lst = append(lst, *d)
 	}
-	sort.Slice(ff, func(i, j int) bool { return ff[i] < ff[j] })
-	for _, f := range ff {
-		lst = append(lst, *(*m)[f])
-	}
+	sort.Slice(lst, func(i, j int) bool {
+		return lst[i].T0().Before(lst[j].T0())
+	})
 	return
 }
 

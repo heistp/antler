@@ -160,6 +160,7 @@ Run: #TestRun
 	} | {
 		AddrKey?: string & !=""
 	}
+	Protocol: #StreamProtocol
 	#Stream
 }
 
@@ -170,7 +171,11 @@ Run: #TestRun
 	} | {
 		ListenAddrKey?: string & !=""
 	}
+	Protocol: #StreamProtocol
 }
+
+// StreamProtocol is the protocol used for StreamClient and StreamServer
+#StreamProtocol: *"tcp" | "tcp4" | "tcp6"
 
 // node.Child
 #Child: {

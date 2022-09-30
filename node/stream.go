@@ -16,10 +16,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// StreamServer is a server used for TCP stream tests.
+// StreamServer is a server used for stream oriented protocols.
 type StreamServer struct {
-	// ListenAddr is the TCP listen address, as specified to the address
-	// parameter in net.Listen (e.g. ":port" or "addr:port").
+	// ListenAddr is the listen address, as specified to the address parameter
+	// in net.Listen (e.g. ":port" or "addr:port").
 	ListenAddr string
 
 	// ListenAddrKey is the key used in the returned Feedback for the listen
@@ -27,16 +27,18 @@ type StreamServer struct {
 	// address will not be included in the Feedback.
 	ListenAddrKey string
 
+	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
+	Protocol string
+
 	errc chan error
 }
 
 // Run implements runner
 func (s *StreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
-	//c := net.ListenConfig{Control: s.tcpControl}
 	c := net.ListenConfig{}
 	var l net.Listener
-	if l, err = c.Listen(ctx, "tcp", s.ListenAddr); err != nil {
+	if l, err = c.Listen(ctx, s.Protocol, s.ListenAddr); err != nil {
 		return
 	}
 	if s.ListenAddrKey != "" {
@@ -142,9 +144,9 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 	}
 }
 
-// StreamClient is a client used for TCP stream tests.
+// StreamClient is a client used for stream oriented protocols.
 type StreamClient struct {
-	// Addr is the TCP dial address, as specified to the address parameter in
+	// Addr is the dial address, as specified to the address parameter in
 	// net.Dial (e.g. "addr:port").
 	Addr string
 
@@ -152,7 +154,10 @@ type StreamClient struct {
 	// Feedback, if Addr is not specified.
 	AddrKey string
 
-	// TCPStream embeds the TCP stream parameters.
+	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
+	Protocol string
+
+	// TCPStream embeds the TCP stream parameters. TODO update
 	Stream
 }
 
@@ -165,7 +170,7 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	}
 	d := net.Dialer{Control: s.tcpControl}
 	var c net.Conn
-	if c, err = d.DialContext(ctx, "tcp", a); err != nil {
+	if c, err = d.DialContext(ctx, s.Protocol, a); err != nil {
 		return
 	}
 	defer c.Close()
@@ -196,6 +201,10 @@ func (s *StreamClient) addr(ifb Feedback) (a string, err error) {
 		err = fmt.Errorf("no address specified in Addr or AddrKey")
 	}
 	return
+}
+
+// A streamer handles connections in StreamClient and StreamServer.
+type streamer interface {
 }
 
 // Stream contains the parameters for a stream.

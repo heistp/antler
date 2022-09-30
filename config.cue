@@ -33,7 +33,7 @@ Run: #TestRun
 	} | {
 		ExecuteTemplate?: #ExecuteTemplate
 	} | {
-		GTimeSeries?: #GTimeSeries
+		ChartsTimeSeries?: #ChartsTimeSeries
 	} | {
 		SaveFiles?: #SaveFiles
 	}
@@ -55,8 +55,8 @@ Run: #TestRun
 	}
 }
 
-// antler.GTimeSeries
-#GTimeSeries: {
+// antler.ChartsTimeSeries
+#ChartsTimeSeries: {
 	Title:  string & !="" | *"Time Series"
 	VTitle: string & !="" | *"Goodput (Mbps)"
 	VMin:   int | *0

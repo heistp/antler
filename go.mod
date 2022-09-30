@@ -5,7 +5,7 @@ go 1.17
 require (
 	cuelang.org/go v0.4.3
 	github.com/spf13/cobra v1.4.0
-	golang.org/x/sys v0.0.0-20220927170352-d9d178bc13c6
+	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec
 )
 
 require (

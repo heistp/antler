@@ -4,7 +4,6 @@
 package antler
 
 import (
-	_ "embed"
 	"sort"
 	"time"
 
@@ -58,10 +57,10 @@ type Report struct {
 
 // reporters is a union of the available reporters.
 type reporters struct {
-	EmitLog         *EmitLog
-	ExecuteTemplate *ExecuteTemplate
-	GTimeSeries     *GTimeSeries
-	SaveFiles       *SaveFiles
+	EmitLog          *EmitLog
+	ExecuteTemplate  *ExecuteTemplate
+	ChartsTimeSeries *ChartsTimeSeries
+	SaveFiles        *SaveFiles
 }
 
 // reporter returns the only non-nil reporter implementation.
@@ -71,8 +70,8 @@ func (r *reporters) reporter() reporter {
 		return r.EmitLog
 	case r.ExecuteTemplate != nil:
 		return r.ExecuteTemplate
-	case r.GTimeSeries != nil:
-		return r.GTimeSeries
+	case r.ChartsTimeSeries != nil:
+		return r.ChartsTimeSeries
 	case r.SaveFiles != nil:
 		return r.SaveFiles
 	default:
@@ -363,95 +362,6 @@ func (m *streams) list() (lst []streamData) {
 	for _, f := range ff {
 		lst = append(lst, *(*m)[f])
 	}
-	return
-}
-
-// gTimeSeriesTemplate is the template for the GTimeSeries reporter.
-//
-//go:embed gtimeseries.tmpl
-var gTimeSeriesTemplate string
-
-// GTimeSeries is a reporter that makes time series plots using Google Charts.
-type GTimeSeries struct {
-	// Title is the plot title.
-	Title string
-
-	// VTitle is the title of the vertical axis.
-	VTitle string
-
-	// VMin is the minimum value on the vertical axis.
-	VMin int
-
-	// VMax is the maximum value on the vertical axis.
-	VMax int
-
-	// FlowLabel sets custom labels for Flows.
-	FlowLabel map[node.Flow]string
-
-	// To is the name of a file to execute the template to, or "-" for stdout.
-	To string
-}
-
-// report implements reporter
-func (g *GTimeSeries) report(in reportIn) {
-	var f simpleReportFunc = g.reportOne
-	f.report(in)
-}
-
-// report runs one time series report.
-func (g *GTimeSeries) reportOne(in reportIn) (err error) {
-	type tdata struct {
-		GTimeSeries
-		Stream []streamData
-	}
-	var w io.WriteCloser
-	defer func() {
-		if w != nil && w != os.Stdout {
-			w.Close()
-		}
-	}()
-	t := template.New("GTimeSeries")
-	t = t.Funcs(template.FuncMap{
-		"flowLabel": func(flow node.Flow) (label string) {
-			label, ok := g.FlowLabel[flow]
-			if !ok {
-				return string(flow)
-			}
-			return label
-		},
-	})
-	if t, err = t.Parse(gTimeSeriesTemplate); err != nil {
-		return
-	}
-	s := newStreams()
-	for a := range in.data {
-		switch v := a.(type) {
-		case node.Stream:
-			d := s.data(v.Flow)
-			d.Stream = v
-		case node.SentMark:
-			d := s.data(v.Flow)
-			d.SentMark = v
-		case node.Sent:
-			d := s.data(v.Flow)
-			d.Sent = append(d.Sent, v)
-		case node.ReceivedMark:
-			d := s.data(v.Flow)
-			d.ReceivedMark = v
-		case node.Received:
-			d := s.data(v.Flow)
-			d.Received = append(d.Received, v)
-		}
-	}
-	s.analyze()
-	d := tdata{*g, s.list()}
-	w = os.Stdout
-	if g.To != "-" {
-		if w, err = os.Create(g.To); err != nil {
-			return
-		}
-	}
-	err = t.Execute(w, d)
 	return
 }
 

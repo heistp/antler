@@ -30,7 +30,7 @@ Run: {
 	Report: [
 		{EmitLog: {To: ["-", "node.log"]}},
 		{SaveFiles: {}},
-		{GTimeSeries: {
+		{ChartsTimeSeries: {
 			Title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
 			To:    "throughput.html"
 			VMax:  55

@@ -126,8 +126,7 @@ server: {
 	}
 }
 
-// run runs the test using StreamClient, to download from the right
-// namespace to the left
+// run runs the test using two StreamClients
 run: {
 	Child: {
 		Node: ns.left.node
@@ -140,22 +139,24 @@ run: {
 			{Sleep: "500ms"},
 			{Parallel: [
 				{StreamClient: {
-					Addr:             #serverAddr
-					Flow:             "cubic"
-					CCA:              "cubic"
-					Duration:         "\(#duration)s"
-					Direction:        "upload"
-					SampleIOInterval: "\(#rtt*4)ms"
+					Addr: #serverAddr
+					Upload: {
+						Flow:             "cubic"
+						CCA:              "cubic"
+						Duration:         "\(#duration)s"
+						SampleIOInterval: "\(#rtt*4)ms"
+					}
 				}},
 				{Serial: [
 					{Sleep: "\(#duration/3)s"},
 					{StreamClient: {
-						Addr:             #serverAddr
-						Flow:             "reno"
-						CCA:              "reno"
-						Duration:         "\(#duration/3)s"
-						Direction:        "upload"
-						SampleIOInterval: "\(#rtt*4)ms"
+						Addr: #serverAddr
+						Upload: {
+							Flow:             "reno"
+							CCA:              "reno"
+							Duration:         "\(#duration/3)s"
+							SampleIOInterval: "\(#rtt*4)ms"
+						}
 					}},
 				]},
 			]},

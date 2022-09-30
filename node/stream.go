@@ -123,25 +123,12 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 		}
 		errc <- errDone
 	}()
-	var m Stream
+	var m streamer
 	d := gob.NewDecoder(conn)
 	if e = d.Decode(&m); e != nil {
 		return
 	}
-	if m.CCA != "" {
-		if e = setTCPSockoptString(conn, unix.IPPROTO_TCP, unix.TCP_CONGESTION,
-			"CCA", m.CCA); e != nil {
-			return
-		}
-	}
-	switch m.Direction {
-	case Download:
-		e = m.send(ctx, conn, rec)
-	case Upload:
-		e = m.receive(conn, rec)
-	default:
-		e = fmt.Errorf("unknown Direction: %s", m.Direction)
-	}
+	e = m.handleServer(ctx, conn, rec)
 }
 
 // StreamClient is a client used for stream oriented protocols.
@@ -157,8 +144,7 @@ type StreamClient struct {
 	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
 	Protocol string
 
-	// TCPStream embeds the TCP stream parameters. TODO update
-	Stream
+	Streamers
 }
 
 // Run implements runner
@@ -168,25 +154,21 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if a, err = s.addr(arg.ifb); err != nil {
 		return
 	}
-	d := net.Dialer{Control: s.tcpControl}
+	m := s.streamer()
+	d := net.Dialer{}
+	if r, ok := m.(dialController); ok {
+		d.Control = r.dialControl
+	}
 	var c net.Conn
 	if c, err = d.DialContext(ctx, s.Protocol, a); err != nil {
 		return
 	}
 	defer c.Close()
-	arg.rec.Send(s.Stream)
 	e := gob.NewEncoder(c)
-	if err = e.Encode(s.Stream); err != nil {
+	if err = e.Encode(&m); err != nil {
 		return
 	}
-	switch s.Direction {
-	case Download:
-		err = s.receive(c, arg.rec)
-	case Upload:
-		err = s.send(ctx, c, arg.rec)
-	default:
-		err = fmt.Errorf("unknown Direction: %s", s.Direction)
-	}
+	err = m.handleClient(ctx, c, arg.rec)
 	return
 }
 
@@ -205,21 +187,154 @@ func (s *StreamClient) addr(ifb Feedback) (a string, err error) {
 
 // A streamer handles connections in StreamClient and StreamServer.
 type streamer interface {
+	// handleClient handles a client connection.
+	handleClient(context.Context, net.Conn, *recorder) error
+
+	// handleServer handles a server connection.
+	handleServer(context.Context, net.Conn, *recorder) error
 }
 
-// Stream contains the parameters for a stream.
+// A dialController provides Dialer.Control for the StreamClient, and may be
+// implemented by a streamer.
+type dialController interface {
+	dialControl(network, address string, c syscall.RawConn) error
+}
+
+// Streamers is the union of available streamer implementations.
+type Streamers struct {
+	Upload   *Upload
+	Download *Download
+}
+
+// streamer returns the only non-nil streamer implementation.
+func (s *Streamers) streamer() streamer {
+	switch {
+	case s.Upload != nil:
+		return s.Upload
+	case s.Download != nil:
+		return s.Download
+	default:
+		panic("no streamer set in streamers union")
+	}
+}
+
+// Upload is a stream transfer from client to server.
+type Upload struct {
+	Transfer
+}
+
+// init registers Upload with the gob encoder
+func init() {
+	gob.Register(Upload{})
+}
+
+// handleClient implements streamer
+func (u Upload) handleClient(ctx context.Context, conn net.Conn,
+	rec *recorder) error {
+	rec.Send(u.Transfer.Stream)
+	return u.send(ctx, conn, rec)
+}
+
+// handleServer implements streamer
+func (u Upload) handleServer(ctx context.Context, conn net.Conn,
+	rec *recorder) error {
+	return u.receive(ctx, conn, rec)
+}
+
+func (u Upload) String() string {
+	return fmt.Sprintf("Upload[Flow:%s]", u.Flow)
+}
+
+// Download is a stream transfer from server to client.
+type Download struct {
+	Transfer
+}
+
+// init registers Upload with the gob encoder
+func init() {
+	gob.Register(Download{})
+}
+
+// handleClient implements streamer
+func (d Download) handleClient(ctx context.Context, conn net.Conn,
+	rec *recorder) error {
+	rec.Send(d.Transfer.Stream)
+	return d.receive(ctx, conn, rec)
+}
+
+// handleServer implements streamer
+func (d Download) handleServer(ctx context.Context, conn net.Conn,
+	rec *recorder) (err error) {
+	if d.CCA != "" {
+		if t, ok := conn.(*net.TCPConn); ok {
+			if err = setTCPSockoptString(t, unix.IPPROTO_TCP,
+				unix.TCP_CONGESTION, "CCA", d.CCA); err != nil {
+				return
+			}
+		}
+	}
+	err = d.send(ctx, conn, rec)
+	return
+}
+
+// flags implements message
+func (Download) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (d Download) handle(node *node) {
+	node.parent.Send(d)
+}
+
+func (d Download) String() string {
+	return fmt.Sprintf("Download[Flow:%s]", d.Flow)
+}
+
+// Stream represents the information for one direction of a flow for a stream
+// oriented connection.
 type Stream struct {
-	// Flow is the flow identifier for the Stream.
+	// Flow is the Stream's flow identifier.
 	Flow Flow
 
-	// Direction indicates in which direction the data flows.
+	// Direction is the client to server sense.
 	Direction Direction
 
+	// CCA is the sender's Congestion Control Algorithm.
+	CCA string
+}
+
+// init registers SentMark with the gob encoder
+func init() {
+	gob.Register(Stream{})
+}
+
+// flags implements message
+func (Stream) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (s Stream) handle(node *node) {
+	node.parent.Send(s)
+}
+
+func (s Stream) String() string {
+	return fmt.Sprintf("Stream[Flow:%s Direction:%s]", s.Flow, s.Direction)
+}
+
+// Direction is the client to server sense for a Stream.
+type Direction string
+
+const (
+	Up   Direction = "up"   // client to server
+	Down Direction = "down" // server to client
+)
+
+// Transfer contains the parameters for an Upload or Download.
+type Transfer struct {
 	// Duration is the length of time the sender writes.
 	Duration metric.Duration
-
-	// CCA sets the sender's Congestion Control Algorithm.
-	CCA string
 
 	// SampleIOInterval is the minimum time between IO samples. Zero means a
 	// sample will be recorded for every read and write.
@@ -227,20 +342,17 @@ type Stream struct {
 
 	// BufLen is the size of the buffer used to read and write from the conn.
 	BufLen int
+
+	Stream
 }
 
-// init registers Stream with the gob encoder
-func init() {
-	gob.Register(Stream{})
-}
-
-// tcpControl provides ListenConfig.Control and Dialer.Control for TCP.
-func (s Stream) tcpControl(network, address string, conn syscall.RawConn) (
+// dialControl implements dialController
+func (x Transfer) dialControl(network, address string, conn syscall.RawConn) (
 	err error) {
 	c := func(fd uintptr) {
-		if s.CCA != "" {
+		if x.CCA != "" {
 			err = setSockoptString(int(fd), unix.IPPROTO_TCP,
-				unix.TCP_CONGESTION, "CCA", s.CCA)
+				unix.TCP_CONGESTION, "CCA", x.CCA)
 		}
 	}
 	if e := conn.Control(c); e != nil && err == nil {
@@ -249,16 +361,16 @@ func (s Stream) tcpControl(network, address string, conn syscall.RawConn) (
 	return
 }
 
-// send runs the send side of a stream.
-func (s Stream) send(ctx context.Context, w io.Writer, rec *recorder) (
+// send runs the send side of a transfer.
+func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
 	err error) {
-	b := make([]byte, s.BufLen)
-	for i := 0; i < s.BufLen; i++ {
+	b := make([]byte, x.BufLen)
+	for i := 0; i < x.BufLen; i++ {
 		b[i] = 0xfe
 	}
-	in, dur := s.SampleIOInterval.Duration(), s.Duration.Duration()
+	in, dur := x.SampleIOInterval.Duration(), x.Duration.Duration()
 	t0 := time.Now()
-	rec.Send(SentMark{s.Flow, t0})
+	rec.Send(SentMark{x.Flow, t0})
 	ts := t0
 	var l metric.Bytes
 	var done bool
@@ -277,7 +389,7 @@ func (s Stream) send(ctx context.Context, w io.Writer, rec *recorder) (
 		if n > 0 {
 			ds := t.Sub(ts)
 			if ds > in || done {
-				rec.Send(Sent{s.Flow, dt, l})
+				rec.Send(Sent{x.Flow, dt, l})
 				ts = t
 			}
 		}
@@ -285,12 +397,13 @@ func (s Stream) send(ctx context.Context, w io.Writer, rec *recorder) (
 	return
 }
 
-// receive runs the receive side of a stream.
-func (s Stream) receive(r io.Reader, rec *recorder) (err error) {
-	b := make([]byte, s.BufLen)
-	in := s.SampleIOInterval.Duration()
+// receive runs the receive side of a transfer.
+func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
+	err error) {
+	b := make([]byte, x.BufLen)
+	in := x.SampleIOInterval.Duration()
 	t0 := time.Now()
-	rec.Send(ReceivedMark{s.Flow, t0})
+	rec.Send(ReceivedMark{x.Flow, t0})
 	ts := t0
 	var l metric.Bytes
 	for {
@@ -302,7 +415,7 @@ func (s Stream) receive(r io.Reader, rec *recorder) (err error) {
 		if n > 0 {
 			ds := t.Sub(ts)
 			if ds > in || err != nil {
-				rec.Send(Received{s.Flow, dt, l})
+				rec.Send(Received{x.Flow, dt, l})
 				ts = t
 			}
 		}
@@ -315,29 +428,6 @@ func (s Stream) receive(r io.Reader, rec *recorder) (err error) {
 	}
 	return
 }
-
-// flags implements message
-func (Stream) flags() flag {
-	return flagForward
-}
-
-// handle implements event
-func (s Stream) handle(node *node) {
-	node.parent.Send(s)
-}
-
-func (s Stream) String() string {
-	return fmt.Sprintf("Stream[Flow:%s Direction:%s]", s.Flow, s.Direction)
-}
-
-// Direction indicates a sense for the flow of data, e.g. Upload for client to
-// server, and Download for server to client.
-type Direction string
-
-const (
-	Upload   Direction = "upload"
-	Download           = "download"
-)
 
 // SentMark represents the base time that sending began for a flow.
 type SentMark struct {

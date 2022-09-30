@@ -142,16 +142,13 @@ Run: #TestRun
 
 // node.Stream
 #Stream: {
-	Flow?:            #Flow
-	Direction:        #Direction | *"upload"
-	Duration:         #Duration | *"1m"
-	CCA?:             string & !=""
-	SampleIOInterval: #Duration | *"10ms"
-	BufLen:           int & >0 | *(1024 * 128)
+	Flow?:     #Flow
+	Direction: #Direction
+	CCA?:      string & !=""
 }
 
 // node.Direction
-#Direction: "upload" | "download"
+#Direction: "up" | "down"
 
 // node.StreamClient
 #StreamClient: {
@@ -161,6 +158,35 @@ Run: #TestRun
 		AddrKey?: string & !=""
 	}
 	Protocol: #StreamProtocol
+	#Streamers
+}
+
+// node.streamers
+#Streamers: {
+	{} | {
+		Upload?: #Upload
+	} | {
+		Download?: #Download
+	}
+}
+
+// node.Upload
+#Upload: {
+	#Transfer
+	Direction: "up"
+}
+
+// node.Download
+#Download: {
+	#Transfer
+	Direction: "down"
+}
+
+// node.transfer
+#Transfer: {
+	Duration:         #Duration | *"1m"
+	SampleIOInterval: #Duration | *"100ms"
+	BufLen:           int & >0 | *(1024 * 128)
 	#Stream
 }
 

@@ -109,8 +109,8 @@ func Do(rn *Run, src ExeSource, ctrl *Control, data chan interface{}) {
 		defer wg.Done()
 		for e := range ev {
 			switch v := e.(type) {
-			case Stream, Sent, SentMark, Received, ReceivedMark,
-				FileData, LogEntry:
+			case Stream, Sent, SentMark, Received, ReceivedMark, FileData,
+				LogEntry:
 				data <- v
 			case errorEvent:
 				data <- f.NewErrore(v.err)

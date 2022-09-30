@@ -262,6 +262,24 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 	return
 }
 
+// streamData contains the data and calculated stats for a stream.
+type streamData struct {
+	Stream       node.Stream
+	SentMark     node.SentMark
+	Sent         []node.Sent
+	ReceivedMark node.ReceivedMark
+	Received     []node.Received
+	Goodput      []goodput
+}
+
+// T0 returns the earliest time, from either SentMark or ReceivedMark.
+func (s *streamData) T0() time.Time {
+	if s.SentMark.T0.Before(s.ReceivedMark.T0) {
+		return s.SentMark.T0
+	}
+	return s.ReceivedMark.T0
+}
+
 // goodput is a single goodput data point.
 type goodput struct {
 	// T is the time offset relative to the start of the earliest stream.
@@ -283,24 +301,6 @@ func (g goodput) MbpsRow(col, cols int) (a []interface{}) {
 		a = append(a, g.Goodput.Mbps())
 	}
 	return
-}
-
-// streamData contains the data and calculated stats for a stream.
-type streamData struct {
-	Stream       node.Stream
-	SentMark     node.SentMark
-	Sent         []node.Sent
-	ReceivedMark node.ReceivedMark
-	Received     []node.Received
-	Goodput      []goodput
-}
-
-// T0 returns the earliest time, from either SentMark or ReceivedMark.
-func (s *streamData) T0() time.Time {
-	if s.SentMark.T0.Before(s.ReceivedMark.T0) {
-		return s.SentMark.T0
-	}
-	return s.ReceivedMark.T0
 }
 
 // streams aggregates data for multiple streams.

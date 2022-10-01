@@ -6,7 +6,49 @@ package node
 import (
 	"context"
 	"net"
+	"time"
 )
+
+// Seq is a packet sequence number.
+type Seq uint64
+
+// packet represents a packet sent in either direction between a PacketClient
+// and PacketServer. Only the exported fields are included in the body of the
+// packet. The unexported fields are used by the client.
+type packet struct {
+	// Seq is the sequence number assigned by the client.
+	Seq Seq
+
+	// Flow is the flow identifier, and corresponds to a client and server pair.
+	Flow Flow
+
+	// Echo, if true, indicates that the server should return the packet to the
+	// client, unchanged.
+	Echo bool
+
+	// size is the total length of the packet, in bytes. After the exported
+	// fields are encoded to the packet, padding will be added so the packet
+	// equals this size.
+	size int
+
+	// reply is a channel on which to send replies to this packet.
+	reply chan packet
+
+	// to is the server address to send the packet to.
+	to net.Addr
+}
+
+// Write implements io.Writer to "write" from bytes to the packet.
+func (p *packet) Write(data []byte) (n int, err error) {
+	// TODO implement packet.Write
+	return
+}
+
+// Read implements io.Reader to "read" from the packet to bytes.
+func (p *packet) Read(b []byte) (n int, err error) {
+	// TODO implement packet.Read
+	return
+}
 
 // PacketServer is a server used for packet oriented protocols.
 type PacketServer struct {
@@ -17,7 +59,6 @@ type PacketServer struct {
 	// Protocol is the protocol to use (udp, udp4 or udp6).
 	Protocol string
 
-	Packeters
 	errc chan error
 }
 
@@ -83,8 +124,27 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			}
 			close(ec)
 		}()
-		p := s.packeter()
-		e = p.handleServer(ctx, conn, rec)
+		var p packet
+		var n int
+		var a net.Addr
+		b := make([]byte, 9000)
+		for {
+			if n, a, e = conn.ReadFrom(b); e != nil {
+				return
+			}
+			t := time.Now()
+			if _, e = p.Write(b[:n]); e != nil {
+				return
+			}
+			_ = t
+			// TODO record PktRcvd
+			if p.Echo {
+				// TODO record PktReplied
+				if _, e = conn.WriteTo(b[:n], a); e != nil {
+					return
+				}
+			}
+		}
 	}()
 }
 
@@ -97,62 +157,27 @@ type PacketClient struct {
 	// Protocol is the protocol to use (udp, udp4 or udp6).
 	Protocol string
 
-	Packeters
+	Scheduler []Schedulers
 }
 
 // Run implements runner
 func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
-	k := p.packeter()
 	d := net.Dialer{}
-	if r, ok := k.(dialController); ok {
-		d.Control = r.dialControl
-	}
 	var c net.Conn
 	if c, err = d.DialContext(ctx, p.Protocol, p.Addr); err != nil {
 		return
 	}
 	defer c.Close()
-	err = k.handleClient(ctx, c.(net.PacketConn), arg.rec)
+	// TODO run goroutine for each scheduler
+
+	// on each tick, send a packet to the server
+	// if Reply is set in the tick, set Echo to true in the packet, and save the
+	// scheduler's in channel in a map, for somewhere to write the reply to
+
+	// on each reply, send a tick to the corresponding scheduler
+
+	// increment seqnos and record data along the way: PktSent, PktReturned
+
 	return
-}
-
-// A packeter handles connections in PacketClient and PacketServer.
-type packeter interface {
-	// handleClient handles a client connection.
-	handleClient(context.Context, net.PacketConn, *recorder) error
-
-	// handleServer handles a server connection.
-	handleServer(context.Context, net.PacketConn, *recorder) error
-}
-
-// Packeters is the union of available packeter implementations.
-type Packeters struct {
-	Isochronous *Isochronous
-}
-
-// packeter returns the only non-nil packeter implementation.
-func (p *Packeters) packeter() packeter {
-	switch {
-	case p.Isochronous != nil:
-		return p.Isochronous
-	default:
-		panic("no packeter set in packeters union")
-	}
-}
-
-// Isochronous sends and echoes fixed size packets on an isochronous schedule.
-type Isochronous struct {
-}
-
-// handleClient implements packeter
-func (*Isochronous) handleClient(context.Context, net.PacketConn,
-	*recorder) error {
-	return nil
-}
-
-// handleServer implements packeter
-func (*Isochronous) handleServer(context.Context, net.PacketConn,
-	*recorder) error {
-	return nil
 }

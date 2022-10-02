@@ -221,8 +221,6 @@ func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 
 	// on each reply, send a tick to the corresponding scheduler
 
-	// increment seqnos and record data along the way: PktSent, PktReturned
-
 	return
 }
 

@@ -48,8 +48,8 @@ type packet struct {
 	// reply is a channel on which to send replies to this packet.
 	reply chan packet
 
-	// to is the server address to send the packet to.
-	to net.Addr
+	// addr is the server address (to or from).
+	addr net.Addr
 }
 
 // Write implements io.Writer to "write" from bytes to the packet.
@@ -201,28 +201,137 @@ type PacketClient struct {
 	// Protocol is the protocol to use (udp, udp4 or udp6).
 	Protocol string
 
+	// Flow is the flow identifier for traffic between the client and server.
+	Flow Flow
+
+	// MaxPacketSize is the maximum size of a packet.
+	MaxPacketSize int
+
 	Scheduler []Schedulers
 }
 
 // Run implements runner
 func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
-	d := net.Dialer{}
+	dl := net.Dialer{}
 	var c net.Conn
-	if c, err = d.DialContext(ctx, p.Protocol, p.Addr); err != nil {
+	if c, err = dl.DialContext(ctx, p.Protocol, p.Addr); err != nil {
 		return
 	}
-	defer c.Close()
-	// TODO run goroutine for each scheduler
-
-	// on each tick, send a packet to the server
-	// if Reply is set in the tick, set Echo to true in the packet, and save the
-	// scheduler's in channel in a map, for somewhere to write the reply to
-
-	// on each reply, send a tick to the corresponding scheduler
-
+	var cxl context.CancelFunc
+	ctx, cxl = context.WithCancel(ctx)
+	o := make(chan tick)
+	tt := make(map[Seq]chan tick)
+	var g int
+	for _, s := range p.Scheduler {
+		g++
+		go p.schedule(ctx, s.scheduler(), o)
+	}
+	rc := p.read(c.(net.PacketConn))
+	var q Seq
+	var n int
+	b := make([]byte, p.MaxPacketSize)
+	g++
+	defer func() {
+		cxl()
+		c.Close()
+		for g > 0 {
+			select {
+			case t := <-o:
+				if t.Done {
+					g--
+				}
+			case _, ok := <-rc:
+				if !ok {
+					g--
+				}
+			}
+		}
+	}()
+	for g > 0 {
+		select {
+		case t := <-o:
+			if t.Done {
+				if g--; g == 1 {
+					return
+				}
+				break
+			}
+			k := packet{0, q, p.Flow, t.Len, nil, nil}
+			if t.Reply != nil {
+				k.Flag = pFlagEcho
+				tt[q] = t.Reply
+			}
+			q++
+			if n, err = k.Read(b); err != nil {
+				return
+			}
+			if _, err = c.Write(b[:n]); err != nil {
+				return
+			}
+		case r, ok := <-rc:
+			if !ok {
+				g--
+				return
+			}
+			if r.Err != nil {
+				err = r.Err
+				return
+			}
+			k := r.Packet
+			if k.Flag&pFlagReply != 0 {
+				var tc chan tick
+				if tc, ok = tt[k.Seq]; ok {
+					tc <- tick{k.length, nil, false}
+				}
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 	return
 }
 
-type PktRcvd struct {
+// read is the entry point for the conn read goroutine.
+func (p *PacketClient) read(conn net.PacketConn) (res chan readResult) {
+	res = make(chan readResult)
+	go func() {
+		b := make([]byte, p.MaxPacketSize)
+		var n int
+		var a net.Addr
+		var e error
+		defer func() {
+			if e != nil {
+				res <- readResult{packet{}, e}
+			}
+			close(res)
+		}()
+		for {
+			n, a, e = conn.ReadFrom(b)
+			if e != nil {
+				break
+			}
+			var p packet
+			p.length = n
+			p.addr = a
+			if _, e = p.Write(b[:n]); e != nil {
+				return
+			}
+			res <- readResult{p, nil}
+		}
+	}()
+	return
+}
+
+// schedule is the entry point for a goroutine that runs one Scheduler.
+func (p *PacketClient) schedule(ctx context.Context, sch scheduler,
+	out chan tick) {
+	// TODO implement PacketClient.schedule
+}
+
+// readResult is sent to and from the read goroutine to communicate read results
+// asynchronously.
+type readResult struct {
+	Packet packet
+	Err    error
 }

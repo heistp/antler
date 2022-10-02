@@ -103,6 +103,9 @@ type PacketServer struct {
 	// Protocol is the protocol to use (udp, udp4 or udp6).
 	Protocol string
 
+	// MaxPacketSize is the maximum size of a received packet.
+	MaxPacketSize int
+
 	errc chan error
 }
 
@@ -171,7 +174,7 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 		var p packet
 		var n int
 		var a net.Addr
-		b := make([]byte, 1500)
+		b := make([]byte, s.MaxPacketSize)
 		for {
 			if n, a, e = conn.ReadFrom(b); e != nil {
 				return
@@ -204,7 +207,7 @@ type PacketClient struct {
 	// Flow is the flow identifier for traffic between the client and server.
 	Flow Flow
 
-	// MaxPacketSize is the maximum size of a packet.
+	// MaxPacketSize is the maximum size of a received packet.
 	MaxPacketSize int
 
 	Scheduler []Schedulers

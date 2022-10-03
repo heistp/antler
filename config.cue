@@ -104,6 +104,10 @@ Run: #TestRun
 	} | {
 		System?: #System
 	} | {
+		PacketClient?: #PacketClient
+	} | {
+		PacketServer?: #PacketServer
+	} | {
 		StreamClient?: #StreamClient
 	} | {
 		StreamServer?: #StreamServer
@@ -142,13 +146,50 @@ Run: #TestRun
 
 // node.Stream
 #Stream: {
-	Flow?:     #Flow
+	Flow:      #Flow
 	Direction: #Direction
 	CCA?:      string & !=""
 }
 
 // node.Direction
 #Direction: "up" | "down"
+
+// node.PacketClient (TODO min MaxPacketSize is arbitrary)
+#PacketClient: {
+	Addr:          string & !=""
+	Protocol:      #PacketProtocol
+	Flow:          #Flow
+	MaxPacketSize: #MaxPacketSize
+	Sender: [#PacketSenders, ...#PacketSenders]
+}
+
+// MaxPacketSize is the maximum size for PacketClient/PacketServer
+#MaxPacketSize: int & >=32 & *(1500 - 20)
+
+// node.PacketSenders
+#PacketSenders: {
+	{} | {
+		Unresponsive?: #Unresponsive
+	}
+}
+
+// node.Unresponsive
+#Unresponsive: {
+	Interval: #Duration | *"100ms"
+	Length?:  int
+	Duration: #Duration
+	Echo:     bool | *true
+}
+
+// node.PacketProtocol
+#PacketProtocol: *"udp" | "udp4" | "udp6"
+
+// node.PacketServer
+#PacketServer: {
+	ListenAddr:    string
+	Protocol:      #PacketProtocol
+	MaxPacketSize: #MaxPacketSize
+}
 
 // node.StreamClient
 #StreamClient: {

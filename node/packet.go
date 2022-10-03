@@ -229,7 +229,7 @@ type PacketClient struct {
 	// MaxPacketSize is the maximum size of a received packet.
 	MaxPacketSize int
 
-	Sender []packetSender
+	Sender []PacketSenders
 }
 
 // Run implements runner
@@ -248,7 +248,7 @@ func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 		g++
 		i := make(chan packet)
 		in = append(in, i)
-		go s.send(&q, i, out)
+		go s.packetSender().send(&q, i, out)
 	}
 	g++
 	rc := p.read(c.(net.PacketConn))
@@ -361,36 +361,36 @@ type packetSender interface {
 
 // PacketSenders is the union of available packetSender implementations.
 type PacketSenders struct {
-	Isochronous *Isochronous
+	Unresponsive *Unresponsive
 }
 
 // packetSender returns the only non-nil packetSender implementation.
 func (p *PacketSenders) packetSender() packetSender {
 	switch {
-	case p.Isochronous != nil:
-		return p.Isochronous
+	case p.Unresponsive != nil:
+		return p.Unresponsive
 	default:
 		panic("no packetSender set in packetSender union")
 	}
 }
 
-// Isochronous sends packets on a periodic schedule with fixed interval.
-type Isochronous struct {
+// Unresponsive sends packets on a periodic schedule with fixed interval.
+type Unresponsive struct {
 	// Interval is the fixed time between ticks.
 	Interval metric.Duration
 
-	// Duration is how long to send packets.
-	Duration metric.Duration
-
 	// Length is the length of the packets.
 	Length int
+
+	// Duration is how long to send packets.
+	Duration metric.Duration
 
 	// Echo, if true, requests mirrored replies from the server.
 	Echo bool
 }
 
 // send implements packetSender
-func (i *Isochronous) send(seq *seqSrc, in, out chan packet) {
+func (i *Unresponsive) send(seq *seqSrc, in, out chan packet) {
 	var e error
 	defer func() {
 		out <- packet{err: e}

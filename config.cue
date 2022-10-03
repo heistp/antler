@@ -113,7 +113,7 @@ Run: #TestRun
 // node.Duration
 #Duration: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
 
-// node.Flow
+// node.Flow (TODO restrict length to <=255 chars)
 #Flow: string & !=""
 
 // node.ResultStream

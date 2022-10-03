@@ -9,10 +9,30 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"sync"
+	"time"
+
+	"github.com/heistp/antler/node/metric"
 )
 
 // Seq is a packet sequence number.
 type Seq uint64
+
+// seqSrc provides a concurrent-safe source of monotonically increasing sequence
+// numbers. The zero value is ready to use.
+type seqSrc struct {
+	seq Seq
+	mtx sync.Mutex
+}
+
+// Next returns the next sequence number.
+func (s *seqSrc) Next() (seq Seq) {
+	s.mtx.Lock()
+	seq = s.seq
+	s.seq++
+	s.mtx.Unlock()
+	return
+}
 
 // packetFlag represents the flag bits on a packet.
 type packetFlag byte
@@ -30,7 +50,7 @@ var packetMagic = []byte{0xaa, 0x49, 0x7c, 0x06, 0x31, 0xe9, 0x45}
 
 // packet represents a packet sent in either direction between a PacketClient
 // and PacketServer. Only the exported fields are included in the body of the
-// packet. The unexported fields are used by the client.
+// packet.
 type packet struct {
 	// Flag contains the packet flags.
 	Flag packetFlag
@@ -41,15 +61,14 @@ type packet struct {
 	// Flow is the flow identifier, and corresponds to a client and server pair.
 	Flow Flow
 
-	// length is the total length of the packet, in bytes. After the exported
-	// fields are encoded to the packet, padding is added to reach this length.
+	// length is the total length of the packet, in bytes, including the header.
 	length int
 
-	// reply is a channel on which to send replies to this packet.
-	reply chan packet
-
-	// addr is the server address (to or from).
+	// addr is the address the packet is from or to.
 	addr net.Addr
+
+	// err is an error that supersedes the remaining fields.
+	err error
 }
 
 // Write implements io.Writer to "write" from bytes to the packet.
@@ -128,7 +147,7 @@ func (s *PacketServer) Cancel(rec *recorder) error {
 	return <-s.errc
 }
 
-// start starts the main and packet handling goroutine.
+// start starts the main and packet handling goroutines.
 func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 	rec *recorder) {
 	ec := make(chan error)
@@ -210,7 +229,7 @@ type PacketClient struct {
 	// MaxPacketSize is the maximum size of a received packet.
 	MaxPacketSize int
 
-	Scheduler []Schedulers
+	Sender []packetSender
 }
 
 // Run implements runner
@@ -221,28 +240,31 @@ func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if c, err = dl.DialContext(ctx, p.Protocol, p.Addr); err != nil {
 		return
 	}
-	var cxl context.CancelFunc
-	ctx, cxl = context.WithCancel(ctx)
-	o := make(chan tick)
-	tt := make(map[Seq]chan tick)
+	out := make(chan packet)
+	var q seqSrc
+	var in []chan packet
 	var g int
-	for _, s := range p.Scheduler {
+	for _, s := range p.Sender {
 		g++
-		go p.schedule(ctx, s.scheduler(), o)
+		i := make(chan packet)
+		in = append(in, i)
+		go s.send(&q, i, out)
 	}
-	rc := p.read(c.(net.PacketConn))
-	var q Seq
-	var n int
-	b := make([]byte, p.MaxPacketSize)
 	g++
+	rc := p.read(c.(net.PacketConn))
 	defer func() {
-		cxl()
+		for _, i := range in {
+			close(i)
+		}
 		c.Close()
 		for g > 0 {
 			select {
-			case t := <-o:
-				if t.Done {
+			case k := <-out:
+				if k == (packet{}) {
 					g--
+				}
+				if k.err != nil && err == nil {
+					err = k.err
 				}
 			case _, ok := <-rc:
 				if !ok {
@@ -251,42 +273,46 @@ func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 			}
 		}
 	}()
+	b := make([]byte, p.MaxPacketSize)
 	for g > 0 {
 		select {
-		case t := <-o:
-			if t.Done {
+		case k := <-out:
+			if k == (packet{}) {
 				if g--; g == 1 {
 					return
 				}
 				break
 			}
-			k := packet{0, q, p.Flow, t.Len, nil, nil}
-			if t.Reply != nil {
-				k.Flag = pFlagEcho
-				tt[q] = t.Reply
+			if k.err != nil {
+				err = k.err
+				return
 			}
-			q++
+			k.Flow = p.Flow
+			var n int
 			if n, err = k.Read(b); err != nil {
 				return
 			}
-			if _, err = c.Write(b[:n]); err != nil {
+			if k.length == 0 {
+				k.length = n
+			} else if k.length < n {
+				err = fmt.Errorf("requested packet len %d < header len %d",
+					k.length, n)
 				return
 			}
-		case r, ok := <-rc:
+			if _, err = c.Write(b[:k.length]); err != nil {
+				return
+			}
+		case k, ok := <-rc:
 			if !ok {
 				g--
 				return
 			}
-			if r.Err != nil {
-				err = r.Err
+			if k.err != nil {
+				err = k.err
 				return
 			}
-			k := r.Packet
-			if k.Flag&pFlagReply != 0 {
-				var tc chan tick
-				if tc, ok = tt[k.Seq]; ok {
-					tc <- tick{k.length, nil, false}
-				}
+			for _, i := range in {
+				i <- k
 			}
 		case <-ctx.Done():
 			return
@@ -296,8 +322,8 @@ func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 }
 
 // read is the entry point for the conn read goroutine.
-func (p *PacketClient) read(conn net.PacketConn) (res chan readResult) {
-	res = make(chan readResult)
+func (p *PacketClient) read(conn net.PacketConn) (rc chan packet) {
+	rc = make(chan packet)
 	go func() {
 		b := make([]byte, p.MaxPacketSize)
 		var n int
@@ -305,9 +331,9 @@ func (p *PacketClient) read(conn net.PacketConn) (res chan readResult) {
 		var e error
 		defer func() {
 			if e != nil {
-				res <- readResult{packet{}, e}
+				rc <- packet{err: e}
 			}
-			close(res)
+			close(rc)
 		}()
 		for {
 			n, a, e = conn.ReadFrom(b)
@@ -315,26 +341,80 @@ func (p *PacketClient) read(conn net.PacketConn) (res chan readResult) {
 				break
 			}
 			var p packet
-			p.length = n
 			p.addr = a
 			if _, e = p.Write(b[:n]); e != nil {
 				return
 			}
-			res <- readResult{p, nil}
+			rc <- p
 		}
 	}()
 	return
 }
 
-// schedule is the entry point for a goroutine that runs one Scheduler.
-func (p *PacketClient) schedule(ctx context.Context, sch scheduler,
-	out chan tick) {
-	// TODO implement PacketClient.schedule
+// A packetSender can send outgoing and react to incoming packets. The send
+// method must read from the in channel until it's closed, at which point send
+// should complete as soon as possible, and send a zero value packet to out,
+// with an error if the sender was forced to completed abnormally.
+type packetSender interface {
+	send(seq *seqSrc, in, out chan packet)
 }
 
-// readResult is sent to and from the read goroutine to communicate read results
-// asynchronously.
-type readResult struct {
-	Packet packet
-	Err    error
+// PacketSenders is the union of available packetSender implementations.
+type PacketSenders struct {
+	Isochronous *Isochronous
+}
+
+// packetSender returns the only non-nil packetSender implementation.
+func (p *PacketSenders) packetSender() packetSender {
+	switch {
+	case p.Isochronous != nil:
+		return p.Isochronous
+	default:
+		panic("no packetSender set in packetSender union")
+	}
+}
+
+// Isochronous sends packets on a periodic schedule with fixed interval.
+type Isochronous struct {
+	// Interval is the fixed time between ticks.
+	Interval metric.Duration
+
+	// Duration is how long to send packets.
+	Duration metric.Duration
+
+	// Length is the length of the packets.
+	Length int
+
+	// Echo, if true, requests mirrored replies from the server.
+	Echo bool
+}
+
+// send implements packetSender
+func (i *Isochronous) send(seq *seqSrc, in, out chan packet) {
+	var e error
+	defer func() {
+		out <- packet{err: e}
+	}()
+	sendPacket := func() {
+		out <- packet{pFlagEcho, seq.Next(), "", i.Length, nil, nil}
+	}
+	t0 := time.Now()
+	t := time.NewTicker(i.Interval.Duration())
+	defer t.Stop()
+	sendPacket()
+	for {
+		select {
+		case _, ok := <-in:
+			if !ok {
+				e = fmt.Errorf("%s isochronous sender did not complete",
+					i.Interval)
+				return
+			}
+		case <-t.C:
+			if time.Since(t0) >= i.Duration.Duration() {
+				return
+			}
+			sendPacket()
+		}
+	}
 }

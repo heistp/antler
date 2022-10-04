@@ -283,20 +283,35 @@ type goodput struct {
 	// T is the time offset relative to the start of the earliest stream.
 	T metric.RelativeTime
 
-	// Goodput
+	// Goodput is the goodput bitrate.
 	Goodput metric.Bitrate
+
+	// First is true for the first goodput point.
+	First bool
+
+	// Last is true for the last goodput point.
+	Last bool
 }
 
 // MbpsRow returns a row of values containing T in the first column, and Goodput
-// in Mbps in the col'th column, with other columns up to cols containing nil.
-func (g goodput) MbpsRow(col, cols int) (a []interface{}) {
+// in Mbps in the stream'th column, with other columns up to streams+1
+// containing nil.
+func (g goodput) MbpsRow(stream, streams int, first, last bool) (
+	a []interface{}) {
 	a = append(a, g.T.Duration().Seconds())
-	for i := 0; i < cols; i++ {
-		if i != col {
+	for i := 0; i < streams; i++ {
+		if i != stream {
 			a = append(a, nil)
 			continue
 		}
 		a = append(a, g.Goodput.Mbps())
+	}
+	if first {
+		a = append(a, "point { visible: true; size: 4; shape-type: diamond; }")
+	} else if last {
+		a = append(a, "point { visible: true; size: 4; shape-type: circle; }")
+	} else {
+		a = append(a, nil)
 	}
 	return
 }
@@ -354,14 +369,14 @@ func (m *streams) analyze() {
 	m.synchronize()
 	for _, s := range *m {
 		var pr node.StreamIO
-		for _, r := range s.Rcvd {
-			if pr == (node.StreamIO{}) {
-				s.Goodput = append(s.Goodput, goodput{r.T, 0})
-			} else {
-				g := metric.CalcBitrate(r.Total-pr.Total,
+		for i, r := range s.Rcvd {
+			var g metric.Bitrate
+			if pr != (node.StreamIO{}) {
+				g = metric.CalcBitrate(r.Total-pr.Total,
 					time.Duration(r.T-pr.T))
-				s.Goodput = append(s.Goodput, goodput{r.T, g})
 			}
+			s.Goodput = append(s.Goodput,
+				goodput{r.T, g, i == 0, i == len(s.Rcvd)-1})
 			pr = r
 		}
 	}

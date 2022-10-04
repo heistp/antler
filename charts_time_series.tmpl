@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
   <script type="text/javascript"
@@ -7,14 +8,15 @@
       google.charts.setOnLoadCallback(drawChart);
 
     function drawChart() {
-      var data = new google.visualization.DataTable()
+      var data = new google.visualization.DataTable();
 
       data.addColumn("number", "");
       {{range .Stream}}data.addColumn("number", "{{flowLabel .Info.Flow}}");
       {{end}}
-      {{$cols := (len .Stream)}}
+      data.addColumn({type: "string", role: "style"});
+      {{$streams := (len .Stream)}}
       {{range $col, $stream := .Stream}}data.addRows([
-        {{range $stream.Goodput}}{{.MbpsRow $col $cols}},
+        {{range $stream.Goodput}}{{.MbpsRow $col $streams .First .Last}},
         {{end}}
       ]);
       {{end}}

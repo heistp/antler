@@ -36,8 +36,11 @@ type ChartsTimeSeries struct {
 	// FlowLabel sets custom labels for Flows.
 	FlowLabel map[node.Flow]string
 
-	// To is the name of a file to execute the template to, or "-" for stdout.
+	// To is the name of a file to execute the template to.
 	To string
+
+	// Debug, if true, also writes the template to stdout.
+	Debug bool
 }
 
 // report implements reporter
@@ -88,12 +91,14 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	}
 	s.analyze()
 	d := tdata{*g, s.byTime()}
-	w = os.Stdout
-	if g.To != "-" {
-		if w, err = os.Create(g.To); err != nil {
-			return
-		}
+	var ww []io.Writer
+	if w, err = os.Create(g.To); err != nil {
+		return
 	}
-	err = t.Execute(w, d)
+	ww = append(ww, w)
+	if g.Debug {
+		ww = append(ww, os.Stdout)
+	}
+	err = t.Execute(io.MultiWriter(ww...), d)
 	return
 }

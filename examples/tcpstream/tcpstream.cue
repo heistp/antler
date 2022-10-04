@@ -33,6 +33,7 @@ Run: {
 		{ChartsTimeSeries: {
 			Title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
 			To:    "throughput.html"
+			Debug: true
 			VMax:  55
 			FlowLabel: {
 				"cubic": "TCP CUBIC"

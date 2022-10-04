@@ -122,6 +122,7 @@ server: {
 				Stdout:     "right.pcap"
 			}},
 			{StreamServer: {ListenAddr: #serverAddr}},
+			{PacketServer: {ListenAddr: #serverAddr}},
 		]
 	}
 }
@@ -138,6 +139,15 @@ run: {
 			}},
 			{Sleep: "500ms"},
 			{Parallel: [
+				{PacketClient: {
+					Addr: #serverAddr
+					Flow: "udp"
+					Sender: [
+						{Unresponsive: {
+							Duration: "\(#duration)s"
+						}},
+					]
+				}},
 				{StreamClient: {
 					Addr: #serverAddr
 					Upload: {

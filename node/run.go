@@ -145,6 +145,8 @@ type Runners struct {
 	System       *System
 	StreamClient *StreamClient
 	StreamServer *StreamServer
+	PacketServer *PacketServer
+	PacketClient *PacketClient
 }
 
 // runner returns the only non-nil runner implementation.
@@ -162,6 +164,10 @@ func (r *Runners) runner() runner {
 		return r.StreamClient
 	case r.StreamServer != nil:
 		return r.StreamServer
+	case r.PacketClient != nil:
+		return r.PacketClient
+	case r.PacketServer != nil:
+		return r.PacketServer
 	}
 	return nil
 }

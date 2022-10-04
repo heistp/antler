@@ -313,7 +313,7 @@ func (s Stream) String() string {
 		s.Flow, s.Direction, s.CCA)
 }
 
-// StreamInfo contains information for one stream.
+// StreamInfo contains information for a stream flow.
 type StreamInfo struct {
 	// Tinit is the base time for the flow's RelativeTime values.
 	Tinit time.Time
@@ -326,7 +326,7 @@ func init() {
 	gob.Register(StreamInfo{})
 }
 
-// Time returns an absolute from a relative time.
+// Time returns an absolute from a node-relative time.
 func (s StreamInfo) Time(r metric.RelativeTime) time.Time {
 	return s.Tinit.Add(time.Duration(r))
 }
@@ -447,8 +447,8 @@ func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
 	return
 }
 
-// StreamIO is a time series data point containing the progress of a stream as
-// determined after read or write calls.
+// StreamIO is a time series data point that records the progress of a stream as
+// measured after read or write calls.
 type StreamIO struct {
 	// Flow is the flow that this StreamIO is for.
 	Flow Flow

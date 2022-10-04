@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/gob"
 	"fmt"
 	"net"
 	"sync"
@@ -34,35 +35,28 @@ func (s *seqSrc) Next() (seq Seq) {
 	return
 }
 
-// packetFlag represents the flag bits on a packet.
-type packetFlag byte
+// PacketFlag represents the flag bits on a packet.
+type PacketFlag byte
 
 const (
-	// pFlagEcho indicates that the packet requests an echo.
-	pFlagEcho packetFlag = 1 << iota
+	// FlagEcho indicates that the packet requests an echo.
+	FlagEcho PacketFlag = 1 << iota
 
-	// pFlagReply indicates that the packet is a reply to an echo request.
-	pFlagReply
+	// FlagReply indicates that the packet is a reply to an echo request.
+	FlagReply
 )
 
 // packetMagic is the 7-byte magic sequence at the beginning of a packet.
 var packetMagic = []byte{0xaa, 0x49, 0x7c, 0x06, 0x31, 0xe9, 0x45}
 
-// packet represents a packet sent in either direction between a PacketClient
-// and PacketServer. Only the exported fields are included in the body of the
-// packet.
-type packet struct {
-	// Flag contains the packet flags.
-	Flag packetFlag
+// Packet represents a Packet sent in either direction between a PacketClient
+// and PacketServer. Only the header is included in the body of the Packet.
+// Padding is added to reach the Packet Length.
+type Packet struct {
+	packetHeader
 
-	// Seq is the sequence number assigned by the client.
-	Seq Seq
-
-	// Flow is the flow identifier, and corresponds to a client and server pair.
-	Flow Flow
-
-	// length is the total length of the packet, in bytes, including the header.
-	length int
+	// Len is the total length of the packet, in bytes, including the header.
+	Len int
 
 	// addr is the address the packet is from or to.
 	addr net.Addr
@@ -71,28 +65,38 @@ type packet struct {
 	err error
 }
 
+// packetHeader represents the header of the packet.
+type packetHeader struct {
+	// Flag contains the packet flags.
+	Flag PacketFlag
+
+	// Seq is the sequence number assigned by the client.
+	Seq Seq
+
+	// Flow is the flow identifier, and corresponds to a client and server pair.
+	Flow Flow
+}
+
 // Write implements io.Writer to "write" from bytes to the packet.
-func (p *packet) Write(b []byte) (n int, err error) {
-	if p.headerLen() > len(b) {
-		err = fmt.Errorf("packet header len %d > buf len %d", p.headerLen(),
-			len(b))
+func (p *packetHeader) Write(b []byte) (n int, err error) {
+	if p.Len() > len(b) {
+		err = fmt.Errorf("packet header len %d > buf len %d", p.Len(), len(b))
 		return
 	}
 	if !bytes.Equal(b[0:7], packetMagic) {
 		err = fmt.Errorf("invalid packet magic: %x", b[0:7])
 	}
-	p.Flag = packetFlag(b[7])
+	p.Flag = PacketFlag(b[7])
 	p.Seq = Seq(binary.LittleEndian.Uint64(b[8:16]))
 	p.Flow = Flow(string(b[17 : 17+b[16]]))
-	n = p.headerLen()
+	n = p.Len()
 	return
 }
 
 // Read implements io.Reader to "read" from the packet to bytes.
-func (p *packet) Read(b []byte) (n int, err error) {
-	if len(b) < p.headerLen() {
-		err = fmt.Errorf("buf len %d < packet header len %d", len(b),
-			p.headerLen())
+func (p *packetHeader) Read(b []byte) (n int, err error) {
+	if len(b) < p.Len() {
+		err = fmt.Errorf("buf len %d < packet header len %d", len(b), p.Len())
 		return
 	}
 	if len(p.Flow) > 255 {
@@ -104,12 +108,12 @@ func (p *packet) Read(b []byte) (n int, err error) {
 	binary.LittleEndian.PutUint64(b[8:16], uint64(p.Seq))
 	b[16] = byte(len(p.Flow))
 	copy(b[17:], []byte(p.Flow))
-	n = p.headerLen()
+	n = p.Len()
 	return
 }
 
-// headerLen returns the length of the header, in bytes.
-func (p *packet) headerLen() int {
+// Len returns the length of the header, in bytes.
+func (p *packetHeader) Len() int {
 	return len(packetMagic) + 1 + 8 + 1 + len(p.Flow)
 }
 
@@ -190,7 +194,7 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			}
 			close(ec)
 		}()
-		var p packet
+		var p Packet
 		var n int
 		var a net.Addr
 		b := make([]byte, s.MaxPacketSize)
@@ -201,8 +205,8 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			if _, e = p.Write(b[:n]); e != nil {
 				return
 			}
-			if p.Flag&pFlagEcho != 0 {
-				p.Flag = pFlagReply
+			if p.Flag&FlagEcho != 0 {
+				p.Flag = FlagReply
 				if n, e = p.Read(b); e != nil {
 					return
 				}
@@ -233,38 +237,39 @@ type PacketClient struct {
 }
 
 // Run implements runner
-func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
+func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
 	dl := net.Dialer{}
-	var c net.Conn
-	if c, err = dl.DialContext(ctx, p.Protocol, p.Addr); err != nil {
+	var cn net.Conn
+	if cn, err = dl.DialContext(ctx, c.Protocol, c.Addr); err != nil {
 		return
 	}
-	out := make(chan packet)
+	arg.rec.Send(PacketInfo{metric.Tinit, c.Flow})
+	out := make(chan Packet)
 	var q seqSrc
-	var in []chan packet
+	var in []chan Packet
 	var g int
-	for _, s := range p.Sender {
+	for _, s := range c.Sender {
 		g++
-		i := make(chan packet)
-		in = append(in, i)
-		go s.packetSender().send(&q, i, out)
+		p := make(chan Packet)
+		in = append(in, p)
+		go s.packetSender().send(&q, p, out)
 	}
 	g++
-	rc := p.read(c.(net.PacketConn))
+	rc := c.read(cn.(net.PacketConn), arg.rec)
 	defer func() {
 		for _, i := range in {
 			close(i)
 		}
-		c.Close()
+		cn.Close()
 		for g > 0 {
 			select {
-			case k := <-out:
-				if k == (packet{}) {
+			case p := <-out:
+				if p == (Packet{}) {
 					g--
 				}
-				if k.err != nil && err == nil {
-					err = k.err
+				if p.err != nil && err == nil {
+					err = p.err
 				}
 			case _, ok := <-rc:
 				if !ok {
@@ -273,46 +278,47 @@ func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 			}
 		}
 	}()
-	b := make([]byte, p.MaxPacketSize)
+	b := make([]byte, c.MaxPacketSize)
 	for g > 0 {
 		select {
-		case k := <-out:
-			if k == (packet{}) {
+		case p := <-out:
+			if p == (Packet{}) {
 				if g--; g == 1 {
 					return
 				}
 				break
 			}
-			if k.err != nil {
-				err = k.err
+			if p.err != nil {
+				err = p.err
 				return
 			}
-			k.Flow = p.Flow
+			p.Flow = c.Flow
 			var n int
-			if n, err = k.Read(b); err != nil {
+			if n, err = p.Read(b); err != nil {
 				return
 			}
-			if k.length == 0 {
-				k.length = n
-			} else if k.length < n {
+			if p.Len == 0 {
+				p.Len = n
+			} else if p.Len < n {
 				err = fmt.Errorf("requested packet len %d < header len %d",
-					k.length, n)
+					p.Len, n)
 				return
 			}
-			if _, err = c.Write(b[:k.length]); err != nil {
+			if _, err = cn.Write(b[:p.Len]); err != nil {
 				return
 			}
-		case k, ok := <-rc:
+			arg.rec.Send(PacketIO{p, metric.Now(), true})
+		case p, ok := <-rc:
 			if !ok {
 				g--
 				return
 			}
-			if k.err != nil {
-				err = k.err
+			if p.err != nil {
+				err = p.err
 				return
 			}
 			for _, i := range in {
-				i <- k
+				i <- p
 			}
 		case <-ctx.Done():
 			return
@@ -322,8 +328,9 @@ func (p *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 }
 
 // read is the entry point for the conn read goroutine.
-func (p *PacketClient) read(conn net.PacketConn) (rc chan packet) {
-	rc = make(chan packet)
+func (p *PacketClient) read(conn net.PacketConn, rec *recorder) (
+	rc chan Packet) {
+	rc = make(chan Packet)
 	go func() {
 		b := make([]byte, p.MaxPacketSize)
 		var n int
@@ -331,21 +338,23 @@ func (p *PacketClient) read(conn net.PacketConn) (rc chan packet) {
 		var e error
 		defer func() {
 			if e != nil {
-				rc <- packet{err: e}
+				rc <- Packet{err: e}
 			}
 			close(rc)
 		}()
 		for {
 			n, a, e = conn.ReadFrom(b)
+			t := metric.Now()
 			if e != nil {
 				break
 			}
-			var p packet
+			var p Packet
 			p.addr = a
 			if _, e = p.Write(b[:n]); e != nil {
 				return
 			}
 			rc <- p
+			rec.Send(PacketIO{p, t, false})
 		}
 	}()
 	return
@@ -356,7 +365,7 @@ func (p *PacketClient) read(conn net.PacketConn) (rc chan packet) {
 // should complete as soon as possible, and send a zero value packet to out,
 // with an error if the sender was forced to completed abnormally.
 type packetSender interface {
-	send(seq *seqSrc, in, out chan packet)
+	send(seq *seqSrc, in, out chan Packet)
 }
 
 // PacketSenders is the union of available packetSender implementations.
@@ -374,7 +383,9 @@ func (p *PacketSenders) packetSender() packetSender {
 	}
 }
 
-// Unresponsive sends packets on a periodic schedule with fixed interval.
+// Unresponsive sends packets on a schedule without regard to any congestion
+// signals. Currently, only an isochronous schedule is supported. Alternate
+// schedules will be added in the future.
 type Unresponsive struct {
 	// Interval is the fixed time between ticks.
 	Interval metric.Duration
@@ -390,16 +401,17 @@ type Unresponsive struct {
 }
 
 // send implements packetSender
-func (i *Unresponsive) send(seq *seqSrc, in, out chan packet) {
+func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 	var e error
 	defer func() {
-		out <- packet{err: e}
+		out <- Packet{err: e}
 	}()
 	sendPacket := func() {
-		out <- packet{pFlagEcho, seq.Next(), "", i.Length, nil, nil}
+		out <- Packet{packetHeader{FlagEcho, seq.Next(), ""},
+			u.Length, nil, nil}
 	}
 	t0 := time.Now()
-	t := time.NewTicker(i.Interval.Duration())
+	t := time.NewTicker(u.Interval.Duration())
 	defer t.Stop()
 	sendPacket()
 	for {
@@ -407,14 +419,80 @@ func (i *Unresponsive) send(seq *seqSrc, in, out chan packet) {
 		case _, ok := <-in:
 			if !ok {
 				e = fmt.Errorf("%s isochronous sender did not complete",
-					i.Interval)
+					u.Interval)
 				return
 			}
 		case <-t.C:
-			if time.Since(t0) >= i.Duration.Duration() {
+			if time.Since(t0) >= u.Duration.Duration() {
 				return
 			}
 			sendPacket()
 		}
 	}
+}
+
+// PacketInfo contains information for a packet flow.
+type PacketInfo struct {
+	// Tinit is the base time for the flow's RelativeTime values.
+	Tinit time.Time
+
+	// Flow is the flow identifier.
+	Flow Flow
+}
+
+// init registers PacketInfo with the gob encoder
+func init() {
+	gob.Register(PacketInfo{})
+}
+
+// Time returns an absolute from a node-relative time.
+func (p PacketInfo) Time(r metric.RelativeTime) time.Time {
+	return p.Tinit.Add(time.Duration(r))
+}
+
+// flags implements message
+func (PacketInfo) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (p PacketInfo) handle(node *node) {
+	node.parent.Send(p)
+}
+
+func (p PacketInfo) String() string {
+	return fmt.Sprintf("PacketInfo[Tinit:%s Flow:%s]", p.Tinit, p.Flow)
+}
+
+// PacketIO is a time series data point that records packet send and receive
+// times.
+type PacketIO struct {
+	// Packet is the packet.
+	Packet
+
+	// T is the node-relative time this PacketIO was recorded.
+	T metric.RelativeTime
+
+	// Sent is true for a sent packet, and false for received.
+	Sent bool
+}
+
+// init registers PacketIO with the gob encoder
+func init() {
+	gob.Register(PacketIO{})
+}
+
+// flags implements message
+func (PacketIO) flags() flag {
+	return flagForward
+}
+
+// handle implements event
+func (p PacketIO) handle(node *node) {
+	node.parent.Send(p)
+}
+
+func (p PacketIO) String() string {
+	return fmt.Sprintf("PacketIO[Packet:%s T:%s Sent:%t]",
+		p.Packet, p.T, p.Sent)
 }

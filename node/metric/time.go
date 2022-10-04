@@ -5,15 +5,15 @@ package metric
 
 import "time"
 
-// Tinit is the base time used for RelativeTIme values.
+// Tinit is the base time used for RelativeTime values.
 var Tinit = time.Now()
 
-// RelativeTime represents a time relative to Tinit.
+// RelativeTime represents a time relative to a base time.
 type RelativeTime time.Duration
 
-// Time returns the absolute time for the given Tinit.
-func (r RelativeTime) Time(tinit time.Time) time.Time {
-	return tinit.Add(time.Duration(r))
+// Time returns the absolute time for the given base time.
+func (r RelativeTime) Time(base time.Time) time.Time {
+	return base.Add(time.Duration(r))
 }
 
 // Duration returns the RelativeTime as a time.Duration.
@@ -21,12 +21,12 @@ func (r RelativeTime) Duration() time.Duration {
 	return time.Duration(r)
 }
 
-// Now returns the current RelativeTime.
+// Now returns the current RelativeTime, with Tinit as a base.
 func Now() RelativeTime {
 	return RelativeTime(time.Since(Tinit))
 }
 
-// Relative returns the RelativeTime for the given time.
+// Relative returns the RelativeTime for t, with Tinit as a base.
 func Relative(t time.Time) RelativeTime {
 	return RelativeTime(t.Sub(Tinit))
 }

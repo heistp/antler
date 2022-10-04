@@ -231,7 +231,7 @@ func init() {
 // handleClient implements streamer
 func (u Upload) handleClient(ctx context.Context, conn net.Conn,
 	rec *recorder) error {
-	rec.Send(u.Transfer.Stream)
+	rec.Send(u.Info())
 	return u.send(ctx, conn, rec)
 }
 
@@ -250,7 +250,7 @@ type Download struct {
 	Transfer
 }
 
-// init registers Upload with the gob encoder
+// init registers Download with the gob encoder
 func init() {
 	gob.Register(Download{})
 }
@@ -258,7 +258,7 @@ func init() {
 // handleClient implements streamer
 func (d Download) handleClient(ctx context.Context, conn net.Conn,
 	rec *recorder) error {
-	rec.Send(d.Transfer.Stream)
+	rec.Send(d.Info())
 	return d.receive(ctx, conn, rec)
 }
 
@@ -291,8 +291,7 @@ func (d Download) String() string {
 	return fmt.Sprintf("Download[Flow:%s]", d.Flow)
 }
 
-// Stream represents the information for one direction of a flow for a stream
-// oriented connection.
+// Stream represents one direction of a stream oriented flow.
 type Stream struct {
 	// Flow is the Stream's flow identifier.
 	Flow Flow
@@ -304,23 +303,46 @@ type Stream struct {
 	CCA string
 }
 
-// init registers SentMark with the gob encoder
+// Info returns StreamInfo for this Stream.
+func (s Stream) Info() StreamInfo {
+	return StreamInfo{metric.Tinit, s}
+}
+
+func (s Stream) String() string {
+	return fmt.Sprintf("Stream[Flow:%s Direction:%s CCA:%s]",
+		s.Flow, s.Direction, s.CCA)
+}
+
+// StreamInfo contains information for one stream.
+type StreamInfo struct {
+	// Tinit is the base time for the flow's RelativeTime values.
+	Tinit time.Time
+
+	Stream
+}
+
+// init registers StreamInfo with the gob encoder
 func init() {
-	gob.Register(Stream{})
+	gob.Register(StreamInfo{})
+}
+
+// Time returns an absolute from a relative time.
+func (s StreamInfo) Time(r metric.RelativeTime) time.Time {
+	return s.Tinit.Add(time.Duration(r))
 }
 
 // flags implements message
-func (Stream) flags() flag {
+func (StreamInfo) flags() flag {
 	return flagForward
 }
 
 // handle implements event
-func (s Stream) handle(node *node) {
+func (s StreamInfo) handle(node *node) {
 	node.parent.Send(s)
 }
 
-func (s Stream) String() string {
-	return fmt.Sprintf("Stream[Flow:%s Direction:%s]", s.Flow, s.Direction)
+func (s StreamInfo) String() string {
+	return fmt.Sprintf("StreamInfo[Tinit:%s Stream:%s]", s.Tinit, s.Stream)
 }
 
 // Direction is the client to server sense for a Stream.
@@ -369,27 +391,25 @@ func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
 		b[i] = 0xfe
 	}
 	in, dur := x.SampleIOInterval.Duration(), x.Duration.Duration()
-	t0 := time.Now()
-	rec.Send(SentMark{x.Flow, t0})
+	t0 := metric.Now()
+	rec.Send(StreamIO{x.Flow, t0, 0, true})
 	ts := t0
 	var l metric.Bytes
 	var done bool
 	for !done {
 		var n int
 		n, err = w.Write(b)
-		t := time.Now()
-		dt := t.Sub(t0)
+		t := metric.Now()
 		l += metric.Bytes(n)
 		select {
 		case <-ctx.Done():
 			done = true
 		default:
-			done = dt > dur || err != nil
+			done = time.Duration(t-t0) > dur || err != nil
 		}
 		if n > 0 {
-			ds := t.Sub(ts)
-			if ds > in || done {
-				rec.Send(Sent{x.Flow, dt, l})
+			if time.Duration(t-ts) > in || done {
+				rec.Send(StreamIO{x.Flow, t, l, true})
 				ts = t
 			}
 		}
@@ -402,20 +422,18 @@ func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
 	err error) {
 	b := make([]byte, x.BufLen)
 	in := x.SampleIOInterval.Duration()
-	t0 := time.Now()
-	rec.Send(RcvdMark{x.Flow, t0})
+	t0 := metric.Now()
+	rec.Send(StreamIO{x.Flow, t0, 0, false})
 	ts := t0
 	var l metric.Bytes
 	for {
 		var n int
 		n, err = r.Read(b)
-		t := time.Now()
-		dt := t.Sub(t0)
+		t := metric.Now()
 		l += metric.Bytes(n)
 		if n > 0 {
-			ds := t.Sub(ts)
-			if ds > in || err != nil {
-				rec.Send(Rcvd{x.Flow, dt, l})
+			if time.Duration(t-ts) > in || err != nil {
+				rec.Send(StreamIO{x.Flow, t, l, false})
 				ts = t
 			}
 		}
@@ -429,104 +447,38 @@ func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
 	return
 }
 
-// SentMark represents the base time that sending began for a flow.
-type SentMark struct {
-	Flow Flow      // Flow that this SentMark is for
-	T0   time.Time // base time that sending began
+// StreamIO is a time series data point containing the progress of a stream as
+// determined after read or write calls.
+type StreamIO struct {
+	// Flow is the flow that this StreamIO is for.
+	Flow Flow
+
+	// T is the relative time this StreamIO was recorded.
+	T metric.RelativeTime
+
+	// Total is the total number of sent or received bytes.
+	Total metric.Bytes
+
+	// Sent is true for sent bytes, and false for received.
+	Sent bool
 }
 
-// init registers SentMark with the gob encoder
+// init registers StreamIO with the gob encoder
 func init() {
-	gob.Register(SentMark{})
+	gob.Register(StreamIO{})
 }
 
 // flags implements message
-func (SentMark) flags() flag {
+func (StreamIO) flags() flag {
 	return flagForward
 }
 
 // handle implements event
-func (s SentMark) handle(node *node) {
+func (s StreamIO) handle(node *node) {
 	node.parent.Send(s)
 }
 
-func (s SentMark) String() string {
-	return fmt.Sprintf("SentMark[Flow:%s T0:%s]", s.Flow, s.T0)
-}
-
-// Sent is a time series data point containing a total number of sent bytes.
-type Sent struct {
-	Flow  Flow          // Flow that this Sent is for
-	T     time.Duration // duration since sending began (SentMark.T0)
-	Total metric.Bytes  // total sent bytes
-}
-
-// init registers Sent with the gob encoder
-func init() {
-	gob.Register(Sent{})
-}
-
-// flags implements message
-func (Sent) flags() flag {
-	return flagForward
-}
-
-// handle implements event
-func (s Sent) handle(node *node) {
-	node.parent.Send(s)
-}
-
-func (s Sent) String() string {
-	return fmt.Sprintf("Sent[Flow:%s T:%s Total:%d]", s.Flow, s.T, s.Total)
-}
-
-// RcvdMark represents the base time that receiving began for a flow.
-type RcvdMark struct {
-	Flow Flow      // Flow that this RcvdMark is for
-	T0   time.Time // base time that receiving began
-}
-
-// init registers RcvdMark with the gob encoder
-func init() {
-	gob.Register(RcvdMark{})
-}
-
-// flags implements message
-func (RcvdMark) flags() flag {
-	return flagForward
-}
-
-// handle implements event
-func (s RcvdMark) handle(node *node) {
-	node.parent.Send(s)
-}
-
-func (s RcvdMark) String() string {
-	return fmt.Sprintf("RcvdMark[Flow:%s T0:%s]", s.Flow, s.T0)
-}
-
-// Rcvd is a time series data point containing a total number of received bytes.
-type Rcvd struct {
-	Flow  Flow          // flow that this Rcvd is for
-	T     time.Duration // duration since sending began (RcvdMark.T0)
-	Total metric.Bytes  // total received bytes
-}
-
-// init registers Rcvd with the gob encoder
-func init() {
-	gob.Register(Rcvd{})
-}
-
-// flags implements message
-func (Rcvd) flags() flag {
-	return flagForward
-}
-
-// handle implements event
-func (r Rcvd) handle(node *node) {
-	node.parent.Send(r)
-}
-
-func (r Rcvd) String() string {
-	return fmt.Sprintf("Rcvd[Flow:%s T:%s Total:%d]", r.Flow, r.T, r.Total)
+func (s StreamIO) String() string {
+	return fmt.Sprintf("StreamIO[Flow:%s T:%s Total:%d Sent:%t]",
+		s.Flow, s.T, s.Total, s.Sent)
 }

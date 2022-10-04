@@ -74,25 +74,20 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	s := newStreams()
 	for a := range in.data {
 		switch v := a.(type) {
-		case node.Stream:
+		case node.StreamInfo:
 			d := s.data(v.Flow)
-			d.Stream = v
-		case node.SentMark:
+			d.Info = v
+		case node.StreamIO:
 			d := s.data(v.Flow)
-			d.SentMark = v
-		case node.Sent:
-			d := s.data(v.Flow)
-			d.Sent = append(d.Sent, v)
-		case node.RcvdMark:
-			d := s.data(v.Flow)
-			d.RcvdMark = v
-		case node.Rcvd:
-			d := s.data(v.Flow)
-			d.Rcvd = append(d.Rcvd, v)
+			if v.Sent {
+				d.Sent = append(d.Sent, v)
+			} else {
+				d.Rcvd = append(d.Rcvd, v)
+			}
 		}
 	}
 	s.analyze()
-	d := tdata{*g, s.list()}
+	d := tdata{*g, s.byTime()}
 	w = os.Stdout
 	if g.To != "-" {
 		if w, err = os.Create(g.To); err != nil {

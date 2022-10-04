@@ -10,7 +10,7 @@
       var data = new google.visualization.DataTable()
 
       data.addColumn("number", "");
-      {{range .Stream}}data.addColumn("number", "{{flowLabel .Stream.Flow}}");
+      {{range .Stream}}data.addColumn("number", "{{flowLabel .Info.Flow}}");
       {{end}}
       {{$cols := (len .Stream)}}
       {{range $col, $stream := .Stream}}data.addRows([

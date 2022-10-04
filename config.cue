@@ -164,7 +164,7 @@ Run: #TestRun
 }
 
 // MaxPacketSize is the maximum size for PacketClient/PacketServer
-#MaxPacketSize: int & >=32 & *(1500 - 20)
+#MaxPacketSize: int & >=32 | *(1500 - 20)
 
 // node.PacketSenders
 #PacketSenders: {

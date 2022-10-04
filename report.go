@@ -264,26 +264,24 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 
 // streamData contains the data and calculated stats for a stream.
 type streamData struct {
-	Stream   node.Stream
-	SentMark node.SentMark
-	Sent     []node.Sent
-	RcvdMark node.RcvdMark
-	Rcvd     []node.Rcvd
-	Goodput  []goodput
+	Info    node.StreamInfo
+	Sent    []node.StreamIO
+	Rcvd    []node.StreamIO
+	Goodput []goodput
 }
 
-// T0 returns the earliest time, from either SentMark or RcvdMark.
+// T0 returns the earliest absolute time from Sent or Rcvd.
 func (s *streamData) T0() time.Time {
-	if s.SentMark.T0.Before(s.RcvdMark.T0) {
-		return s.SentMark.T0
+	if s.Sent[0].T < s.Rcvd[0].T {
+		return s.Info.Time(s.Sent[0].T)
 	}
-	return s.RcvdMark.T0
+	return s.Info.Time(s.Rcvd[0].T)
 }
 
 // goodput is a single goodput data point.
 type goodput struct {
 	// T is the time offset relative to the start of the earliest stream.
-	T metric.Duration
+	T metric.RelativeTime
 
 	// Goodput
 	Goodput metric.Bitrate
@@ -322,43 +320,60 @@ func (m *streams) data(flow node.Flow) (s *streamData) {
 	return
 }
 
-// T0 returns the earliest T0 (start time) among the streams.
-func (m *streams) T0() (t0 time.Time) {
+// StartTime returns the earliest absolute start time among the streams.
+func (m *streams) StartTime() (start time.Time) {
 	for _, s := range *m {
-		st0 := s.T0()
-		if t0.IsZero() || st0.Before(t0) {
-			t0 = st0
+		t0 := s.T0()
+		if start.IsZero() || t0.Before(start) {
+			start = t0
 		}
 	}
 	return
 }
 
-// analyze uses the collected data to calculate relevant metrics and stats.
-func (m *streams) analyze() {
-	t0 := m.T0()
-	for _, s := range *m {
-		o := s.T0().Sub(t0)
-		var p node.Rcvd
-		for _, r := range s.Rcvd {
-			t := metric.Duration(o + r.T)
-			if p == (node.Rcvd{}) {
-				s.Goodput = append(s.Goodput, goodput{t, 0})
-			} else {
-				g := metric.CalcBitrate(r.Total-p.Total, r.T-p.T)
-				s.Goodput = append(s.Goodput, goodput{t, g})
-			}
-			p = r
+// synchronize adjusts the StreamIO RelativeTime values from node-relative to
+// test-relative time.
+func (m *streams) synchronize() {
+	st := m.StartTime()
+	for _, r := range *m {
+		for i := 0; i < len(r.Sent); i++ {
+			io := &r.Sent[i]
+			t := io.T.Time(r.Info.Tinit)
+			io.T = metric.RelativeTime(t.Sub(st))
+		}
+		for i := 0; i < len(r.Rcvd); i++ {
+			io := &r.Rcvd[i]
+			t := io.T.Time(r.Info.Tinit)
+			io.T = metric.RelativeTime(t.Sub(st))
 		}
 	}
 }
 
-// list returns a slice of streams, sorted by Flow.
-func (m *streams) list() (lst []streamData) {
-	for _, d := range *m {
-		lst = append(lst, *d)
+// analyze uses the collected data to calculate relevant metrics and stats.
+func (m *streams) analyze() {
+	m.synchronize()
+	for _, s := range *m {
+		var pr node.StreamIO
+		for _, r := range s.Rcvd {
+			if pr == (node.StreamIO{}) {
+				s.Goodput = append(s.Goodput, goodput{r.T, 0})
+			} else {
+				g := metric.CalcBitrate(r.Total-pr.Total,
+					time.Duration(r.T-pr.T))
+				s.Goodput = append(s.Goodput, goodput{r.T, g})
+			}
+			pr = r
+		}
 	}
-	sort.Slice(lst, func(i, j int) bool {
-		return lst[i].T0().Before(lst[j].T0())
+}
+
+// byTime returns a slice of streamData, sorted by start time.
+func (m *streams) byTime() (s []streamData) {
+	for _, d := range *m {
+		s = append(s, *d)
+	}
+	sort.Slice(s, func(i, j int) bool {
+		return s[i].T0().Before(s[j].T0())
 	})
 	return
 }

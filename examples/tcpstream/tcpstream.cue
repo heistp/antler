@@ -31,12 +31,14 @@ Run: {
 		{EmitLog: {To: ["-", "node.log"]}},
 		{SaveFiles: {}},
 		{ChartsTimeSeries: {
-			Title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
-			To:    "throughput.html"
-			VMax:  55
+			To: "throughput.html"
 			FlowLabel: {
 				"cubic": "TCP CUBIC"
 				"reno":  "TCP Reno"
+			}
+			Options: {
+				title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
+				vAxis: viewWindow: max: 55
 			}
 		}},
 	]

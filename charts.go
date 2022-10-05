@@ -21,26 +21,19 @@ var chartsTimeSeriesTemplate string
 // ChartsTimeSeries is a reporter that makes time series plots using Google
 // Charts.
 type ChartsTimeSeries struct {
-	// Title is the plot title.
-	Title string
-
-	// VTitle is the title of the vertical axis.
-	VTitle string
-
-	// VMin is the minimum value on the vertical axis.
-	VMin int
-
-	// VMax is the maximum value on the vertical axis.
-	VMax int
-
-	// FlowLabel sets custom labels for Flows.
+	// FlowLabel sets custom labels for Flows. TODO in Go
 	FlowLabel map[node.Flow]string
 
-	// To is the name of a file to execute the template to.
+	// To is the name of a file to execute the template to. TODO multi-out
 	To string
 
-	// Stdout, if true, also writes the template to stdout.
+	// Stdout, if true, also writes the template to stdout. TODO multi-out
 	Stdout bool
+
+	// Options is an arbitrary structure of Charts options, with defaults
+	// defined in config.cue.
+	// https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+	Options map[string]interface{}
 }
 
 // report implements reporter
@@ -53,7 +46,8 @@ func (g *ChartsTimeSeries) report(in reportIn) {
 func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	type tdata struct {
 		ChartsTimeSeries
-		Stream []streamData
+		Stream  []streamData
+		Options map[string]interface{}
 	}
 	var w io.WriteCloser
 	defer func() {
@@ -90,7 +84,7 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 		}
 	}
 	s.analyze()
-	d := tdata{*g, s.byTime()}
+	d := tdata{*g, s.byTime(), g.Options}
 	var ww []io.Writer
 	if w, err = os.Create(g.To); err != nil {
 		return

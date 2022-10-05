@@ -57,15 +57,67 @@ Run: #TestRun
 
 // antler.ChartsTimeSeries
 #ChartsTimeSeries: {
-	Title:  string & !="" | *"Time Series"
-	VTitle: string & !="" | *"Goodput (Mbps)"
-	VMin:   int | *0
-	VMax?:  int
+	Title: string | *"Time Series"
+	VMax?: int
 	FlowLabel: {
 		[=~".*"]: string
 	}
 	To:      string & !=""
 	Stdout?: bool
+	Options: {...} & {
+		title: string | *"Time Series"
+		titleTextStyle: {
+			fontSize: 18
+			...
+		}
+		width:     1280
+		height:    720
+		lineWidth: 1.2
+		//curveType: "function",
+		vAxis: {
+			title: string | *"Goodput (Mbps)"
+			titleTextStyle: {
+				italic: bool | *false
+				...
+			}
+			viewWindow: {
+				min: int | *0
+				...
+			}
+			baselineColor: string | *"#cccccc"
+			gridlines: {
+				color: string | *"transparent"
+				...
+			}
+			...
+		}
+		hAxis: {
+			title: string | *"Time (sec)"
+			titleTextStyle: {
+				italic: bool | *false
+				...
+			}
+			viewWindow: {
+				min: int | *0
+				...
+			}
+			baselineColor: string | *"#cccccc"
+			gridlines: {
+				color: string | *"transparent"
+				...
+			}
+			...
+		}
+		chartArea: {
+			backgroundColor: string | *"#f7f7f7"
+			top:             int | *50
+			left:            int | *75
+			width:           string | *"70%"
+			height:          string | *"75%"
+			...
+		}
+		...
+	}
 }
 
 // antler.SaveFiles

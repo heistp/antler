@@ -9,6 +9,7 @@
 
     function drawChart() {
       var data = new google.visualization.DataTable();
+      //var data = google.visualization.arrayToDataTable();
 
       data.addColumn("number", "");
       {{range .Stream}}data.addColumn("number", "{{flowLabel .Info.Flow}}");
@@ -21,50 +22,7 @@
       ]);
       {{end}}
 
-      var options = {
-        title: "{{.Title}}",
-        titleTextStyle: {
-          fontSize: 18,
-        },
-        width: 1280,
-        height: 720,
-        lineWidth: 1.2,
-        //curveType: 'function',
-        vAxis: {
-          title: "{{.VTitle}}",
-          titleTextStyle: {
-            italic: false,
-          },
-          viewWindow: {
-            min: {{.VMin}},
-            {{if .VMax}}max: {{.VMax}}{{end}}
-          },
-          baselineColor: '#cccccc',
-          gridlines: {
-            color: 'transparent',
-          },
-        },
-        hAxis: {
-          title: "Time (sec)",
-          titleTextStyle: {
-            italic: false,
-          },
-          viewWindow: {
-            min: 0,
-          },
-          baselineColor: '#cccccc',
-          gridlines: {
-            color: 'transparent',
-          },
-        },
-        chartArea: {
-          backgroundColor: '#f7f7f7',
-          top: 50,
-          left: 75,
-          width: '70%',
-          height: '80%',
-        },
-      };
+      var options = {{.Options}};
 
       var chart = new google.visualization.LineChart(
         document.getElementById('line_top_x'));

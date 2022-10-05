@@ -33,7 +33,6 @@ Run: {
 		{ChartsTimeSeries: {
 			Title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
 			To:    "throughput.html"
-			Debug: true
 			VMax:  55
 			FlowLabel: {
 				"cubic": "TCP CUBIC"
@@ -80,8 +79,9 @@ ns: {
 			"ip link set dev mid.r master mid.b",
 			"ip link set dev mid.l master mid.b",
 			"ip link set dev mid.b up",
+			"tc qdisc add dev mid.l root netem delay \(#rtt/2)ms limit 1000000",
 			"ip link add dev imid.l type ifb",
-			"tc qdisc add dev imid.l root handle 1: netem delay \(#rtt)ms limit 1000000",
+			"tc qdisc add dev imid.l root handle 1: netem delay \(#rtt/2)ms limit 1000000",
 			"tc qdisc add dev mid.l handle ffff: ingress",
 			"ip link set dev imid.l up",
 			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
@@ -94,6 +94,7 @@ ns: {
 			"ip addr add 10.0.0.1/24 dev left.r",
 			"ip link set left.r up",
 			"ethtool -K left.r \(#offloads)",
+			"ping -c 3 -i 0.1 10.0.0.2",
 		]
 	}
 }

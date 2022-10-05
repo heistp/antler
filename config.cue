@@ -64,8 +64,8 @@ Run: #TestRun
 	FlowLabel: {
 		[=~".*"]: string
 	}
-	To:     string & !=""
-	Debug?: bool
+	To:      string & !=""
+	Stdout?: bool
 }
 
 // antler.SaveFiles

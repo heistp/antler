@@ -39,8 +39,8 @@ type ChartsTimeSeries struct {
 	// To is the name of a file to execute the template to.
 	To string
 
-	// Debug, if true, also writes the template to stdout.
-	Debug bool
+	// Stdout, if true, also writes the template to stdout.
+	Stdout bool
 }
 
 // report implements reporter
@@ -96,7 +96,7 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 		return
 	}
 	ww = append(ww, w)
-	if g.Debug {
+	if g.Stdout {
 		ww = append(ww, os.Stdout)
 	}
 	err = t.Execute(io.MultiWriter(ww...), d)

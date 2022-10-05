@@ -417,6 +417,9 @@ func (s *saveData) report(in reportIn) {
 		defer f.Close()
 		c := gob.NewEncoder(f)
 		for d := range in.data {
+			if _, ok := d.(node.FileData); ok {
+				continue
+			}
 			if e = c.Encode(&d); e != nil {
 				return
 			}

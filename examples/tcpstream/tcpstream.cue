@@ -33,12 +33,28 @@ Run: {
 		{ChartsTimeSeries: {
 			To: ["throughput.html"]
 			FlowLabel: {
-				"cubic": "TCP CUBIC"
-				"reno":  "TCP Reno"
+				"cubic": "CUBIC Goodput"
+				"reno":  "Reno Goodput"
+				"udp":   "UDP OWD"
 			}
 			Options: {
-				title: "CUBIC vs Reno Goodput / \(#qdisc) / \(#rtt)ms RTT"
-				vAxis: viewWindow: max: 55
+				title: "CUBIC vs Reno / \(#qdisc) / \(#rtt)ms RTT"
+				series: {
+					"2": {
+						targetAxisIndex: 1
+						//lineWidth:       0
+						//pointSize: 0.1
+					}
+				}
+				vAxes: {
+					"0": viewWindow: {
+						max: 55
+					}
+					"1": viewWindow: {
+						min: #rtt / 2
+						max: #rtt * 2
+					}
+				}
 			}
 		}},
 	]

@@ -21,7 +21,7 @@ var chartsTimeSeriesTemplate string
 // ChartsTimeSeries is a reporter that makes time series plots using Google
 // Charts.
 type ChartsTimeSeries struct {
-	// FlowLabel sets custom labels for Flows. TODO in Go
+	// FlowLabel sets custom labels for Flows.
 	FlowLabel map[node.Flow]string
 
 	// To lists the names of files to execute the template to. A file of "-"
@@ -66,23 +66,12 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	if t, err = t.Parse(chartsTimeSeriesTemplate); err != nil {
 		return
 	}
-	s := newStreams()
+	d := newReportData()
 	for a := range in.data {
-		switch v := a.(type) {
-		case node.StreamInfo:
-			d := s.data(v.Flow)
-			d.Info = v
-		case node.StreamIO:
-			d := s.data(v.Flow)
-			if v.Sent {
-				d.Sent = append(d.Sent, v)
-			} else {
-				d.Rcvd = append(d.Rcvd, v)
-			}
-		}
+		d.add(a)
 	}
-	s.analyze()
-	d := tdata{*g, g.data(s.byTime()), g.Options}
+	d.analyze()
+	td := tdata{*g, g.data(d.streams.byTime(), d.packets.byTime()), g.Options}
 	var ww []io.Writer
 	for _, to := range g.To {
 		if to == "-" {
@@ -92,15 +81,23 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 		}
 		ww = append(ww, w)
 	}
-	err = t.Execute(io.MultiWriter(ww...), d)
+	err = t.Execute(io.MultiWriter(ww...), td)
 	return
 }
 
 // data returns the chart data.
-func (g *ChartsTimeSeries) data(sdata []streamData) (data chartsData) {
+func (g *ChartsTimeSeries) data(sdata []streamData, pdata []packetData) (
+	data chartsData) {
 	var h chartsRow
 	h.addColumn("")
 	for _, d := range sdata {
+		l := string(d.Info.Flow)
+		if ll, ok := g.FlowLabel[d.Info.Flow]; ok {
+			l = ll
+		}
+		h.addColumn(l)
+	}
+	for _, d := range pdata {
 		l := string(d.Info.Flow)
 		if ll, ok := g.FlowLabel[d.Info.Flow]; ok {
 			l = ll
@@ -118,6 +115,26 @@ func (g *ChartsTimeSeries) data(sdata []streamData) (data chartsData) {
 					continue
 				}
 				r.addColumn(g.Goodput.Mbps())
+			}
+			for j := 0; j < len(pdata); j++ {
+				r.addColumn(nil)
+			}
+			data.addRow(r)
+		}
+	}
+	for i, d := range pdata {
+		for _, o := range d.OWD {
+			var r chartsRow
+			r.addColumn(o.T.Duration().Seconds())
+			for j := 0; j < len(sdata); j++ {
+				r.addColumn(nil)
+			}
+			for j := 0; j < len(pdata); j++ {
+				if j != i {
+					r.addColumn(nil)
+					continue
+				}
+				r.addColumn(float64(o.Delay) / 1000000)
 			}
 			data.addRow(r)
 		}

@@ -262,6 +262,57 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 	return
 }
 
+// reportData contains stream and packet data for reports.
+type reportData struct {
+	streams streams
+	packets packets
+}
+
+// newReportData returns a new reportData.
+func newReportData() *reportData {
+	return &reportData{newStreams(), newPackets()}
+}
+
+// add adds a report data item from the result stream.
+func (r *reportData) add(a interface{}) {
+	switch v := a.(type) {
+	case node.StreamInfo:
+		d := r.streams.data(v.Flow)
+		d.Info = v
+	case node.StreamIO:
+		d := r.streams.data(v.Flow)
+		if v.Sent {
+			d.Sent = append(d.Sent, v)
+		} else {
+			d.Rcvd = append(d.Rcvd, v)
+		}
+	case node.PacketInfo:
+		d := r.packets.data(v.Flow)
+		d.Info = v
+	case node.PacketIO:
+		d := r.packets.data(v.Flow)
+		if v.Sent {
+			d.Sent = append(d.Sent, v)
+		} else {
+			d.Rcvd = append(d.Rcvd, v)
+		}
+	}
+}
+
+// analyze uses the collected data to calculate relevant metrics and stats.
+func (r *reportData) analyze() {
+	ss := r.streams.StartTime()
+	ps := r.packets.StartTime()
+	st := ss
+	if st.IsZero() || (!ps.IsZero() && ps.Before(st)) {
+		st = ps
+	}
+	r.streams.synchronize(st)
+	r.packets.synchronize(st)
+	r.streams.analyze()
+	r.packets.analyze()
+}
+
 // streamData contains the data and calculated stats for a stream.
 type streamData struct {
 	Info    node.StreamInfo
@@ -272,10 +323,22 @@ type streamData struct {
 
 // T0 returns the earliest absolute time from Sent or Rcvd.
 func (s *streamData) T0() time.Time {
-	if s.Sent[0].T < s.Rcvd[0].T {
-		return s.Info.Time(s.Sent[0].T)
+	var t metric.RelativeTime
+	if len(s.Sent) == 0 {
+		if len(s.Rcvd) == 0 {
+			return time.Time{}
+		}
+		t = s.Rcvd[0].T
+	} else if len(s.Rcvd) == 0 {
+		t = s.Sent[0].T
+	} else {
+		if s.Sent[0].T < s.Rcvd[0].T {
+			t = s.Sent[0].T
+		} else {
+			t = s.Rcvd[0].T
+		}
 	}
-	return s.Info.Time(s.Rcvd[0].T)
+	return s.Info.Time(t)
 }
 
 // goodput is a single goodput data point.
@@ -319,25 +382,23 @@ func (m *streams) StartTime() (start time.Time) {
 
 // synchronize adjusts the StreamIO RelativeTime values from node-relative to
 // test-relative time.
-func (m *streams) synchronize() {
-	st := m.StartTime()
+func (m *streams) synchronize(start time.Time) {
 	for _, r := range *m {
 		for i := 0; i < len(r.Sent); i++ {
 			io := &r.Sent[i]
 			t := io.T.Time(r.Info.Tinit)
-			io.T = metric.RelativeTime(t.Sub(st))
+			io.T = metric.RelativeTime(t.Sub(start))
 		}
 		for i := 0; i < len(r.Rcvd); i++ {
 			io := &r.Rcvd[i]
 			t := io.T.Time(r.Info.Tinit)
-			io.T = metric.RelativeTime(t.Sub(st))
+			io.T = metric.RelativeTime(t.Sub(start))
 		}
 	}
 }
 
 // analyze uses the collected data to calculate relevant metrics and stats.
 func (m *streams) analyze() {
-	m.synchronize()
 	for _, s := range *m {
 		var pr node.StreamIO
 		for _, r := range s.Rcvd {
@@ -359,6 +420,116 @@ func (m *streams) byTime() (s []streamData) {
 	}
 	sort.Slice(s, func(i, j int) bool {
 		return s[i].T0().Before(s[j].T0())
+	})
+	return
+}
+
+// owd is a single one-way delay data point.
+type owd struct {
+	// T is the time relative to the start of the test.
+	T metric.RelativeTime
+
+	// Delay is the one-way delay.
+	Delay time.Duration
+}
+
+// packetData contains the data and calculated stats for a packet flow.
+type packetData struct {
+	Info node.PacketInfo
+	Sent []node.PacketIO
+	Rcvd []node.PacketIO
+	OWD  []owd
+}
+
+// T0 returns the earliest absolute packet time.
+func (k *packetData) T0() time.Time {
+	var t metric.RelativeTime
+	if len(k.Sent) == 0 {
+		if len(k.Rcvd) == 0 {
+			return time.Time{}
+		}
+		t = k.Rcvd[0].T
+	} else if len(k.Rcvd) == 0 {
+		t = k.Sent[0].T
+	} else {
+		if k.Sent[0].T < k.Rcvd[0].T {
+			t = k.Sent[0].T
+		} else {
+			t = k.Rcvd[0].T
+		}
+	}
+	return k.Info.Time(t)
+}
+
+// packets aggregates data for multiple packet flows.
+type packets map[node.Flow]*packetData
+
+// newPackets returns a new packets.
+func newPackets() packets {
+	return packets(make(map[node.Flow]*packetData))
+}
+
+// data adds packetData for the given flow if it doesn't already exist.
+func (k *packets) data(flow node.Flow) (d *packetData) {
+	var ok bool
+	if d, ok = (*k)[flow]; ok {
+		return
+	}
+	d = &packetData{}
+	(*k)[flow] = d
+	return
+}
+
+// StartTime returns the earliest absolute start time among the packet flows.
+func (k *packets) StartTime() (start time.Time) {
+	for _, d := range *k {
+		t0 := d.T0()
+		if start.IsZero() || t0.Before(start) {
+			start = t0
+		}
+	}
+	return
+}
+
+// synchronize adjusts the PacketIO RelativeTime values from node-relative to
+// test-relative time.
+func (k *packets) synchronize(start time.Time) {
+	for _, p := range *k {
+		for i := 0; i < len(p.Sent); i++ {
+			io := &p.Sent[i]
+			t := io.T.Time(p.Info.Tinit)
+			io.T = metric.RelativeTime(t.Sub(start))
+		}
+		for i := 0; i < len(p.Rcvd); i++ {
+			io := &p.Rcvd[i]
+			t := io.T.Time(p.Info.Tinit)
+			io.T = metric.RelativeTime(t.Sub(start))
+		}
+	}
+}
+
+// analyze uses the collected data to calculate relevant metrics and stats.
+func (k *packets) analyze() {
+	for _, p := range *k {
+		var s, r node.PacketIO
+		for _, s = range p.Sent {
+			for _, r = range p.Rcvd {
+				if s.Seq == r.Seq {
+					d := time.Duration(r.T - s.T)
+					p.OWD = append(p.OWD, owd{r.T, d})
+				}
+			}
+		}
+	}
+}
+
+// byTime returns a slice of packetData, sorted by start time.
+func (k *packets) byTime() (d []packetData) {
+	for _, p := range *k {
+		d = append(d, *p)
+	}
+	sort.Slice(d, func(i, j int) bool {
+		return d[i].T0().Before(d[j].T0())
 	})
 	return
 }

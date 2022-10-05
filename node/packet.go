@@ -53,7 +53,7 @@ var packetMagic = []byte{0xaa, 0x49, 0x7c, 0x06, 0x31, 0xe9, 0x45}
 // and PacketServer. Only the header is included in the body of the Packet.
 // Padding is added to reach the Packet Length.
 type Packet struct {
-	packetHeader
+	PacketHeader
 
 	// Len is the total length of the packet, in bytes, including the header.
 	Len int
@@ -61,12 +61,15 @@ type Packet struct {
 	// addr is the address the packet is from or to.
 	addr net.Addr
 
+	// done, if true, indicates that a packetSender is done.
+	done bool
+
 	// err is an error that supersedes the remaining fields.
 	err error
 }
 
-// packetHeader represents the header of the packet.
-type packetHeader struct {
+// PacketHeader represents the header of the packet.
+type PacketHeader struct {
 	// Flag contains the packet flags.
 	Flag PacketFlag
 
@@ -78,7 +81,7 @@ type packetHeader struct {
 }
 
 // Write implements io.Writer to "write" from bytes to the packet.
-func (p *packetHeader) Write(b []byte) (n int, err error) {
+func (p *PacketHeader) Write(b []byte) (n int, err error) {
 	if p.Len() > len(b) {
 		err = fmt.Errorf("packet header len %d > buf len %d", p.Len(), len(b))
 		return
@@ -94,7 +97,7 @@ func (p *packetHeader) Write(b []byte) (n int, err error) {
 }
 
 // Read implements io.Reader to "read" from the packet to bytes.
-func (p *packetHeader) Read(b []byte) (n int, err error) {
+func (p *PacketHeader) Read(b []byte) (n int, err error) {
 	if len(b) < p.Len() {
 		err = fmt.Errorf("buf len %d < packet header len %d", len(b), p.Len())
 		return
@@ -113,7 +116,7 @@ func (p *packetHeader) Read(b []byte) (n int, err error) {
 }
 
 // Len returns the length of the header, in bytes.
-func (p *packetHeader) Len() int {
+func (p *PacketHeader) Len() int {
 	return len(packetMagic) + 1 + 8 + 1 + len(p.Flow)
 }
 
@@ -202,9 +205,11 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			if n, a, e = conn.ReadFrom(b); e != nil {
 				return
 			}
+			t := metric.Now()
 			if _, e = p.Write(b[:n]); e != nil {
 				return
 			}
+			rec.Send(PacketIO{p, t, false})
 			if p.Flag&FlagEcho != 0 {
 				p.Flag = FlagReply
 				if n, e = p.Read(b); e != nil {
@@ -265,7 +270,7 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 		for g > 0 {
 			select {
 			case p := <-out:
-				if p == (Packet{}) {
+				if p.done {
 					g--
 				}
 				if p.err != nil && err == nil {
@@ -282,15 +287,15 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	for g > 0 {
 		select {
 		case p := <-out:
-			if p == (Packet{}) {
+			if p.err != nil {
+				err = p.err
+				return
+			}
+			if p.done {
 				if g--; g == 1 {
 					return
 				}
 				break
-			}
-			if p.err != nil {
-				err = p.err
-				return
 			}
 			p.Flow = c.Flow
 			var n int
@@ -344,7 +349,6 @@ func (p *PacketClient) read(conn net.PacketConn, rec *recorder) (
 		}()
 		for {
 			n, a, e = conn.ReadFrom(b)
-			t := metric.Now()
 			if e != nil {
 				break
 			}
@@ -354,7 +358,6 @@ func (p *PacketClient) read(conn net.PacketConn, rec *recorder) (
 				return
 			}
 			rc <- p
-			rec.Send(PacketIO{p, t, false})
 		}
 	}()
 	return
@@ -404,11 +407,15 @@ type Unresponsive struct {
 func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 	var e error
 	defer func() {
-		out <- Packet{err: e}
+		out <- Packet{done: true, err: e}
 	}()
 	sendPacket := func() {
-		out <- Packet{packetHeader{FlagEcho, seq.Next(), ""},
-			u.Length, nil, nil}
+		var f PacketFlag
+		if u.Echo {
+			f |= FlagEcho
+		}
+		out <- Packet{PacketHeader{f, seq.Next(), ""},
+			u.Length, nil, false, nil}
 	}
 	t0 := time.Now()
 	t := time.NewTicker(u.Interval.Duration())

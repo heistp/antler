@@ -71,21 +71,41 @@ Run: #TestRun
 		}
 		width:     1280
 		height:    720
-		lineWidth: 1.2
+		lineWidth: 1
 		//curveType: "function",
-		vAxis: {
-			title: string | *"Goodput (Mbps)"
-			titleTextStyle: {
-				italic: bool | *false
+		vAxes: {
+			"0": {
+				title: string | *"Goodput (Mbps)"
+				titleTextStyle: {
+					italic: bool | *false
+					...
+				}
+				viewWindow: {
+					min: float | *0
+					...
+				}
+				baselineColor: string | *"#cccccc"
+				gridlines: {
+					color: string | *"transparent"
+					...
+				}
 				...
 			}
-			viewWindow: {
-				min: int | *0
-				...
-			}
-			baselineColor: string | *"#cccccc"
-			gridlines: {
-				color: string | *"transparent"
+			"1": {
+				title: string | *"Delay (ms)"
+				titleTextStyle: {
+					italic: bool | *false
+					...
+				}
+				viewWindow: {
+					min: float | *0
+					...
+				}
+				baselineColor: string | *"#cccccc"
+				gridlines: {
+					color: string | *"transparent"
+					...
+				}
 				...
 			}
 			...
@@ -109,10 +129,10 @@ Run: #TestRun
 		}
 		chartArea: {
 			backgroundColor: string | *"#f7f7f7"
-			top:             int | *50
-			left:            int | *75
-			width:           string | *"70%"
-			height:          string | *"75%"
+			top:             int | *100
+			//left:            int | *75
+			width: string | *"80%"
+			//height:          string | *"75%"
 			...
 		}
 		...
@@ -227,10 +247,10 @@ Run: #TestRun
 
 // node.Unresponsive
 #Unresponsive: {
-	Interval: #Duration | *"100ms"
+	Interval: #Duration | *"200ms"
 	Length?:  int
 	Duration: #Duration
-	Echo:     bool | *true
+	Echo:     bool | *false
 }
 
 // node.PacketProtocol

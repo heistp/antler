@@ -42,8 +42,6 @@ Run: {
 				series: {
 					"2": {
 						targetAxisIndex: 1
-						//lineWidth:       0
-						//pointSize: 0.1
 					}
 				}
 				vAxes: {
@@ -103,7 +101,7 @@ ns: {
 			"tc qdisc add dev mid.l handle ffff: ingress",
 			"ip link set dev imid.l up",
 			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
-			"tc qdisc add dev mid.r root cake bandwidth 50Mbit",
+			"tc qdisc add dev mid.r root \(#qdisc)",
 		]
 	}
 	left: {

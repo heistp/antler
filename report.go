@@ -278,7 +278,11 @@ func (r *reportData) add(a interface{}) {
 	switch v := a.(type) {
 	case node.StreamInfo:
 		d := r.streams.data(v.Flow)
-		d.Info = v
+		if v.Server {
+			d.Server = v
+		} else {
+			d.Client = v
+		}
 	case node.StreamIO:
 		d := r.streams.data(v.Flow)
 		if v.Sent {
@@ -288,7 +292,11 @@ func (r *reportData) add(a interface{}) {
 		}
 	case node.PacketInfo:
 		d := r.packets.data(v.Flow)
-		d.Info = v
+		if v.Server {
+			d.Server = v
+		} else {
+			d.Client = v
+		}
 	case node.PacketIO:
 		d := r.packets.data(v.Flow)
 		if v.Sent {
@@ -315,7 +323,8 @@ func (r *reportData) analyze() {
 
 // streamData contains the data and calculated stats for a stream.
 type streamData struct {
-	Info    node.StreamInfo
+	Client  node.StreamInfo
+	Server  node.StreamInfo
 	Sent    []node.StreamIO
 	Rcvd    []node.StreamIO
 	Goodput []goodput
@@ -323,22 +332,20 @@ type streamData struct {
 
 // T0 returns the earliest absolute time from Sent or Rcvd.
 func (s *streamData) T0() time.Time {
-	var t metric.RelativeTime
 	if len(s.Sent) == 0 {
 		if len(s.Rcvd) == 0 {
 			return time.Time{}
 		}
-		t = s.Rcvd[0].T
+		return s.Server.Time(s.Rcvd[0].T)
 	} else if len(s.Rcvd) == 0 {
-		t = s.Sent[0].T
+		return s.Client.Time(s.Sent[0].T)
 	} else {
 		if s.Sent[0].T < s.Rcvd[0].T {
-			t = s.Sent[0].T
+			return s.Client.Time(s.Sent[0].T)
 		} else {
-			t = s.Rcvd[0].T
+			return s.Server.Time(s.Rcvd[0].T)
 		}
 	}
-	return s.Info.Time(t)
 }
 
 // goodput is a single goodput data point.
@@ -386,12 +393,12 @@ func (m *streams) synchronize(start time.Time) {
 	for _, r := range *m {
 		for i := 0; i < len(r.Sent); i++ {
 			io := &r.Sent[i]
-			t := io.T.Time(r.Info.Tinit)
+			t := io.T.Time(r.Client.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}
 		for i := 0; i < len(r.Rcvd); i++ {
 			io := &r.Rcvd[i]
-			t := io.T.Time(r.Info.Tinit)
+			t := io.T.Time(r.Server.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}
 	}
@@ -435,30 +442,29 @@ type owd struct {
 
 // packetData contains the data and calculated stats for a packet flow.
 type packetData struct {
-	Info node.PacketInfo
-	Sent []node.PacketIO
-	Rcvd []node.PacketIO
-	OWD  []owd
+	Client node.PacketInfo
+	Server node.PacketInfo
+	Sent   []node.PacketIO
+	Rcvd   []node.PacketIO
+	OWD    []owd
 }
 
 // T0 returns the earliest absolute packet time.
 func (k *packetData) T0() time.Time {
-	var t metric.RelativeTime
 	if len(k.Sent) == 0 {
 		if len(k.Rcvd) == 0 {
 			return time.Time{}
 		}
-		t = k.Rcvd[0].T
+		return k.Server.Time(k.Rcvd[0].T)
 	} else if len(k.Rcvd) == 0 {
-		t = k.Sent[0].T
+		return k.Client.Time(k.Sent[0].T)
 	} else {
 		if k.Sent[0].T < k.Rcvd[0].T {
-			t = k.Sent[0].T
+			return k.Client.Time(k.Sent[0].T)
 		} else {
-			t = k.Rcvd[0].T
+			return k.Server.Time(k.Rcvd[0].T)
 		}
 	}
-	return k.Info.Time(t)
 }
 
 // packets aggregates data for multiple packet flows.
@@ -497,12 +503,12 @@ func (k *packets) synchronize(start time.Time) {
 	for _, p := range *k {
 		for i := 0; i < len(p.Sent); i++ {
 			io := &p.Sent[i]
-			t := io.T.Time(p.Info.Tinit)
+			t := io.T.Time(p.Client.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}
 		for i := 0; i < len(p.Rcvd); i++ {
 			io := &p.Rcvd[i]
-			t := io.T.Time(p.Info.Tinit)
+			t := io.T.Time(p.Server.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}
 	}

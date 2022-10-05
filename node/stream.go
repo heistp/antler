@@ -231,13 +231,14 @@ func init() {
 // handleClient implements streamer
 func (u Upload) handleClient(ctx context.Context, conn net.Conn,
 	rec *recorder) error {
-	rec.Send(u.Info())
+	rec.Send(u.Info(false))
 	return u.send(ctx, conn, rec)
 }
 
 // handleServer implements streamer
 func (u Upload) handleServer(ctx context.Context, conn net.Conn,
 	rec *recorder) error {
+	rec.Send(u.Info(true))
 	return u.receive(ctx, conn, rec)
 }
 
@@ -258,7 +259,7 @@ func init() {
 // handleClient implements streamer
 func (d Download) handleClient(ctx context.Context, conn net.Conn,
 	rec *recorder) error {
-	rec.Send(d.Info())
+	rec.Send(d.Info(false))
 	return d.receive(ctx, conn, rec)
 }
 
@@ -273,6 +274,7 @@ func (d Download) handleServer(ctx context.Context, conn net.Conn,
 			}
 		}
 	}
+	rec.Send(d.Info(true))
 	err = d.send(ctx, conn, rec)
 	return
 }
@@ -304,8 +306,8 @@ type Stream struct {
 }
 
 // Info returns StreamInfo for this Stream.
-func (s Stream) Info() StreamInfo {
-	return StreamInfo{metric.Tinit, s}
+func (s Stream) Info(server bool) StreamInfo {
+	return StreamInfo{metric.Tinit, s, server}
 }
 
 func (s Stream) String() string {
@@ -319,6 +321,9 @@ type StreamInfo struct {
 	Tinit time.Time
 
 	Stream
+
+	// Server indicates if this is from the server (true) or client (false).
+	Server bool
 }
 
 // init registers StreamInfo with the gob encoder

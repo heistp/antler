@@ -42,6 +42,9 @@ Run: {
 				series: {
 					"2": {
 						targetAxisIndex: 1
+						lineWidth:       0
+						pointSize:       0.2
+						color:           "#4f9634"
 					}
 				}
 				vAxes: {
@@ -162,7 +165,7 @@ run: {
 					Flow: "udp"
 					Sender: [
 						{Unresponsive: {
-							Interval: "\(#rtt)ms"
+							Interval: "\(#rtt/2)ms"
 							Duration: "\(#duration)s"
 						}},
 					]

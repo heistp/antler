@@ -91,15 +91,15 @@ func (g *ChartsTimeSeries) data(sdata []streamData, pdata []packetData) (
 	var h chartsRow
 	h.addColumn("")
 	for _, d := range sdata {
-		l := string(d.Info.Flow)
-		if ll, ok := g.FlowLabel[d.Info.Flow]; ok {
+		l := string(d.Client.Flow)
+		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
 		h.addColumn(l)
 	}
 	for _, d := range pdata {
-		l := string(d.Info.Flow)
-		if ll, ok := g.FlowLabel[d.Info.Flow]; ok {
+		l := string(d.Client.Flow)
+		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
 		h.addColumn(l)

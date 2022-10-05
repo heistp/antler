@@ -197,6 +197,7 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			}
 			close(ec)
 		}()
+		f := make(map[Flow]struct{})
 		var p Packet
 		var n int
 		var a net.Addr
@@ -208,6 +209,10 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			t := metric.Now()
 			if _, e = p.Write(b[:n]); e != nil {
 				return
+			}
+			if _, ok := f[p.Flow]; !ok {
+				rec.Send(PacketInfo{metric.Tinit, p.Flow, true})
+				f[p.Flow] = struct{}{}
 			}
 			rec.Send(PacketIO{p, t, false})
 			if p.Flag&FlagEcho != 0 {
@@ -249,7 +254,7 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if cn, err = dl.DialContext(ctx, c.Protocol, c.Addr); err != nil {
 		return
 	}
-	arg.rec.Send(PacketInfo{metric.Tinit, c.Flow})
+	arg.rec.Send(PacketInfo{metric.Tinit, c.Flow, false})
 	out := make(chan Packet)
 	var q seqSrc
 	var in []chan Packet
@@ -445,6 +450,9 @@ type PacketInfo struct {
 
 	// Flow is the flow identifier.
 	Flow Flow
+
+	// Server indicates if this is from the server (true) or client (false).
+	Server bool
 }
 
 // init registers PacketInfo with the gob encoder

@@ -101,7 +101,11 @@ func (g *ChartsTimeSeries) data(sdata []streamData) (data chartsData) {
 	var h chartsRow
 	h.addColumn("")
 	for _, d := range sdata {
-		h.addColumn(d.Info.Flow)
+		l := string(d.Info.Flow)
+		if ll, ok := g.FlowLabel[d.Info.Flow]; ok {
+			l = ll
+		}
+		h.addColumn(l)
 	}
 	data.addRow(h)
 	for i, d := range sdata {

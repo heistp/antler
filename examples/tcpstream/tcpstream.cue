@@ -47,6 +47,12 @@ Run: {
 						color:           "#4f9634"
 					}
 				}
+				explorer: {
+					actions: ["dragToZoom", "rightClickToReset"]
+					axis:         "horizontal"
+					keepInBounds: true
+					maxZoomIn:    0.05
+				}
 				vAxes: {
 					"0": viewWindow: {
 						max: 55

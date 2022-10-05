@@ -162,6 +162,7 @@ run: {
 					Flow: "udp"
 					Sender: [
 						{Unresponsive: {
+							Interval: "\(#rtt)ms"
 							Duration: "\(#duration)s"
 						}},
 					]

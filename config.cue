@@ -62,8 +62,7 @@ Run: #TestRun
 	FlowLabel: {
 		[=~".*"]: string
 	}
-	To:      string & !=""
-	Stdout?: bool
+	To: [string & !="", ...string & !=""]
 	Options: {...} & {
 		title: string | *"Time Series"
 		titleTextStyle: {

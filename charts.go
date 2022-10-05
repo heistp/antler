@@ -24,11 +24,9 @@ type ChartsTimeSeries struct {
 	// FlowLabel sets custom labels for Flows. TODO in Go
 	FlowLabel map[node.Flow]string
 
-	// To is the name of a file to execute the template to. TODO multi-out
-	To string
-
-	// Stdout, if true, also writes the template to stdout. TODO multi-out
-	Stdout bool
+	// To lists the names of files to execute the template to. A file of "-"
+	// emits to stdout.
+	To []string
 
 	// Options is an arbitrary structure of Charts options, with defaults
 	// defined in config.cue.
@@ -86,12 +84,13 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	s.analyze()
 	d := tdata{*g, s.byTime(), g.Options}
 	var ww []io.Writer
-	if w, err = os.Create(g.To); err != nil {
-		return
-	}
-	ww = append(ww, w)
-	if g.Stdout {
-		ww = append(ww, os.Stdout)
+	for _, to := range g.To {
+		if to == "-" {
+			w = os.Stdout
+		} else if w, err = os.Create(to); err != nil {
+			return
+		}
+		ww = append(ww, w)
 	}
 	err = t.Execute(io.MultiWriter(ww...), d)
 	return

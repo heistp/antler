@@ -28,10 +28,10 @@ Run: {
 		Serial: [stream, setup, server, run]
 	}
 	Report: [
-		{EmitLog: {To: ["-", "node.log"]}},
+		{EmitLog: {To: ["node.log", "-"]}},
 		{SaveFiles: {}},
 		{ChartsTimeSeries: {
-			To: "throughput.html"
+			To: ["throughput.html"]
 			FlowLabel: {
 				"cubic": "TCP CUBIC"
 				"reno":  "TCP Reno"

@@ -44,7 +44,7 @@ func (g *ChartsTimeSeries) report(in reportIn) {
 func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	type tdata struct {
 		ChartsTimeSeries
-		Stream  []streamData
+		Data    chartsData
 		Options map[string]interface{}
 	}
 	var w io.WriteCloser
@@ -82,7 +82,7 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 		}
 	}
 	s.analyze()
-	d := tdata{*g, s.byTime(), g.Options}
+	d := tdata{*g, g.data(s.byTime()), g.Options}
 	var ww []io.Writer
 	for _, to := range g.To {
 		if to == "-" {
@@ -94,4 +94,45 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	}
 	err = t.Execute(io.MultiWriter(ww...), d)
 	return
+}
+
+// data returns the chart data.
+func (g *ChartsTimeSeries) data(sdata []streamData) (data chartsData) {
+	var h chartsRow
+	h.addColumn("")
+	for _, d := range sdata {
+		h.addColumn(d.Info.Flow)
+	}
+	data.addRow(h)
+	for i, d := range sdata {
+		for _, g := range d.Goodput {
+			var r chartsRow
+			r.addColumn(g.T.Duration().Seconds())
+			for j := 0; j < len(sdata); j++ {
+				if j != i {
+					r.addColumn(nil)
+					continue
+				}
+				r.addColumn(g.Goodput.Mbps())
+			}
+			data.addRow(r)
+		}
+	}
+	return
+}
+
+// chartsData represents tabular data for use in Google Charts.
+type chartsData [][]interface{}
+
+// addRow adds a row to the data.
+func (c *chartsData) addRow(row chartsRow) {
+	*c = append(*c, row)
+}
+
+// chartsRow represents the data for a single row.
+type chartsRow []interface{}
+
+// addColumn adds a column to the row.
+func (r *chartsRow) addColumn(v interface{}) {
+	*r = append(*r, v)
 }

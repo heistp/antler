@@ -3,7 +3,11 @@
 
 package antler
 
-import "cuelang.org/go/cue/load"
+import (
+	"fmt"
+
+	"cuelang.org/go/cue/load"
+)
 
 // TestRun contains the information needed to orchestrate the execution of Tests
 // and Reports. A TestRun may have a Test, or nested TestRun's listed in the
@@ -76,8 +80,7 @@ func (s Serial) do(dr doer, rst reporterStack) (err error) {
 type Parallel []TestRun
 
 // do executes the TestRun's concurrently.
-func (p Parallel) do(dr doer, rst reporterStack) (
-	err error) {
-	// TODO implement Parallel TestRuns
+func (p Parallel) do(dr doer, rst reporterStack) (err error) {
+	err = fmt.Errorf("Parallel test runs not yet implemented")
 	return
 }

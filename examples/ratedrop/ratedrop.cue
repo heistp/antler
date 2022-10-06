@@ -33,20 +33,19 @@ package ratedrop
 Run: {
 	Test: {
 		ID: {"Name": "ratedrop"}
-		//Serial: [#stream, #setup, #server, #run]
 		Serial: [#stream, #setup, server, do]
 	}
 	Report: [
 		{EmitLog: {To: ["node.log", "-"]}},
 		{SaveFiles: {}},
 		{ChartsTimeSeries: {
-			To: ["goodput.html"]
+			To: ["timeseries.html"]
 			FlowLabel: {
 				"bbr": "BBR Goodput"
 				"udp": "UDP OWD"
 			}
 			Options: {
-				title: "BBR Rate Drop \(#rate0) to \(#rate1) / \(#qdisc) / \(#rtt)ms RTT"
+				title: "BBR Rate Drop \(#rate0) to \(#rate1) | \(#rtt)ms Path RTT | \(#qdisc) "
 				series: {
 					"1": {
 						targetAxisIndex: 1
@@ -57,11 +56,11 @@ Run: {
 				}
 				vAxes: {
 					"0": viewWindow: {
-						max: 70
+						max: 55
 					}
 					"1": viewWindow: {
 						min: #rtt / 2
-						max: #rtt * 2
+						max: #rtt * 10
 					}
 				}
 			}

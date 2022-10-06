@@ -31,14 +31,14 @@ Run: {
 		{EmitLog: {To: ["node.log", "-"]}},
 		{SaveFiles: {}},
 		{ChartsTimeSeries: {
-			To: ["goodput.html"]
+			To: ["timeseries.html"]
 			FlowLabel: {
 				"cubic": "CUBIC Goodput"
 				"reno":  "Reno Goodput"
 				"udp":   "UDP OWD"
 			}
 			Options: {
-				title: "CUBIC vs Reno / \(#qdisc) / \(#rtt)ms RTT"
+				title: "CUBIC vs Reno / \(#rtt)ms Path RTT / \(#qdisc)"
 				series: {
 					"2": {
 						targetAxisIndex: 1

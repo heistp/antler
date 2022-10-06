@@ -1,31 +1,40 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2022 Pete Heist
 
-// This Antler example config has a single test that creates a netns dumbbell,
-// and runs two TCP streams from the left to the right endpoint. The middlebox
-// (mid namespace) has the cake qdisc added at 50 Mbit.
+// This Antler example config has a single test that creates a netns dumbbell
+// with a middlebox running codel (fq_codel flows 1). One BBR stream is run
+// from the left to right endpoint. A third of the way through the test, the
+// rate drops from rate0 to rate1. Two-thirds through the test, the rate
+// returns to rate0.
 
-package tcpstream
+package ratedrop
 
 // stream includes logs for streaming during the test
 // This is passed to all nodes before setup.
-stream: {ResultStream: Include: Log: true}
+#stream: {ResultStream: Include: Log: true}
 
 // rtt is the path RTT, in milliseconds
 #rtt: 80
+
+// rate0 is the initial rate
+#rate0: "50mbit"
+
+// rate1 is the rate after the drop
+#rate1: "10mbit"
 
 // duration is the test duration, in seconds
 #duration: 120
 
 // qdisc is the qdisc to apply
-#qdisc: "cake bandwidth 50Mbit flowblind"
+#qdisc: "fq_codel flows 1 noecn"
 
 // Run contains a single Test. After log streaming is configured, setup is
 // run, the server is started, then the test is run.
 Run: {
 	Test: {
-		ID: {"Name": "tcpstream"}
-		Serial: [stream, setup, server, do]
+		ID: {"Name": "ratedrop"}
+		//Serial: [#stream, #setup, #server, #run]
+		Serial: [#stream, #setup, server, do]
 	}
 	Report: [
 		{EmitLog: {To: ["node.log", "-"]}},
@@ -33,14 +42,13 @@ Run: {
 		{ChartsTimeSeries: {
 			To: ["goodput.html"]
 			FlowLabel: {
-				"cubic": "CUBIC Goodput"
-				"reno":  "Reno Goodput"
-				"udp":   "UDP OWD"
+				"bbr": "BBR Goodput"
+				"udp": "UDP OWD"
 			}
 			Options: {
-				title: "CUBIC vs Reno / \(#qdisc) / \(#rtt)ms RTT"
+				title: "BBR Rate Drop \(#rate0) to \(#rate1) / \(#qdisc) / \(#rtt)ms RTT"
 				series: {
-					"2": {
+					"1": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.2
@@ -49,7 +57,7 @@ Run: {
 				}
 				vAxes: {
 					"0": viewWindow: {
-						max: 55
+						max: 70
 					}
 					"1": viewWindow: {
 						min: #rtt / 2
@@ -62,12 +70,12 @@ Run: {
 }
 
 // setup runs the setup commands in each namespace
-setup: {
+#setup: {
 	Serial: [
 		for n in [ ns.right, ns.mid, ns.left] {
 			Child: {
 				Node: n.node
-				Serial: [stream, for c in n.setup {System: Command: c}]
+				Serial: [#stream, for c in n.setup {System: Command: c}]
 			}
 		},
 	]
@@ -78,6 +86,7 @@ ns: {
 	right: {
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+			"sysctl -w net.ipv4.tcp_ecn=0",
 			"ip link add dev right.l type veth peer name mid.r",
 			"ip link set dev mid.r netns mid",
 			"ip addr add 10.0.0.2/24 dev right.l",
@@ -104,16 +113,20 @@ ns: {
 			"tc qdisc add dev mid.l handle ffff: ingress",
 			"ip link set dev imid.l up",
 			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
-			"tc qdisc add dev mid.r root \(#qdisc)",
+			"tc qdisc add dev mid.r root handle 1: htb default 1",
+			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate0)",
+			"tc qdisc add dev mid.r parent 1:1 \(#qdisc)",
 		]
 	}
 	left: {
 		setup: [
 			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+			"sysctl -w net.ipv4.tcp_ecn=0",
 			"ip addr add 10.0.0.1/24 dev left.r",
 			"ip link set left.r up",
 			"ethtool -K left.r \(#offloads)",
 			"ping -c 3 -i 0.1 10.0.0.2",
+			"modprobe tcp_bbr",
 		]
 	}
 }
@@ -148,50 +161,53 @@ server: {
 	}
 }
 
-// do runs the test using two StreamClients
+// do runs the test
 do: {
-	Child: {
-		Node: ns.left.node
-		Serial: [
-			{System: {
-				Command:    "tcpdump -i left.r -s 128 -w -"
-				Background: true
-				Stdout:     "left.pcap"
-			}},
-			{Sleep: "500ms"},
-			{Parallel: [
-				{PacketClient: {
-					Addr: #serverAddr
-					Flow: "udp"
-					Sender: [
-						{Unresponsive: {
-							Interval: "\(#rtt/2)ms"
-							Duration: "\(#duration)s"
-						}},
-					]
+	{Parallel: [
+		{Child: {
+			Node: ns.left.node
+			Serial: [
+				{System: {
+					Command:    "tcpdump -i left.r -s 128 -w -"
+					Background: true
+					Stdout:     "left.pcap"
 				}},
-				{StreamClient: {
-					Addr: #serverAddr
-					Upload: {
-						Flow:             "cubic"
-						CCA:              "cubic"
-						Duration:         "\(#duration)s"
-						SampleIOInterval: "\(#rtt*4)ms"
-					}
-				}},
-				{Serial: [
-					{Sleep: "\(#duration/3)s"},
+				{Sleep: "500ms"},
+				{Parallel: [
+					{PacketClient: {
+						Addr: #serverAddr
+						Flow: "udp"
+						Sender: [
+							{Unresponsive: {
+								Interval: "\(#rtt/2)ms"
+								Duration: "\(#duration)s"
+							}},
+						]
+					}},
 					{StreamClient: {
 						Addr: #serverAddr
 						Upload: {
-							Flow:             "reno"
-							CCA:              "reno"
-							Duration:         "\(#duration/3)s"
-							SampleIOInterval: "\(#rtt*4)ms"
+							Flow:             "bbr"
+							CCA:              "bbr"
+							Duration:         "\(#duration)s"
+							SampleIOInterval: "\(#rtt*8)ms"
 						}
 					}},
 				]},
-			]},
-		]
-	}
+			]
+		}},
+		{Child: {
+			Node: ns.mid.node
+			Serial: [
+				{Sleep: "\(#duration/3)s"},
+				{System: Command:
+					"tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate1)"
+				},
+				{Sleep: "\(#duration/3)s"},
+				{System: Command:
+					"tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate0)"
+				},
+			]
+		}},
+	]}
 }

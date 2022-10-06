@@ -130,9 +130,16 @@ Run: #TestRun
 		chartArea: {
 			backgroundColor: string | *"#f7f7f7"
 			top:             int | *100
+			width:           string | *"80%"
 			//left:            int | *75
-			width: string | *"80%"
 			//height:          string | *"75%"
+			...
+		}
+		explorer: {
+			actions:      [...string] | *["dragToZoom", "rightClickToReset"]
+			axis:         string | *"horizontal"
+			keepInBounds: bool | *true
+			maxZoomIn:    float | *0.05
 			...
 		}
 		...

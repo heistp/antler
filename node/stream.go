@@ -360,8 +360,11 @@ const (
 
 // Transfer contains the parameters for an Upload or Download.
 type Transfer struct {
-	// Duration is the length of time the sender writes.
+	// Duration is the length of time after which the sender stops writing.
 	Duration metric.Duration
+
+	// Length is the number of bytes after which the sender stops writing.
+	Length metric.Bytes
 
 	// SampleIOInterval is the minimum time between IO samples. Zero means a
 	// sample will be recorded for every read and write.
@@ -410,7 +413,9 @@ func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
 		case <-ctx.Done():
 			done = true
 		default:
-			done = time.Duration(t-t0) > dur || err != nil
+			done = (dur > 0 && time.Duration(t-t0) > dur) ||
+				(x.Length > 0 && l > x.Length) ||
+				err != nil
 		}
 		if n > 0 {
 			if time.Duration(t-ts) > in || done {

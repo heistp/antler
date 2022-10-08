@@ -307,6 +307,7 @@ Run: #TestRun
 // node.transfer
 #Transfer: {
 	Duration:         #Duration | *"1m"
+	Length?:          int & >0
 	SampleIOInterval: #Duration | *"100ms"
 	BufLen:           int & >0 | *(1024 * 128)
 	#Stream

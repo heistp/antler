@@ -123,19 +123,12 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 		}
 		errc <- errDone
 	}()
-	var r streamRequest
+	var m streamer
 	d := gob.NewDecoder(conn)
-	if e = d.Decode(&r); e != nil {
+	if e = d.Decode(&m); e != nil {
 		return
 	}
-	e = r.Streamer.handleServer(ctx, conn, r.Flow, rec)
-}
-
-// streamRequest is sent from StreamClient to StreamServer to communicate the
-// parameters needed to serve the stream.
-type streamRequest struct {
-	Streamer streamer
-	Flow     Flow
+	e = m.handleServer(ctx, conn, rec)
 }
 
 // StreamClient is a client used for stream oriented protocols.
@@ -150,15 +143,6 @@ type StreamClient struct {
 
 	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
 	Protocol string
-
-	// Flow is the base flow identifier.
-	Flow Flow
-
-	// StreamStart controls stream introductions.
-	Start StreamStart
-
-	// StreamEnd controls stream durations / lengths.
-	End StreamEnd
 
 	Streamers
 }
@@ -175,18 +159,16 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if r, ok := m.(dialController); ok {
 		d.Control = r.dialControl
 	}
-	// TODO create goroutines to start streams, based on StreamStart
 	var c net.Conn
 	if c, err = d.DialContext(ctx, s.Protocol, a); err != nil {
 		return
 	}
 	defer c.Close()
 	e := gob.NewEncoder(c)
-	r := streamRequest{m, s.Flow}
-	if err = e.Encode(r); err != nil {
+	if err = e.Encode(&m); err != nil {
 		return
 	}
-	err = m.handleClient(ctx, c, s.Flow, s.End, arg.rec)
+	err = m.handleClient(ctx, c, arg.rec)
 	return
 }
 
@@ -206,10 +188,10 @@ func (s *StreamClient) addr(ifb Feedback) (a string, err error) {
 // A streamer handles connections in StreamClient and StreamServer.
 type streamer interface {
 	// handleClient handles a client connection.
-	handleClient(context.Context, net.Conn, Flow, StreamEnd, *recorder) error
+	handleClient(context.Context, net.Conn, *recorder) error
 
 	// handleServer handles a server connection.
-	handleServer(context.Context, net.Conn, Flow, *recorder) error
+	handleServer(context.Context, net.Conn, *recorder) error
 }
 
 // A dialController provides Dialer.Control for the StreamClient, and may be
@@ -231,8 +213,9 @@ func (s *Streamers) streamer() streamer {
 		return s.Upload
 	case s.Download != nil:
 		return s.Download
+	default:
+		panic("no streamer set in streamers union")
 	}
-	return nil
 }
 
 // Upload is a stream transfer from client to server.
@@ -246,17 +229,21 @@ func init() {
 }
 
 // handleClient implements streamer
-func (u Upload) handleClient(ctx context.Context, conn net.Conn, flow Flow,
-	end StreamEnd, rec *recorder) error {
+func (u Upload) handleClient(ctx context.Context, conn net.Conn,
+	rec *recorder) error {
 	rec.Send(u.Info(false))
-	return u.send(ctx, conn, flow, rec)
+	return u.send(ctx, conn, rec)
 }
 
 // handleServer implements streamer
-func (u Upload) handleServer(ctx context.Context, conn net.Conn, flow Flow,
+func (u Upload) handleServer(ctx context.Context, conn net.Conn,
 	rec *recorder) error {
 	rec.Send(u.Info(true))
-	return u.receive(ctx, conn, flow, rec)
+	return u.receive(ctx, conn, rec)
+}
+
+func (u Upload) String() string {
+	return fmt.Sprintf("Upload[Flow:%s]", u.Flow)
 }
 
 // Download is a stream transfer from server to client.
@@ -270,14 +257,14 @@ func init() {
 }
 
 // handleClient implements streamer
-func (d Download) handleClient(ctx context.Context, conn net.Conn, flow Flow,
-	end StreamEnd, rec *recorder) error {
+func (d Download) handleClient(ctx context.Context, conn net.Conn,
+	rec *recorder) error {
 	rec.Send(d.Info(false))
-	return d.receive(ctx, conn, flow, rec)
+	return d.receive(ctx, conn, rec)
 }
 
 // handleServer implements streamer
-func (d Download) handleServer(ctx context.Context, conn net.Conn, flow Flow,
+func (d Download) handleServer(ctx context.Context, conn net.Conn,
 	rec *recorder) (err error) {
 	if d.CCA != "" {
 		if t, ok := conn.(*net.TCPConn); ok {
@@ -288,7 +275,7 @@ func (d Download) handleServer(ctx context.Context, conn net.Conn, flow Flow,
 		}
 	}
 	rec.Send(d.Info(true))
-	err = d.send(ctx, conn, flow, rec)
+	err = d.send(ctx, conn, rec)
 	return
 }
 
@@ -302,8 +289,15 @@ func (d Download) handle(node *node) {
 	node.parent.Send(d)
 }
 
+func (d Download) String() string {
+	return fmt.Sprintf("Download[Flow:%s]", d.Flow)
+}
+
 // Stream represents one direction of a stream oriented flow.
 type Stream struct {
+	// Flow is the Stream's flow identifier.
+	Flow Flow
+
 	// Direction is the client to server sense.
 	Direction Direction
 
@@ -317,7 +311,8 @@ func (s Stream) Info(server bool) StreamInfo {
 }
 
 func (s Stream) String() string {
-	return fmt.Sprintf("Stream[Direction:%s CCA:%s]", s.Direction, s.CCA)
+	return fmt.Sprintf("Stream[Flow:%s Direction:%s CCA:%s]",
+		s.Flow, s.Direction, s.CCA)
 }
 
 // StreamInfo contains information for a stream flow.
@@ -394,15 +389,15 @@ func (x Transfer) dialControl(network, address string, conn syscall.RawConn) (
 }
 
 // send runs the send side of a transfer.
-func (x Transfer) send(ctx context.Context, w io.Writer, flow Flow,
-	rec *recorder) (err error) {
+func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
+	err error) {
 	b := make([]byte, x.BufLen)
 	for i := 0; i < x.BufLen; i++ {
 		b[i] = 0xfe
 	}
 	in, dur := x.SampleIOInterval.Duration(), x.Duration.Duration()
 	t0 := metric.Now()
-	rec.Send(StreamIO{flow, t0, 0, true})
+	rec.Send(StreamIO{x.Flow, t0, 0, true})
 	ts := t0
 	var l metric.Bytes
 	var done bool
@@ -411,7 +406,6 @@ func (x Transfer) send(ctx context.Context, w io.Writer, flow Flow,
 		n, err = w.Write(b)
 		t := metric.Now()
 		l += metric.Bytes(n)
-		// TODO handle duration/bytes from StreamEnd
 		select {
 		case <-ctx.Done():
 			done = true
@@ -420,7 +414,7 @@ func (x Transfer) send(ctx context.Context, w io.Writer, flow Flow,
 		}
 		if n > 0 {
 			if time.Duration(t-ts) > in || done {
-				rec.Send(StreamIO{flow, t, l, true})
+				rec.Send(StreamIO{x.Flow, t, l, true})
 				ts = t
 			}
 		}
@@ -429,12 +423,12 @@ func (x Transfer) send(ctx context.Context, w io.Writer, flow Flow,
 }
 
 // receive runs the receive side of a transfer.
-func (x Transfer) receive(ctx context.Context, r io.Reader, flow Flow,
-	rec *recorder) (err error) {
+func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
+	err error) {
 	b := make([]byte, x.BufLen)
 	in := x.SampleIOInterval.Duration()
 	t0 := metric.Now()
-	rec.Send(StreamIO{flow, t0, 0, false})
+	rec.Send(StreamIO{x.Flow, t0, 0, false})
 	ts := t0
 	var l metric.Bytes
 	for {
@@ -444,7 +438,7 @@ func (x Transfer) receive(ctx context.Context, r io.Reader, flow Flow,
 		l += metric.Bytes(n)
 		if n > 0 {
 			if time.Duration(t-ts) > in || err != nil {
-				rec.Send(StreamIO{flow, t, l, false})
+				rec.Send(StreamIO{x.Flow, t, l, false})
 				ts = t
 			}
 		}
@@ -492,118 +486,4 @@ func (s StreamIO) handle(node *node) {
 func (s StreamIO) String() string {
 	return fmt.Sprintf("StreamIO[Flow:%s T:%s Total:%d Sent:%t]",
 		s.Flow, s.T, s.Total, s.Sent)
-}
-
-// StreamStart contains the parameters for stream introductions.
-type StreamStart struct {
-	Durationers
-
-	// Duration is the maximum length of time to start streams for.
-	Duration metric.Duration
-
-	// Flows is the maximum number of flows to introduce.
-	Flows int
-}
-
-// StreamEnd contains the parameters for stream durations / lengths.
-type StreamEnd struct {
-	// Duration selects a durationer from which to get stream Durations.
-	Duration Durationers
-
-	// Bytes selects a byteser from which to get a number of bytes.
-	Bytes Bytesers
-}
-
-// A durationer can return Durations.
-type durationer interface {
-	duration() time.Duration
-}
-
-// Durationers is a union of the available durationer implementations.
-type Durationers struct {
-	Fixed       *FixedDuration
-	Isochronous *FixedDuration
-	Exponential *ExpDuration
-}
-
-// durationer returns the only non-nil durationer implementation.
-func (d *Durationers) durationer() durationer {
-	switch {
-	case d.Fixed != nil:
-		return d.Fixed
-	case d.Isochronous != nil:
-		return d.Isochronous
-	case d.Exponential != nil:
-		return d.Exponential
-	}
-	return nil
-}
-
-// FixedDuration is a durationer that returns a constant Duration.
-type FixedDuration metric.Duration
-
-// duration implements durationer
-func (d FixedDuration) duration() time.Duration {
-	return time.Duration(d)
-}
-
-// ExpDuration is a durationer that returns Durations on an exponential
-// distribution.
-type ExpDuration struct {
-	// Mean is the mean duration.
-	Mean metric.Duration
-
-	// Rate is the rate parameter for the exponential distribution.
-	Rate float64
-}
-
-// duration implements durationer
-func (d ExpDuration) duration() time.Duration {
-	// TODO implement ExpDuration
-	return time.Duration(d.Mean)
-}
-
-// Bytesers is a union of the available byteser implementations.
-type Bytesers struct {
-	Fixed *FixedBytes
-}
-
-// byteser returns the only non-nil byteser implementation.
-func (b *Bytesers) byteser() byteser {
-	switch {
-	case b.Fixed != nil:
-		return b.Fixed
-	}
-	return nil
-}
-
-// A byteser can return metric.Bytes values.
-type byteser interface {
-	bytes() metric.Bytes
-}
-
-// FixedBytes is a byteser that returns a constant metric.Bytes.
-type FixedBytes metric.Bytes
-
-// bytes implements byteser
-func (b FixedBytes) bytes() metric.Bytes {
-	return metric.Bytes(b)
-}
-
-// LognormalBytes returns metric.Bytes values on a lognormal distribution.
-type LognormalBytes struct {
-	// P5 is the 5th percentile of the lognormal distribution.
-	P5 metric.Bytes
-
-	// Mean is the mean metric.Bytes value.
-	Mean metric.Bytes
-
-	// P95 is the 95th percentile of the lognormal distribution.
-	P95 metric.Bytes
-}
-
-// bytes implements byteser
-func (l LognormalBytes) bytes() metric.Bytes {
-	// TODO implement LognormalBytes
-	return l.Mean
 }

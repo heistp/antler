@@ -128,7 +128,7 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 	if e = d.Decode(&r); e != nil {
 		return
 	}
-	e = r.Streamer.handleServer(ctx, conn, r.Flow, r.End, rec)
+	e = r.Streamer.handleServer(ctx, conn, r.Flow, rec)
 }
 
 // streamRequest is sent from StreamClient to StreamServer to communicate the
@@ -136,7 +136,6 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 type streamRequest struct {
 	Streamer streamer
 	Flow     Flow
-	End      StreamEnd
 }
 
 // StreamClient is a client used for stream oriented protocols.
@@ -167,78 +166,28 @@ type StreamClient struct {
 // Run implements runner
 func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
-	dd := s.Start.durationer()
-	ec := make(chan error)
-	var g int
-	defer func() {
-		for g > 0 {
-			if e := <-ec; e != nil && err == nil {
-				err = e
-			}
-			g--
-		}
-	}()
-	n := 1
-	t := time.After(0)
-	t0 := time.Now()
-	for {
-		select {
-		case <-t:
-			g++
-			go s.run(ctx, arg, s.flow(n), ec)
-			if n >= s.Start.Streams ||
-				time.Since(t0) > s.Start.Duration.Duration() {
-				return
-			}
-			n++
-			t = time.After(dd.duration())
-		case err = <-ec:
-			g--
-			if err != nil {
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-	return
-}
-
-// flow returns the flow identifier for the nth flow.
-func (s *StreamClient) flow(n int) Flow {
-	if s.Start.Streams <= 1 {
-		return s.Flow
-	}
-	return Flow(fmt.Sprintf("%s.%d", s.Flow, n))
-}
-
-// run runs one client.
-func (s *StreamClient) run(ctx context.Context, arg runArg, flow Flow,
-	errc chan error) {
-	var e error
-	defer func() {
-		errc <- e
-	}()
 	var a string
-	if a, e = s.addr(arg.ifb); e != nil {
+	if a, err = s.addr(arg.ifb); err != nil {
 		return
 	}
 	m := s.streamer()
-	l := net.Dialer{}
+	d := net.Dialer{}
 	if r, ok := m.(dialController); ok {
-		l.Control = r.dialControl
+		d.Control = r.dialControl
 	}
+	// TODO create goroutines to start streams, based on StreamStart
 	var c net.Conn
-	if c, e = l.DialContext(ctx, s.Protocol, a); e != nil {
+	if c, err = d.DialContext(ctx, s.Protocol, a); err != nil {
 		return
 	}
 	defer c.Close()
-	en := gob.NewEncoder(c)
-	r := streamRequest{m, flow, s.End}
-	if e = en.Encode(r); e != nil {
+	e := gob.NewEncoder(c)
+	r := streamRequest{m, s.Flow}
+	if err = e.Encode(r); err != nil {
 		return
 	}
-	e = m.handleClient(ctx, c, flow, s.End, arg.rec)
+	err = m.handleClient(ctx, c, s.Flow, s.End, arg.rec)
+	return
 }
 
 // addr returns the dial address, from either Addr or AddrKey.
@@ -260,7 +209,7 @@ type streamer interface {
 	handleClient(context.Context, net.Conn, Flow, StreamEnd, *recorder) error
 
 	// handleServer handles a server connection.
-	handleServer(context.Context, net.Conn, Flow, StreamEnd, *recorder) error
+	handleServer(context.Context, net.Conn, Flow, *recorder) error
 }
 
 // A dialController provides Dialer.Control for the StreamClient, and may be
@@ -299,14 +248,14 @@ func init() {
 // handleClient implements streamer
 func (u Upload) handleClient(ctx context.Context, conn net.Conn, flow Flow,
 	end StreamEnd, rec *recorder) error {
-	rec.Send(u.Info(flow, false))
-	return u.send(ctx, conn, flow, end, rec)
+	rec.Send(u.Info(false))
+	return u.send(ctx, conn, flow, rec)
 }
 
 // handleServer implements streamer
 func (u Upload) handleServer(ctx context.Context, conn net.Conn, flow Flow,
-	end StreamEnd, rec *recorder) error {
-	rec.Send(u.Info(flow, true))
+	rec *recorder) error {
+	rec.Send(u.Info(true))
 	return u.receive(ctx, conn, flow, rec)
 }
 
@@ -323,13 +272,13 @@ func init() {
 // handleClient implements streamer
 func (d Download) handleClient(ctx context.Context, conn net.Conn, flow Flow,
 	end StreamEnd, rec *recorder) error {
-	rec.Send(d.Info(flow, false))
+	rec.Send(d.Info(false))
 	return d.receive(ctx, conn, flow, rec)
 }
 
 // handleServer implements streamer
 func (d Download) handleServer(ctx context.Context, conn net.Conn, flow Flow,
-	end StreamEnd, rec *recorder) (err error) {
+	rec *recorder) (err error) {
 	if d.CCA != "" {
 		if t, ok := conn.(*net.TCPConn); ok {
 			if err = setTCPSockoptString(t, unix.IPPROTO_TCP,
@@ -338,8 +287,8 @@ func (d Download) handleServer(ctx context.Context, conn net.Conn, flow Flow,
 			}
 		}
 	}
-	rec.Send(d.Info(flow, true))
-	err = d.send(ctx, conn, flow, end, rec)
+	rec.Send(d.Info(true))
+	err = d.send(ctx, conn, flow, rec)
 	return
 }
 
@@ -363,8 +312,8 @@ type Stream struct {
 }
 
 // Info returns StreamInfo for this Stream.
-func (s Stream) Info(flow Flow, server bool) StreamInfo {
-	return StreamInfo{metric.Tinit, flow, s, server}
+func (s Stream) Info(server bool) StreamInfo {
+	return StreamInfo{metric.Tinit, s, server}
 }
 
 func (s Stream) String() string {
@@ -375,9 +324,6 @@ func (s Stream) String() string {
 type StreamInfo struct {
 	// Tinit is the base time for the flow's RelativeTime values.
 	Tinit time.Time
-
-	// Flow is the flow identifier.
-	Flow Flow
 
 	Stream
 
@@ -419,6 +365,9 @@ const (
 
 // Transfer contains the parameters for an Upload or Download.
 type Transfer struct {
+	// Duration is the length of time the sender writes.
+	Duration metric.Duration
+
 	// SampleIOInterval is the minimum time between IO samples. Zero means a
 	// sample will be recorded for every read and write.
 	SampleIOInterval metric.Duration
@@ -446,14 +395,12 @@ func (x Transfer) dialControl(network, address string, conn syscall.RawConn) (
 
 // send runs the send side of a transfer.
 func (x Transfer) send(ctx context.Context, w io.Writer, flow Flow,
-	end StreamEnd, rec *recorder) (err error) {
+	rec *recorder) (err error) {
 	b := make([]byte, x.BufLen)
 	for i := 0; i < x.BufLen; i++ {
 		b[i] = 0xfe
 	}
-	in := x.SampleIOInterval.Duration()
-	dur := end.Duration.durationer().duration()
-	bytes := end.Bytes.byteser().bytes()
+	in, dur := x.SampleIOInterval.Duration(), x.Duration.Duration()
 	t0 := metric.Now()
 	rec.Send(StreamIO{flow, t0, 0, true})
 	ts := t0
@@ -464,12 +411,12 @@ func (x Transfer) send(ctx context.Context, w io.Writer, flow Flow,
 		n, err = w.Write(b)
 		t := metric.Now()
 		l += metric.Bytes(n)
+		// TODO handle duration/bytes from StreamEnd
 		select {
 		case <-ctx.Done():
 			done = true
 		default:
-			// TODO clean up duration/bytes limit from StreamEnd
-			done = time.Duration(t-t0) > dur || l > bytes || err != nil
+			done = time.Duration(t-t0) > dur || err != nil
 		}
 		if n > 0 {
 			if time.Duration(t-ts) > in || done {
@@ -554,8 +501,8 @@ type StreamStart struct {
 	// Duration is the maximum length of time to start streams for.
 	Duration metric.Duration
 
-	// Streams is the maximum number of streams to introduce.
-	Streams int
+	// Flows is the maximum number of flows to introduce.
+	Flows int
 }
 
 // StreamEnd contains the parameters for stream durations / lengths.

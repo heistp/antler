@@ -6,6 +6,10 @@ package node
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"time"
+
+	"github.com/heistp/antler/node/metric"
 )
 
 //
@@ -26,6 +30,9 @@ type Run struct {
 	// Parallel lists Runs to be executed concurrently
 	Parallel Parallel
 
+	// Schedule lists Runs to be executed on a schedule.
+	Schedule *Schedule
+
 	// Child is a Run to be executed on a child Node
 	Child *Child
 
@@ -44,6 +51,8 @@ func (r *Run) run(ctx context.Context, arg runArg, ev chan event) (
 		ofb, ok = r.Serial.do(ctx, arg, ev)
 	case len(r.Parallel) > 0:
 		ofb, ok = r.Parallel.do(ctx, arg, ev)
+	case r.Schedule != nil:
+		ofb, ok = r.Schedule.do(ctx, arg, ev)
 	case r.Child != nil:
 		ofb, ok = r.Child.do(ctx, arg, ev)
 	default:
@@ -77,38 +86,31 @@ func (s Serial) do(ctx context.Context, arg runArg, ev chan event) (
 // Parallel is a list of Runs executed concurrently.
 type Parallel []Run
 
-// parallelRan is the result returned by Parallel.do's internal goroutine.
-type parallelRan struct {
-	run *Run
-	ofb Feedback
-	ok  bool
-}
-
 // do executes the Parallel Runs concurrently.
 func (p Parallel) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
 	ofb = Feedback{}
-	c := make(chan parallelRan)
+	c := make(chan runDone)
 	for _, r := range p {
 		r := r
 		go func() {
-			var a parallelRan
+			var d runDone
 			defer func() {
-				c <- a
+				c <- d
 			}()
-			a.run = &r
-			a.ofb, a.ok = r.run(ctx, arg, ev)
+			d.run = &r
+			d.ofb, d.ok = r.run(ctx, arg, ev)
 		}()
 	}
 	ok = true
 	for i := 0; i < len(p); i++ {
-		a := <-c
-		if e := ofb.merge(a.ofb); e != nil {
+		d := <-c
+		if e := ofb.merge(d.ofb); e != nil {
 			ok = false
-			rr := arg.rec.WithTag(typeBaseName(a.run))
+			rr := arg.rec.WithTag(typeBaseName(d.run))
 			ev <- errorEvent{rr.NewErrore(e), false}
 		}
-		if !a.ok {
+		if !d.ok {
 			ok = false
 		}
 	}
@@ -134,6 +136,114 @@ func (r *Child) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb = a.Feedback
 	ok = a.OK
 	return
+}
+
+// Schedule lists Runs to be executed with wait times between each Run.
+type Schedule struct {
+	// Wait lists the wait Durations to use. If Random is false, the chosen
+	// Durations cycle repeatedly through Wait.
+	Wait []metric.Duration
+
+	// WaitFirst, if true, indicates to wait before the first Run as well.
+	WaitFirst bool
+
+	// Random, if true, indicates to select wait times from Wait randomly.
+	// Otherwise, wait times are taken from Wait sequentially.
+	Random bool
+
+	// Sequential, if true, indicates to run the Runs in serial.
+	Sequential bool
+
+	// Run lists the Runs.
+	Run []Run
+
+	// waitIndex is the current index in Wait.
+	waitIndex int
+
+	// rand provides random wait times when Random is true.
+	rand *rand.Rand
+}
+
+// do executes Schedule's Runs on a schedule.
+func (s *Schedule) do(ctx context.Context, arg runArg, ev chan event) (
+	ofb Feedback, ok bool) {
+	ofb = Feedback{}
+	ok = true
+	var g, i int
+	r := make(chan runDone)
+	dc := ctx.Done()
+	w := time.After(s.firstWait())
+	for (i < len(s.Run) && dc != nil && ok) || g > 0 {
+		select {
+		case <-w:
+			if dc == nil || !ok {
+				break
+			}
+			g++
+			go func(run *Run) {
+				var d runDone
+				defer func() {
+					r <- d
+				}()
+				d.run = run
+				d.ofb, d.ok = run.run(ctx, arg, ev)
+			}(&s.Run[i])
+			if i++; i < len(s.Run) && !s.Sequential {
+				w = time.After(s.nextWait())
+			}
+		case d := <-r:
+			g--
+			if e := ofb.merge(d.ofb); e != nil {
+				ok = false
+				rr := arg.rec.WithTag(typeBaseName(d.run))
+				ev <- errorEvent{rr.NewErrore(e), false}
+				break
+			}
+			if !d.ok {
+				ok = false
+			}
+			if s.Sequential && dc != nil && ok && i < len(s.Run) {
+				w = time.After(s.nextWait())
+			}
+		case <-dc:
+			dc = nil
+		}
+	}
+	return
+}
+
+// firstWait returns the first wait time.
+func (s *Schedule) firstWait() time.Duration {
+	if !s.WaitFirst {
+		return 0
+	}
+	return s.nextWait()
+}
+
+// nextWait returns Schedule's next wait time.
+func (s *Schedule) nextWait() (wait time.Duration) {
+	if len(s.Wait) == 0 {
+		return
+	}
+	if s.Random {
+		if s.rand == nil {
+			s.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		}
+		wait = time.Duration(s.Wait[s.rand.Intn(len(s.Wait))])
+		return
+	}
+	wait = time.Duration(s.Wait[s.waitIndex])
+	if s.waitIndex++; s.waitIndex >= len(s.Wait) {
+		s.waitIndex = 0
+	}
+	return
+}
+
+// runDone is the result returned by Run's internal goroutines.
+type runDone struct {
+	run *Run
+	ofb Feedback
+	ok  bool
 }
 
 // Runners is a union of the available runner implementations. Only one of the

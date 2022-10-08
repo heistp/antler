@@ -170,6 +170,8 @@ Run: #TestRun
 	} | {
 		Parallel?: [#Run, ...#Run]
 	} | {
+		Schedule?: #Schedule
+	} | {
 		Child?: #Child
 	}
 }
@@ -327,6 +329,15 @@ Run: #TestRun
 #Child: {
 	Node: #Node
 	#Run
+}
+
+// node.Schedule
+#Schedule: {
+	Wait?: [...#Duration]
+	WaitFirst?:  bool
+	Random?:     bool
+	Sequential?: bool
+	Run: [#Run, ...#Run]
 }
 
 // node.Node

@@ -5,6 +5,9 @@ package antler
 
 import (
 	_ "embed"
+	"html/template"
+	"os"
+	"path/filepath"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -20,17 +23,22 @@ type Config struct {
 	Run TestRun
 }
 
-// LoadConfig uses the CUE API to load and return the Antler Config.
+// LoadConfig first executes templates in any .ant files to create the
+// corresponding .cue files, then uses the CUE API to load and return the Antler
+// Config.
 func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
-	inst := load.Instances([]string{}, cuecfg)[0]
-	ctx := cuecontext.New()
+	if err = executeConfigTemplates(); err != nil {
+		return
+	}
 	// compile config schema
+	ctx := cuecontext.New()
 	s := ctx.CompileString(configCUE, cue.Filename("config.cue"))
 	if s.Err() != nil {
 		err = s.Err()
 		return
 	}
 	// compile data value from the CUE app instance
+	inst := load.Instances([]string{}, cuecfg)[0]
 	d := ctx.BuildInstance(inst)
 	if d.Err() != nil {
 		err = d.Err()
@@ -44,5 +52,29 @@ func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
 	}
 	cfg = &Config{}
 	err = v.Decode(cfg)
+	return
+}
+
+// executeConfigTemplates runs any .ant files as Go templates, to create their
+// corresponding .cue files.
+func executeConfigTemplates() (err error) {
+	var ff []string
+	if ff, err = filepath.Glob("*.ant"); err != nil {
+		return
+	}
+	var t *template.Template
+	for _, tf := range ff {
+		if t, err = template.ParseFiles(tf); err != nil {
+			return
+		}
+		var c *os.File
+		if c, err = os.Create(tf[:len(tf)-4] + ".cue"); err != nil {
+			return
+		}
+		defer c.Close()
+		if err = t.Execute(c, nil); err != nil {
+			return
+		}
+	}
 	return
 }

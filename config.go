@@ -6,9 +6,9 @@ package antler
 import (
 	_ "embed"
 	"encoding/json"
-	"html/template"
 	"os"
 	"path/filepath"
+	"text/template"
 	"time"
 
 	"cuelang.org/go/cue"
@@ -69,10 +69,10 @@ func executeConfigTemplates() (err error) {
 	f := configFunc{}
 	var t *template.Template
 	for _, tf := range ff {
-		if t, err = template.ParseFiles(tf); err != nil {
+		t = template.New(tf).Funcs(f.funcMap())
+		if t, err = t.ParseFiles(tf); err != nil {
 			return
 		}
-		t = t.Funcs(f.funcMap())
 		var c *os.File
 		if c, err = os.Create(tf[:len(tf)-4] + ".cue"); err != nil {
 			return
@@ -109,14 +109,19 @@ func (f configFunc) expRand(n int, rate float64) (jsn string, err error) {
 // expRandDuration returns a list of n random durations, deviating from a mean
 // duration on an exponential distribution, with the given rate parameter (1.0
 // is a useful default).
-func (f configFunc) expRandDuration(mean time.Duration, n int, rate float64) (
+func (f configFunc) expRandDuration(meanDuration string, n int, rate float64) (
 	jsn string, err error) {
-	r := f.expRandFloat64(n, rate)
-	var d []time.Duration
-	for _, v := range r {
-		d = append(d, time.Duration(v*float64(mean)))
+	var m time.Duration
+	if m, err = time.ParseDuration(meanDuration); err != nil {
+		return
 	}
-	jsn, err = f.jsonString(d)
+	r := f.expRandFloat64(n, rate)
+	var s []string
+	for _, v := range r {
+		d := time.Duration(v * float64(m))
+		s = append(s, d.String())
+	}
+	jsn, err = f.jsonString(s)
 	return
 }
 

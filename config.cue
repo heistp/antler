@@ -196,7 +196,7 @@ Run: #TestRun
 }
 
 // node.Duration
-#Duration: string & =~"^[0-9]+(ns|us|µs|ms|s|m|h)$"
+#Duration: string & =~"^([0-9]*\\.)?[0-9]+(ns|us|µs|ms|s|m|h)$"
 
 // node.Flow (TODO restrict length to <=255 chars)
 #Flow: string & !=""

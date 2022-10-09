@@ -91,6 +91,10 @@ func (s *StreamServer) start(ctx context.Context, lst net.Listener,
 		for g > 0 {
 			select {
 			case c := <-cc:
+				if d == nil {
+					c.Close()
+					break
+				}
 				t := c.(*net.TCPConn)
 				g++
 				go s.serve(ctx, t, rec, ec)
@@ -103,7 +107,7 @@ func (s *StreamServer) start(ctx context.Context, lst net.Listener,
 					break
 				}
 				if d == nil {
-					rec.Logf("post-cancel error: %s", e)
+					//rec.Logf("post-cancel error: %s", e)
 					break
 				}
 				rec.SendErrore(e)
@@ -391,35 +395,50 @@ func (x Transfer) dialControl(network, address string, conn syscall.RawConn) (
 	return
 }
 
+const (
+	transferFill  byte = 0xf0 // fill byte for transfers
+	transferFinal      = 0xfe // final byte for transfers
+	transferACK        = 0xff // ack byte for transfers
+)
+
 // send runs the send side of a transfer.
-func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
+func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 	err error) {
 	b := make([]byte, x.BufLen)
 	for i := 0; i < x.BufLen; i++ {
-		b[i] = 0xfe
+		b[i] = transferFill
 	}
 	in, dur := x.SampleIOInterval.Duration(), x.Duration.Duration()
 	t0 := metric.Now()
 	rec.Send(StreamIO{x.Flow, t0, 0, true})
+	t := t0
 	ts := t0
 	var l metric.Bytes
 	var done bool
+	var n int
 	for !done {
-		var n int
 		bl := len(b)
-		if x.Length > 0 && x.Length-l < metric.Bytes(bl) {
-			bl = int(x.Length - l)
-		}
-		n, err = w.Write(b[:bl])
-		t := metric.Now()
-		l += metric.Bytes(n)
-		select {
-		case <-ctx.Done():
+		if dur > 0 && time.Duration(t-t0) >= dur {
+			bl = 1
+			b[0] = transferFinal
 			done = true
-		default:
-			done = (dur > 0 && time.Duration(t-t0) > dur) ||
-				(x.Length > 0 && l >= x.Length) ||
-				err != nil
+		} else if x.Length > 0 && x.Length-l <= metric.Bytes(bl) {
+			bl = int(x.Length - l)
+			b[bl-1] = transferFinal
+			done = true
+		}
+		n, err = rw.Write(b[:bl])
+		t = metric.Now()
+		l += metric.Bytes(n)
+		if !done {
+			select {
+			case <-ctx.Done():
+				done = true
+			default:
+				if err != nil {
+					done = true
+				}
+			}
 		}
 		if n > 0 {
 			if time.Duration(t-ts) > in || done {
@@ -428,11 +447,19 @@ func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
 			}
 		}
 	}
+	if n, err = rw.Read(b); err != nil {
+		return
+	}
+	if n != 1 {
+		err = fmt.Errorf("unexpected read length: %d", n)
+	} else if b[0] != transferACK {
+		err = fmt.Errorf("unexpected ACK byte: %x", b[0])
+	}
 	return
 }
 
 // receive runs the receive side of a transfer.
-func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
+func (x Transfer) receive(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 	err error) {
 	b := make([]byte, x.BufLen)
 	in := x.SampleIOInterval.Duration()
@@ -440,23 +467,28 @@ func (x Transfer) receive(ctx context.Context, r io.Reader, rec *recorder) (
 	rec.Send(StreamIO{x.Flow, t0, 0, false})
 	ts := t0
 	var l metric.Bytes
-	for {
-		var n int
-		n, err = r.Read(b)
+	var done bool
+	var n int
+	for !done {
+		n, err = rw.Read(b)
 		t := metric.Now()
 		l += metric.Bytes(n)
 		if n > 0 {
-			if time.Duration(t-ts) > in || err != nil {
+			if b[n-1] == transferFinal {
+				done = true
+			}
+			if time.Duration(t-ts) > in || done || err != nil {
 				rec.Send(StreamIO{x.Flow, t, l, false})
 				ts = t
 			}
 		}
 		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
-			break
+			return
 		}
+	}
+	b[0] = transferACK
+	if n, err = rw.Write(b[:1]); n != 1 {
+		fmt.Errorf("unexpected ack write len: %d", n)
 	}
 	return
 }

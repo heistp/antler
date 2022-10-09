@@ -6,6 +6,7 @@ package antler
 import (
 	_ "embed"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -127,10 +128,12 @@ func (f configFunc) expRandDuration(meanDuration string, n int, rate float64) (
 
 // lognRandFloat64 returns a list of n random numbers on a lognormal
 // distribution, with the given 5th and 95th percentile values.
-func (f configFunc) lognRandFloat64(n int, log5, log95 float64) (
+func (f configFunc) lognRandFloat64(n int, p5, p95 float64) (
 	sample []float64) {
-	m := (log5 + log95) / 2
-	s := (log95 - log5) / (2 * 1.645)
+	l5 := math.Log(p5)
+	l95 := math.Log(p95)
+	m := (l5 + l95) / 2
+	s := (l95 - l5) / (2 * 1.645)
 	d := distuv.LogNormal{Mu: m, Sigma: s}
 	for i := 0; i < n; i++ {
 		sample = append(sample, d.Rand())

@@ -406,7 +406,11 @@ func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
 	var done bool
 	for !done {
 		var n int
-		n, err = w.Write(b)
+		bl := len(b)
+		if x.Length > 0 && x.Length-l < metric.Bytes(bl) {
+			bl = int(x.Length - l)
+		}
+		n, err = w.Write(b[:bl])
 		t := metric.Now()
 		l += metric.Bytes(n)
 		select {
@@ -414,7 +418,7 @@ func (x Transfer) send(ctx context.Context, w io.Writer, rec *recorder) (
 			done = true
 		default:
 			done = (dur > 0 && time.Duration(t-t0) > dur) ||
-				(x.Length > 0 && l > x.Length) ||
+				(x.Length > 0 && l >= x.Length) ||
 				err != nil
 		}
 		if n > 0 {

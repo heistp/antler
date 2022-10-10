@@ -157,7 +157,8 @@ func (m *streams) synchronize(start time.Time) {
 func (m *streams) analyze() {
 	for _, s := range *m {
 		var pr node.StreamIO
-		for _, r := range s.Rcvd {
+		for i := 0; i < len(s.Rcvd)-1; i++ {
+			r := s.Rcvd[i]
 			var g metric.Bitrate
 			if pr != (node.StreamIO{}) {
 				g = metric.CalcBitrate(r.Total-pr.Total,

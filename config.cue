@@ -139,7 +139,7 @@ Run: #TestRun
 			actions:      [...string] | *["dragToZoom", "rightClickToReset"]
 			axis:         string | *"horizontal"
 			keepInBounds: bool | *true
-			maxZoomIn:    float | *0.05
+			maxZoomIn:    float | *0.001
 			...
 		}
 		...

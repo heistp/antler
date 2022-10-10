@@ -66,12 +66,14 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	if t, err = t.Parse(chartsTimeSeriesTemplate); err != nil {
 		return
 	}
-	d := newReportData()
-	for a := range in.data {
-		d.add(a)
+	var a analysis
+	for d := range in.data {
+		switch v := d.(type) {
+		case analysis:
+			a = v
+		}
 	}
-	d.analyze()
-	td := tdata{*g, g.data(d.streams.byTime(), d.packets.byTime()), g.Options}
+	td := tdata{*g, g.data(a.streams.byTime(), a.packets.byTime()), g.Options}
 	var ww []io.Writer
 	for _, to := range g.To {
 		if to == "-" {
@@ -86,7 +88,7 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 }
 
 // data returns the chart data.
-func (g *ChartsTimeSeries) data(sdata []streamData, pdata []packetData) (
+func (g *ChartsTimeSeries) data(sdata []streamAnalysis, pdata []packetAnalysis) (
 	data chartsData) {
 	var h chartsRow
 	h.addColumn("")

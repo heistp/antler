@@ -178,7 +178,7 @@ do: {
 						Flow: "udp"
 						Sender: [
 							{Unresponsive: {
-								Interval: "\(#rtt/2)ms"
+								Wait: ["\(#rtt/2)ms"]
 								Duration: "\(#duration)s"
 							}},
 						]

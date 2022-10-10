@@ -15,7 +15,7 @@ stream: {ResultStream: Include: Log: true}
 #rtt: 80
 
 // duration is the test duration, in seconds
-#duration: 120
+#duration: 9
 
 // qdisc is the qdisc to apply
 #qdisc: "cake bandwidth 50Mbit flowblind"
@@ -165,7 +165,7 @@ do: {
 					Flow: "udp"
 					Sender: [
 						{Unresponsive: {
-							Interval: "\(#rtt/2)ms"
+							Wait: ["\(#rtt/2)ms"]
 							Duration: "\(#duration)s"
 						}},
 					]

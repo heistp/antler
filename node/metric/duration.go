@@ -3,7 +3,9 @@
 
 package metric
 
-import "time"
+import (
+	"time"
+)
 
 // Duration wraps a time.Duration and adds a TextUnmarshaler for conversion from
 // a string, using time.ParseDuration.
@@ -22,4 +24,8 @@ func (d *Duration) UnmarshalText(text []byte) (err error) {
 // Duration returns the time.Duration.
 func (d *Duration) Duration() time.Duration {
 	return time.Duration(*d)
+}
+
+func (d Duration) String() string {
+	return time.Duration(d).String()
 }

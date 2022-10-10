@@ -220,7 +220,7 @@ func (s *Schedule) firstWait() time.Duration {
 	return s.nextWait()
 }
 
-// nextWait returns Schedule's next wait time.
+// nextWait returns the next wait time.
 func (s *Schedule) nextWait() (wait time.Duration) {
 	if len(s.Wait) == 0 {
 		return

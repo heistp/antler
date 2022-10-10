@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -395,17 +396,39 @@ func (p *PacketSenders) packetSender() packetSender {
 // signals. Currently, only an isochronous schedule is supported. Alternate
 // schedules will be added in the future.
 type Unresponsive struct {
-	// Interval is the fixed time between ticks.
-	Interval metric.Duration
+	// Wait lists the wait times between packets, which are cycled through as
+	// needed until all packets are sent.
+	Wait []metric.Duration
 
-	// Length is the length of the packets.
-	Length int
+	// WaitFirst, if true, indicates to wait before the first packet as well.
+	WaitFirst bool
+
+	// RandomWait, if true, indicates to use random wait times from the list.
+	// Otherwise, the wait times are used in order.
+	RandomWait bool
+
+	// Length lists the lengths of the packets, which are cycled through as
+	// needed until all packets are sent.
+	Length []int
+
+	// RandomLength, if true, indicates to use random lengths from the list.
+	// Otherwise, the lengths are used in order.
+	RandomLength bool
 
 	// Duration is how long to send packets.
 	Duration metric.Duration
 
 	// Echo, if true, requests mirrored replies from the server.
 	Echo bool
+
+	// waitIndex is the current index in Wait.
+	waitIndex int
+
+	// lengthIndex is the current index in Length.
+	lengthIndex int
+
+	// rand provides random numbers.
+	rand *rand.Rand
 }
 
 // send implements packetSender
@@ -414,33 +437,83 @@ func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 	defer func() {
 		out <- Packet{done: true, err: e}
 	}()
-	sendPacket := func() {
-		var f PacketFlag
-		if u.Echo {
-			f |= FlagEcho
-		}
-		out <- Packet{PacketHeader{f, seq.Next(), ""},
-			u.Length, nil, false, nil}
-	}
 	t0 := time.Now()
-	t := time.NewTicker(u.Interval.Duration())
-	defer t.Stop()
-	sendPacket()
+	var w <-chan time.Time
+	if len(u.Wait) == 1 {
+		t := time.NewTicker(u.nextWait())
+		defer t.Stop()
+		w = t.C
+	} else {
+		w = time.After(u.firstWait())
+	}
 	for {
 		select {
 		case _, ok := <-in:
 			if !ok {
-				e = fmt.Errorf("%s isochronous sender did not complete",
-					u.Interval)
+				e = fmt.Errorf("unresponsive sender was canceled")
 				return
 			}
-		case <-t.C:
+		case <-w:
 			if time.Since(t0) >= u.Duration.Duration() {
 				return
 			}
-			sendPacket()
+			var f PacketFlag
+			if u.Echo {
+				f |= FlagEcho
+			}
+			out <- Packet{PacketHeader{f, seq.Next(), ""},
+				u.nextLength(), nil, false, nil}
+			if len(u.Wait) > 1 {
+				w = time.After(u.nextWait())
+			}
 		}
 	}
+}
+
+// firstWait returns the first wait time.
+func (u *Unresponsive) firstWait() time.Duration {
+	if !u.WaitFirst {
+		return 0
+	}
+	return u.nextWait()
+}
+
+// nextWait returns the next wait time.
+func (u *Unresponsive) nextWait() (wait time.Duration) {
+	if len(u.Wait) == 0 {
+		return
+	}
+	if u.RandomWait {
+		if u.rand == nil {
+			u.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		}
+		wait = time.Duration(u.Wait[u.rand.Intn(len(u.Wait))])
+		return
+	}
+	wait = time.Duration(u.Wait[u.waitIndex])
+	if u.waitIndex++; u.waitIndex >= len(u.Wait) {
+		u.waitIndex = 0
+	}
+	return
+}
+
+// nextLength returns the next packet length.
+func (u *Unresponsive) nextLength() (length int) {
+	if len(u.Length) == 0 {
+		return
+	}
+	if u.RandomLength {
+		if u.rand == nil {
+			u.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		}
+		length = u.Length[u.rand.Intn(len(u.Length))]
+		return
+	}
+	length = u.Length[u.lengthIndex]
+	if u.lengthIndex++; u.lengthIndex >= len(u.Length) {
+		u.lengthIndex = 0
+	}
+	return
 }
 
 // PacketInfo contains information for a packet flow.

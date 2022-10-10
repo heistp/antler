@@ -328,10 +328,13 @@ Run: #TestRun
 
 // node.Unresponsive
 #Unresponsive: {
-	Interval: #Duration | *"200ms"
-	Length?:  int
-	Duration: #Duration
-	Echo:     bool | *false
+	Wait:        [...#Duration] | *["200ms"]
+	WaitFirst?:  bool
+	RandomWait?: bool
+	Length?: [int, ...int]
+	RandomLength?: bool
+	Duration:      #Duration
+	Echo:          bool | *false
 }
 
 // node.PacketProtocol

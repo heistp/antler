@@ -420,12 +420,13 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 		bl := len(b)
 		if dur > 0 && time.Duration(t-t0) >= dur {
 			bl = 1
-			b[0] = transferFinal
 			done = true
 		} else if x.Length > 0 && x.Length-l <= metric.Bytes(bl) {
 			bl = int(x.Length - l)
-			b[bl-1] = transferFinal
 			done = true
+		}
+		if done {
+			b[bl-1] = transferFinal
 		}
 		n, err = rw.Write(b[:bl])
 		t = metric.Now()

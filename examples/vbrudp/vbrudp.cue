@@ -17,7 +17,7 @@ package vbrudp
 stream: {ResultStream: Include: Log: true}
 
 // rtt is the path RTT, in milliseconds
-#rtt: 40
+#rtt: 20
 
 // duration is the test duration, in seconds
 #duration: 60

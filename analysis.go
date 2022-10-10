@@ -77,6 +77,8 @@ type streamAnalysis struct {
 	Sent    []node.StreamIO
 	Rcvd    []node.StreamIO
 	Goodput []goodput
+	FCT     metric.Duration
+	Length  metric.Bytes
 }
 
 // T0 returns the earliest absolute time from Sent or Rcvd.
@@ -167,6 +169,8 @@ func (m *streams) analyze() {
 			s.Goodput = append(s.Goodput, goodput{r.T, g})
 			pr = r
 		}
+		s.FCT = metric.Duration(s.Rcvd[len(s.Rcvd)-1].T - s.Sent[0].T)
+		s.Length = s.Rcvd[len(s.Rcvd)-1].Total
 	}
 }
 

@@ -12,13 +12,10 @@ package shortflows
 stream: {ResultStream: Include: Log: true}
 
 // rtt is the path RTT, in milliseconds
-#rtt: 80
-
-// duration is the test duration, in seconds
-#duration: 120
+#rtt: 20
 
 // qdisc is the qdisc to apply
-#qdisc: "cake bandwidth 50Mbit flowblind"
+#qdisc: "cake bandwidth 100Mbit flowblind"
 
 // Run contains a single Test. After log streaming is configured, setup is
 // run, the server is started, then the test is run.
@@ -30,34 +27,16 @@ Run: {
 	Report: [
 		{EmitLog: {To: ["node.log", "-"]}},
 		{SaveFiles: {}},
-//		{ChartsTimeSeries: {
-//			To: ["timeseries.html"]
-//			FlowLabel: {
-//				"cubic": "CUBIC Goodput"
-//				"reno":  "Reno Goodput"
-//				"udp":   "UDP OWD"
-//			}
-//			Options: {
-//				title: "CUBIC vs Reno / \(#rtt)ms Path RTT / \(#qdisc)"
-//				series: {
-//					"2": {
-//						targetAxisIndex: 1
-//						lineWidth:       0
-//						pointSize:       0.2
-//						color:           "#4f9634"
-//					}
-//				}
-//				vAxes: {
-//					"0": viewWindow: {
-//						max: 55
-//					}
-//					"1": viewWindow: {
-//						min: #rtt / 2
-//						max: #rtt * 2
-//					}
-//				}
-//			}
-//		}},
+		{ChartsFCT: {
+			To: ["fct.html"]
+			Series: [
+				{Name: "CUBIC", Pattern: "cubic.*"},
+				{Name: "BBR", Pattern: "bbr.*"},
+			]
+			Options: {
+				title: "CUBIC vs BBR Short Flow Competition | \(#qdisc) | \(#rtt)ms Path RTT"
+			}
+		}},
 	]
 }
 
@@ -114,6 +93,7 @@ ns: {
 			"ip link set left.r up",
 			"ethtool -K left.r \(#offloads)",
 			"ping -c 3 -i 0.1 10.0.0.2",
+			"modprobe tcp_bbr",
 		]
 	}
 }
@@ -143,9 +123,14 @@ server: {
 				Stdout:     "right.pcap"
 			}},
 			{StreamServer: {ListenAddr: #serverAddr}},
-			{PacketServer: {ListenAddr: #serverAddr}},
 		]
 	}
+}
+
+// Congestion Control Algorithms
+ccas: {
+	"0": "cubic"
+	"1": "bbr"
 }
 
 // do runs the test using two StreamClients
@@ -160,14 +145,15 @@ do: {
 			}},
 			{Sleep: "500ms"},
 			{Schedule: {
-				Wait: {{expRandDuration "200ms" 5 1.0}}
+				Wait: {{expRandDuration "50ms" 1200 1.0}}
 				Run: [
-					for i, l in {{lognRandBytes 5 65536 2097152}}
+					for i, l in {{lognRandBytes 1200 65536 2097152}}
+						let cca = ccas["\(i mod 2)"]
 						{StreamClient: {
 							Addr: #serverAddr
 							Upload: {
-								Flow: "cubic.\(i+1)"
-								CCA: "cubic"
+								Flow: "\(cca).\(i+1)"
+								CCA: cca
 								Length: l
 								SampleIOInterval: "\(#rtt*4)ms"
 							}

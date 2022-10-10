@@ -35,6 +35,8 @@ Run: #TestRun
 	} | {
 		ChartsTimeSeries?: #ChartsTimeSeries
 	} | {
+		ChartsFCT?: #ChartsFCT
+	} | {
 		SaveFiles?: #SaveFiles
 	}
 }
@@ -57,9 +59,7 @@ Run: #TestRun
 
 // antler.ChartsTimeSeries
 #ChartsTimeSeries: {
-	Title: string | *"Time Series"
-	VMax?: int
-	FlowLabel: {
+	FlowLabel?: {
 		[=~".*"]: string
 	}
 	To: [string & !="", ...string & !=""]
@@ -144,6 +144,78 @@ Run: #TestRun
 		}
 		...
 	}
+}
+
+// antler.ChartsFCT
+#ChartsFCT: {
+	FlowLabel?: {
+		[=~".*"]: string
+	}
+	To: [string & !="", ...string & !=""]
+	Series?: [...#FlowSeries]
+	Options: {...} & {
+		title: string | *"Flow Completion Time vs Length"
+		titleTextStyle: {
+			fontSize: 18
+			...
+		}
+		width:     1280
+		height:    720
+		pointSize: 1
+		vAxes: {
+			"0": {
+				title: string | *"Flow Completion Time (sec)"
+				titleTextStyle: {
+					italic: bool | *false
+					...
+				}
+				viewWindow: {
+					min: float | *0
+					...
+				}
+				baselineColor: string | *"#cccccc"
+				gridlines: {
+					//color: string | *"transparent"
+					...
+				}
+				...
+			}
+			...
+		}
+		hAxis: {
+			title:     string | *"Length (kB)"
+			scaleType: string | *"log"
+			titleTextStyle: {
+				italic: bool | *false
+				...
+			}
+			viewWindow: {
+				min: int | *0
+				...
+			}
+			baselineColor: string | *"#cccccc"
+			gridlines: {
+				//color: string | *"transparent"
+				...
+			}
+			...
+		}
+		chartArea: {
+			backgroundColor: string | *"#f7f7f7"
+			top:             int | *100
+			width:           string | *"80%"
+			//left:            int | *75
+			//height:          string | *"75%"
+			...
+		}
+		...
+	}
+}
+
+// antler.FlowSeries
+#FlowSeries: {
+	Pattern: string & !=""
+	Name:    string & !=""
 }
 
 // antler.SaveFiles

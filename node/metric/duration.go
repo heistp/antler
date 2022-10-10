@@ -21,9 +21,14 @@ func (d *Duration) UnmarshalText(text []byte) (err error) {
 	return
 }
 
+// Duration.Seconds.
+func (d Duration) Seconds() float64 {
+	return time.Duration(d).Seconds()
+}
+
 // Duration returns the time.Duration.
-func (d *Duration) Duration() time.Duration {
-	return time.Duration(*d)
+func (d Duration) Duration() time.Duration {
+	return time.Duration(d)
 }
 
 func (d Duration) String() string {

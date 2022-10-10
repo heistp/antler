@@ -55,6 +55,7 @@ type Report struct {
 type reporters struct {
 	EmitLog          *EmitLog
 	ExecuteTemplate  *ExecuteTemplate
+	ChartsFCT        *ChartsFCT
 	ChartsTimeSeries *ChartsTimeSeries
 	SaveFiles        *SaveFiles
 }
@@ -66,6 +67,8 @@ func (r *reporters) reporter() reporter {
 		return r.EmitLog
 	case r.ExecuteTemplate != nil:
 		return r.ExecuteTemplate
+	case r.ChartsFCT != nil:
+		return r.ChartsFCT
 	case r.ChartsTimeSeries != nil:
 		return r.ChartsTimeSeries
 	case r.SaveFiles != nil:

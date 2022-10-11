@@ -1,16 +1,16 @@
 # Antler
 
-Antler (Active Network Tester of Load Et Response) is a network testing tool,
-mainly for congestion control and related work.
+Antler (Active Network Tester of Load Et Response) is a network testing tool
+intended for congestion control and related work.
 
 ## Features
 
 * support for stream-oriented and packet-oriented protocols (for now, TCP and
   UDP)
-* UDP flows may be configured with arbitrary packet release times and lengths,
-  supporting isochronous to VBR UDP flows
-* control connection to all test hosts via auto-installed node, which may be
-  run either locally or via ssh, and optionally in Linux network namespaces
+* UDP sender configurable with arbitrary packet release times and lengths,
+  supporting isochronous and VBR UDP flows
+* test nodes auto-installed either locally or via ssh, and optionally in Linux
+  network namespaces
 * test orchestration across nodes with a configurable hierarchy of serial and
   parallel runners
 * system runner allows execution of arbitrary system commands (e.g. for setup,
@@ -33,7 +33,23 @@ physical network tests, and handling nodes without synchronized time.
 
 ## Installation
 
-## Quick Start
+1. Install [Go](https://go.dev/).
+2. `go install github.com/heistp/antler@latest`
+3. `make` (builds node binaries, installs antler command)
+
+## Examples
+
+The examples are in the examples directory. You can either view the committed
+HTML plots, or run the examples yourself, e.g.:
+
+```
+cd examples/tcpstream
+# root access needed to create network namespaces
+sudo antler run
+```
+
+All configuration is in the .cue file. After running an example, you'll have
+data.gob, pcaps and an HTML plot.
 
 ## Roadmap
 

@@ -21,10 +21,9 @@ require (
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220926135727-61ed6f8e4d6e // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.4.0 // indirect
-	golang.org/x/exp v0.0.0-20221010202428-3a778c567f61 // indirect
+	golang.org/x/exp v0.0.0-20221011111909-0220f59fc3e4 // indirect
 	golang.org/x/net v0.0.0-20221004154528-8021a29435af // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -121,7 +121,7 @@ func (p *PacketHeader) Len() int {
 	return len(packetMagic) + 1 + 8 + 1 + len(p.Flow)
 }
 
-// PacketServer is a server used for packet oriented protocols.
+// PacketServer is the server used for packet oriented protocols.
 type PacketServer struct {
 	// ListenAddr is the listen address, as specified to the address parameter
 	// in net.ListenPacket (e.g. ":port" or "addr:port").
@@ -229,7 +229,7 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 	}()
 }
 
-// PacketClient is a client used for packet oriented protocols.
+// PacketClient is the client used for packet oriented protocols.
 type PacketClient struct {
 	// Addr is the dial address, as specified to the address parameter in
 	// net.Dial (e.g. "addr:port").
@@ -393,26 +393,28 @@ func (p *PacketSenders) packetSender() packetSender {
 }
 
 // Unresponsive sends packets on a schedule without regard to any congestion
-// signals. Currently, only an isochronous schedule is supported. Alternate
-// schedules will be added in the future.
+// signals.
 type Unresponsive struct {
-	// Wait lists the wait times between packets, which are cycled through as
-	// needed until all packets are sent.
+	// Wait lists the wait times between packets, which are cycled through
+	// either sequentially or randomly (according to RandomWait) until all
+	// packets are sent.
 	Wait []metric.Duration
 
-	// WaitFirst, if true, indicates to wait before the first packet as well.
+	// WaitFirst, if true, indicates to wait before sending the first packet as
+	// well.
 	WaitFirst bool
 
 	// RandomWait, if true, indicates to use random wait times from the list.
-	// Otherwise, the wait times are used in order.
+	// Otherwise, the wait times are taken from Wait sequentially.
 	RandomWait bool
 
-	// Length lists the lengths of the packets, which are cycled through as
-	// needed until all packets are sent.
+	// Length lists the lengths of the packets, which are cycled through either
+	// sequentially or randomly (according to RandomLength) until all packets
+	// are sent.
 	Length []int
 
 	// RandomLength, if true, indicates to use random lengths from the list.
-	// Otherwise, the lengths are used in order.
+	// Otherwise, the lengths are taken from Length sequentially.
 	RandomLength bool
 
 	// Duration is how long to send packets.
@@ -439,7 +441,7 @@ func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 	}()
 	t0 := time.Now()
 	var w <-chan time.Time
-	if len(u.Wait) == 1 {
+	if len(u.Wait) <= 1 {
 		t := time.NewTicker(u.nextWait())
 		defer t.Stop()
 		w = t.C
@@ -450,7 +452,7 @@ func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 		select {
 		case _, ok := <-in:
 			if !ok {
-				e = fmt.Errorf("unresponsive sender was canceled")
+				e = fmt.Errorf("PacketClient Unresponsive sender was canceled")
 				return
 			}
 		case <-w:
@@ -461,8 +463,8 @@ func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 			if u.Echo {
 				f |= FlagEcho
 			}
-			out <- Packet{PacketHeader{f, seq.Next(), ""},
-				u.nextLength(), nil, false, nil}
+			out <- Packet{PacketHeader{f, seq.Next(), ""}, u.nextLength(),
+				nil, false, nil}
 			if len(u.Wait) > 1 {
 				w = time.After(u.nextWait())
 			}

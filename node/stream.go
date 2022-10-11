@@ -16,7 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// StreamServer is a server used for stream oriented protocols.
+// StreamServer is the server used for stream oriented protocols.
 type StreamServer struct {
 	// ListenAddr is the listen address, as specified to the address parameter
 	// in net.Listen (e.g. ":port" or "addr:port").
@@ -135,7 +135,7 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 	e = m.handleServer(ctx, conn, rec)
 }
 
-// StreamClient is a client used for stream oriented protocols.
+// StreamClient is the client used for stream oriented protocols.
 type StreamClient struct {
 	// Addr is the dial address, as specified to the address parameter in
 	// net.Dial (e.g. "addr:port").

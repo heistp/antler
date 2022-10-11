@@ -431,21 +431,19 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 		n, err = rw.Write(b[:bl])
 		t = metric.Now()
 		l += metric.Bytes(n)
-		if !done {
-			select {
-			case <-ctx.Done():
-				done = true
-			default:
-				if err != nil {
-					done = true
-				}
-			}
-		}
 		if n > 0 {
 			if time.Duration(t-ts) > in || done {
 				rec.Send(StreamIO{x.Flow, t, l, true})
 				ts = t
 			}
+		}
+		select {
+		case <-ctx.Done():
+			err = fmt.Errorf("transfer was canceled")
+		default:
+		}
+		if err != nil {
+			return
 		}
 	}
 	if n, err = rw.Read(b); err != nil {

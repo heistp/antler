@@ -26,8 +26,8 @@ stream: {ResultStream: Include: Log: true}
 #rate: "20Mbit"
 
 // qdisc is the qdisc to apply
-//#qdisc: "pfifo limit 100"
-#qdisc: "cake bandwidth \(#rate) flowblind"
+#qdisc: "codel"
+//#qdisc: "cake bandwidth \(#rate) flowblind"
 
 // Run contains a single Test. After log streaming is configured, setup is
 // run, the server is started, then the test is run.
@@ -47,7 +47,7 @@ Run: {
 				"udp":   "UDP OWD"
 			}
 			Options: {
-				title: "CUBIC vs Reno / \(#rtt)ms Path RTT / \(#qdisc)"
+				title: "CUBIC vs Reno | \(#rate) bottleneck | \(#rtt)ms Path RTT | \(#qdisc)"
 				series: {
 					"2": {
 						targetAxisIndex: 1
@@ -113,10 +113,10 @@ ns: {
 			"tc qdisc add dev mid.l handle ffff: ingress",
 			"ip link set dev imid.l up",
 			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
-			"tc qdisc add dev mid.r root \(#qdisc)",
-			//"tc qdisc add dev mid.r root handle 1: htb default 1",
-			//"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate)",
-			//"tc qdisc add dev mid.r parent 1:1 \(#qdisc)",
+			//"tc qdisc add dev mid.r root \(#qdisc)",
+			"tc qdisc add dev mid.r root handle 1: htb default 1",
+			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate)",
+			"tc qdisc add dev mid.r parent 1:1 \(#qdisc)",
 		]
 	}
 	left: {
@@ -198,7 +198,7 @@ do: {
 							Flow:             "bbr"
 							CCA:              "bbr"
 							Duration:         "\(#duration*2/5)s"
-							SampleIOInterval: "\(#rtt*8)ms"
+							SampleIOInterval: "500ms"
 						}
 					}},
 				]},
@@ -210,7 +210,7 @@ do: {
 							Flow:             "cubic"
 							CCA:              "cubic"
 							Duration:         "\(#duration*2/5)s"
-							SampleIOInterval: "\(#rtt*4)ms"
+							SampleIOInterval: "250ms"
 						}
 					}},
 				]},

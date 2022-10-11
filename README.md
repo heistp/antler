@@ -44,9 +44,10 @@ HTML plots, or run the examples yourself, e.g.:
 
 ```
 cd examples/tcpstream
-# root access needed to create network namespaces
 sudo antler run
 ```
+
+Root access is needed to create network namespaces.
 
 All configuration is in the .cue file. After running an example, you'll have
 data.gob, pcaps and an HTML plot.

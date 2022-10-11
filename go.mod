@@ -5,7 +5,7 @@ go 1.17
 require (
 	cuelang.org/go v0.4.3
 	github.com/spf13/cobra v1.4.0
-	golang.org/x/sys v0.0.0-20221006211917-84dc82d7e875
+	golang.org/x/sys v0.0.0-20221010170243-090e33056c14
 	gonum.org/v1/gonum v0.12.0
 )
 
@@ -21,7 +21,7 @@ require (
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20220926135727-61ed6f8e4d6e // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.4.0 // indirect
-	golang.org/x/exp v0.0.0-20221006183845-316c7553db56 // indirect
+	golang.org/x/exp v0.0.0-20221010202428-3a778c567f61 // indirect
 	golang.org/x/net v0.0.0-20221004154528-8021a29435af // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect

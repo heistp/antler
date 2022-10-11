@@ -1,8 +1,7 @@
 # Antler
 
-Active Network Tester of Load Et Response
-
-Antler is a network testing tool for congestion control and related work.
+Antler (Active Network Tester of Load Et Response) is a network testing tool,
+mainly for congestion control and related work.
 
 ## Features
 
@@ -14,11 +13,11 @@ Antler is a network testing tool for congestion control and related work.
   run either locally or via ssh, and optionally in Linux network namespaces
 * test orchestration across nodes with a configurable hierarchy of serial and
   parallel runners
-* system runner allows execution of arbitrary system commands for setup,
-  teardown, mid-test config changes and data collection
+* system runner allows execution of arbitrary system commands (e.g. for setup,
+  teardown, mid-test config changes or data collection)
 * runners may be scheduled using arbitrary timings and parameters (e.g. TCP
   flow introductions on an exponential distribution with lognormal lengths)
-* optional and configurable streaming of results during test
+* optional streaming of results during test
 * plots/reports using Go templates, with included templates for time series and
   FCT plots using Google Charts
 * flexible configuration using [CUE](https://cuelang.org/)
@@ -26,12 +25,11 @@ Antler is a network testing tool for congestion control and related work.
 ## Status / Known Issues
 
 At version 0.3, some basic tests and visualizations are working. More work is
-needed to complete key features, stabilize the config and data formats, and
+needed to complete critical features, stabilize the config and data formats, and
 support platforms other than Linux.
 
-The initial focus has been on local netns tests, as illustrated in the examples.
-More work is required on physical network tests, and handling nodes without
-synchronized time.
+The initial focus has been on local netns tests. More work is required on
+physical network tests, and handling nodes without synchronized time.
 
 ## Installation
 
@@ -41,10 +39,10 @@ synchronized time.
 
 ### Features
 
-- add an HTML index of tests and results
 - record packet replies and calculate RTT for packet flows
 - detect lost and late (out-of-order) packets in packet flows, and flag with
   altered symbology in time series plot
+- add an HTML index of tests and results
 - gather node system information for inclusion in reports
 - add SaveLog reporter that sorts logs by time
 - add support for sampling Linux socket stats via netlink

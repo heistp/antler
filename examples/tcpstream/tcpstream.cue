@@ -15,7 +15,7 @@ stream: {ResultStream: Include: Log: true}
 #rtt: 80
 
 // duration is the test duration, in seconds
-#duration: 9
+#duration: 120
 
 // qdisc is the qdisc to apply
 #qdisc: "cake bandwidth 50Mbit flowblind"

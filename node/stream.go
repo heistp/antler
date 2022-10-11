@@ -168,6 +168,25 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 		return
 	}
 	defer c.Close()
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		var t <-chan time.Time
+		d := ctx.Done()
+		for done != nil {
+			select {
+			case <-d:
+				d = nil
+				t = time.After(1 * time.Second)
+			case <-t:
+				arg.rec.Logf("StreamClient closing after 1s cancel timeout")
+				c.Close()
+				done = nil
+			case <-done:
+				done = nil
+			}
+		}
+	}()
 	e := gob.NewEncoder(c)
 	if err = e.Encode(&m); err != nil {
 		return

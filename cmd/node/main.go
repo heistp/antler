@@ -21,6 +21,7 @@ func main() {
 	}
 	n := os.Args[1]
 	ct := node.NewControl()
+	defer ct.Stop()
 	i := make(chan os.Signal, 1)
 	signal.Notify(i, os.Interrupt, syscall.SIGTERM)
 	go func() {

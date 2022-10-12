@@ -167,12 +167,9 @@ func (s *reporterStack) tee(data chan interface{}, test *Test,
 				break
 			}
 			a.add(d)
-			/*
-				// TODO revisit the handling of incoming errors in tee
-				if e, ok := d.(error); ok && err == nil {
-					err = e
-				}
-			*/
+			if e, ok := d.(error); ok && err == nil {
+				err = e
+			}
 			for _, c := range cc {
 				c <- d
 			}

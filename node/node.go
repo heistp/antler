@@ -73,12 +73,9 @@ func newNode(nodeID string, parent transport) *node {
 //
 // An error is returned if there was a failure when serving the connection, or
 // the node was explicitly canceled. Serve closes the conn when complete.
-func Serve(nodeID string, ctrl *Control, conn io.ReadWriteCloser) error {
+func Serve(nodeID string, ctrl Control, conn io.ReadWriteCloser) error {
 	n := newNode(nodeID, newGobTransport(conn))
-	if ctrl != nil {
-		go ctrl.run(n.ev)
-		defer ctrl.stop()
-	}
+	ctrl.attach(n.ev)
 	n.run()
 	return n.err
 }
@@ -91,7 +88,7 @@ const RootNodeID = "-"
 // StreamIO, PacketInfo, PacketIO, FileData, LogEntry and Error.
 //
 // Do is used by the antler package and executable.
-func Do(rn *Run, src ExeSource, ctrl *Control, data chan interface{}) {
+func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 	defer close(data)
 	f := ErrorFactory{RootNodeID, "execute"}
 	// run tree
@@ -127,10 +124,7 @@ func Do(rn *Run, src ExeSource, ctrl *Control, data chan interface{}) {
 	}()
 	// root node
 	n := newNode(RootNodeID, tr.peer())
-	if ctrl != nil {
-		go ctrl.run(n.ev)
-		defer ctrl.stop()
-	}
+	ctrl.attach(n.ev)
 	go n.run()
 	// setup and run
 	rc := make(chan ran, 1)

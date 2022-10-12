@@ -32,7 +32,7 @@ type Command interface {
 // RunCommand runs tests and reports.
 type RunCommand struct {
 	// Control is used to send node control signals.
-	Control *node.Control
+	Control node.Control
 
 	// Force re-runs the test and overwrites any existing data.
 	Force bool
@@ -65,7 +65,7 @@ func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
 		}
 	}()
 	go node.Do(&test.Run, &exeSource{}, c.Control, d)
-	err = rst.tee(d, test, c.Control)
+	err = rst.tee(d, test, &c.Control)
 	return
 }
 

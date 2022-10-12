@@ -36,6 +36,7 @@ func run() (cmd *cobra.Command) {
 		Use:   "run",
 		Short: "Runs tests and reports in current directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			defer c.Stop()
 			sc := make(chan os.Signal, 1)
 			signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
 			go func() {

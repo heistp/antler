@@ -75,7 +75,10 @@ typically have data.gob, pcaps and an HTML plot.
 - detect lost and late (out-of-order) packets in packet flows, and flag with
   altered symbology in time series plot
 - add an HTML index of tests and results
-- gather node system information for inclusion in reports
+- add report type with standard output for each test:
+  - node logs and system information
+  - descriptive details for test
+  - time series and FCT plots, with navigation instructions
 - add SaveLog reporter that sorts logs by time
 - add support for sampling Linux socket stats via netlink
   (like [cgmon](https://github.com/heistp/cgmon))

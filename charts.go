@@ -89,7 +89,7 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	for _, to := range g.To {
 		if to == "-" {
 			w = os.Stdout
-		} else if w, err = os.Create(to); err != nil {
+		} else if w, err = os.Create(in.test.outPath(to)); err != nil {
 			return
 		}
 		ww = append(ww, w)
@@ -219,7 +219,7 @@ func (g *ChartsFCT) reportOne(in reportIn) (err error) {
 	for _, to := range g.To {
 		if to == "-" {
 			w = os.Stdout
-		} else if w, err = os.Create(to); err != nil {
+		} else if w, err = os.Create(in.test.outPath(to)); err != nil {
 			return
 		}
 		ww = append(ww, w)

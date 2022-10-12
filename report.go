@@ -321,7 +321,8 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 	}
 	w = os.Stdout
 	if x.To != "-" {
-		if w, err = os.Create(x.To); err != nil {
+		n := in.test.outPath(x.To)
+		if w, err = os.Create(n); err != nil {
 			return
 		}
 	}

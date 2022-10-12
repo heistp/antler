@@ -7,19 +7,18 @@ intended for congestion control and related work.
 
 * support for stream-oriented and packet-oriented protocols (for now, TCP and
   UDP)
-* UDP sender configurable with arbitrary packet release times and lengths,
-  supporting isochronous and VBR UDP flows
-* test nodes auto-installed either locally or via ssh, and optionally in Linux
-  network namespaces
-* test orchestration across nodes with a configurable hierarchy of serial and
-  parallel runners
-* system runner allows execution of arbitrary system commands (e.g. for setup,
-  teardown, mid-test config changes or data collection)
-* runners may be scheduled using arbitrary timings and parameters (e.g. TCP
-  flow introductions on an exponential distribution with lognormal lengths)
+* configurable packet release times and lengths for UDP, supporting isochronous
+  and VBR UDP flows
+* auto-installed test node runs either locally or via ssh, and optionally in
+  Linux network namespaces
+* configurable hierarchy of "runners", that may execute in serial or parallel
+  across nodes, and may be scheduled with arbitrary timings (e.g. TCP flow
+  introductions on an exponential distribution with lognormal lengths)
+* system runner runs system commands (e.g. for setup, teardown, data collection,
+  and mid-test config changes)
 * optional streaming of results during test
 * plots/reports using Go templates, with included templates for time series and
-  FCT plots using Google Charts
+  FCT plots using [Google Charts](https://developers.google.com/chart)
 * flexible configuration using [CUE](https://cuelang.org/)
 
 ## Status / Known Issues
@@ -28,14 +27,26 @@ At version 0.3, some basic tests and visualizations are working. More work is
 needed to complete critical features, stabilize the config and data formats, and
 support platforms other than Linux.
 
-The initial focus has been on local netns tests. More work is required on
-physical network tests, and handling nodes without synchronized time.
+The initial focus has been on local netns tests. More work is required for tests
+on physical networks, and handling nodes without synchronized time.
 
 ## Installation
+
+### Using Go install
 
 1. Install [Go](https://go.dev/).
 2. `go install github.com/heistp/antler@latest`
 3. `make` (builds node binaries, installs antler command)
+
+### Using git clone
+
+1. Install [Go](https://go.dev/).
+2. `cd`
+3. `mkdir -p go/src/github.com/heistp`
+4. `cd go/src/github.com/heistp`
+5. `git clone https://github.com/heistp/antler`
+6. `cd antler`
+5. `make` (builds node binaries, installs antler command)
 
 ## Examples
 
@@ -49,10 +60,14 @@ sudo antler run
 
 Root access is needed to create network namespaces.
 
-All configuration is in the .cue file. After running an example, you'll have
-data.gob, pcaps and an HTML plot.
+The antler binary must be in your PATH. It may not be, if the `secure_path`
+option is set in /etc/sudoers. You may unset this option, or use the full path
+to the binary instead.
 
-## Roadmap
+All configuration is in the .cue file. After running an example, you'll 
+typically have data.gob, pcaps and an HTML plot.
+
+## Todo
 
 ### Features
 
@@ -67,23 +82,26 @@ data.gob, pcaps and an HTML plot.
 - add support for setting arbitary sockopts
 - implement flagForward optimization, and maybe invert it to flagProcess
 - protect public servers with three-way handshake for packet protocols and
-  authentication for stream protocols
+  simple authentication for stream protocols
 - add compression support for System runner FileData output
-- support MacOS and FreeBSD
+- support MacOS
+- support FreeBSD
 
 ### Bugs
 
+- return error immediately when CCA not found
 - improve poor error messages from CUE for syntax errors under disjunctions
 - figure out why packets from tcpdump may be lost without a one-second
   post-test sleep (buffering? shouldn't SIGINT flush that?)
 
 ### Architecture
 
-- find a better way than hand-coded unions to create interface types from CUE
-- handle timeouts consistently for runners and the node control connection
-- see if it's practical to move CUE constraints to Go
+- find a better way than unions to create interface implementations from CUE
+- handle timeouts consistently, both for runners and the node control connection
+- see if it's practical to move CUE schema from config.cue into Go
+- share more CUE code for rig setups and between packages
 - design some way to implement incremental test runs, perhaps via hard links
-- reduce use of type switches for data stream?
+- reduce use of type switches for result data stream?
 
 ## Thanks
 

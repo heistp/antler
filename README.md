@@ -3,20 +3,31 @@
 Antler (Active Network Tester of Load Et Response) is a network testing tool
 intended for congestion control and related work.
 
+## Introduction
+
+Antler is an open-source network testing tool that grew out of testing needs
+that arose during work on
+[SCE](https://datatracker.ietf.org/doc/draft-morton-tsvwg-sce/), and related
+congestion control projects in the IETF. Antler can be used to set up and tear
+down test environments, coordinate traffic flows across multiple nodes, gather
+data using external tools like tcpdump, and generate reports and plots from the
+results. At version 0.3, the basic architecture and initial test runners are
+in place, and additional functionality will be added over time.
+
 ## Features
 
-* support for stream-oriented and packet-oriented protocols (for now, TCP and
-  UDP)
+* support for tests using stream-oriented and packet-oriented protocols (for
+  now, TCP and UDP)
 * auto-installed test nodes that run either locally or via ssh, and optionally
   in Linux network namespaces
 * configurable hierarchy of "runners", that may execute in serial or parallel
   across nodes
 * runner scheduling with arbitrary timings (e.g. TCP flow introductions on an
   exponential distribution with lognormal lengths)
-* configurable UDP packet release times and lengths, supporting isochronous
-  and VBR UDP flows
-* system runner runs arbitrary system commands, e.g. for setup, teardown, data
-  collection, and mid-test config changes
+* configurable UDP packet release times and lengths, supporting anything from
+  isochronous to VBR or bursty traffic, or combinations in one flow
+* system runner for system commands, e.g. for setup, teardown, data collection,
+  and mid-test config changes
 * parallel test execution, with nested serial and parallel runs
 * result streaming during test (may be enabled, disabled or configured to
   deliver only some results, e.g. just logs)
@@ -69,11 +80,20 @@ typically have gob files, pcaps and an HTML plot.
 6. `cd antler`
 7. `make` (builds node binaries, installs antler command)
 
+## Documentation
+
+At present, Antler is documented through the [examples](examples), and the
+comments in [config.cue](config.cue). Antler is configured entirely by
+[CUE](https://cuelang.org/), so it helps to get familiar with the language
+at a basic level, though it may be sufficient to just follow the examples.
+
+Full documentation will follow, closer to the first stable release.
+
 ## Status
 
-At version 0.3, some basic tests and visualizations are working. More work is
-needed on testing functionality, stabilizing the config and data formats, and
-supporting platforms other than Linux.
+As of version 0.3, the node is working, along with some basic tests and
+visualizations. More work is needed on testing functionality, stabilizing the
+config and data formats, and supporting platforms other than Linux.
 
 The initial focus has been on local netns tests. More work is required for tests
 on physical networks, and handling nodes without synchronized time.
@@ -126,7 +146,8 @@ on physical networks, and handling nodes without synchronized time.
 
 ## Thanks
 
-Thanks to sponsors, and Jonathan Morton and Rodney Grimes for advice.
+Thanks to sponsors, and Jonathan Morton and Rodney Grimes for advice and
+patience.
 
 ![NGI SCE Sticker](/doc/img/ngi-sce-sticker-200x230.png "NGI SCE Sticker")
 

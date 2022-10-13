@@ -45,6 +45,7 @@ Run: {
 	Serial: [
 		for q in [
 				"pfifo limit 50",
+				"pie",
 				"codel",
 				"cake sce flowblind",
 				"cnq_cobalt sce sce-thresh 16",

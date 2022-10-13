@@ -2,10 +2,14 @@
 // Copyright 2022 Pete Heist
 
 // This Antler example config has a single test that creates a netns dumbbell,
-// and runs two TCP streams from the left to the right endpoint. The middlebox
-// (mid namespace) has the cake qdisc added at 50 Mbit.
+// and runs a series of short TCP flows from the left to the right endpoint.
+// Flow arrival times use an exponential distribution, and flow lengths are
+// on a lognormal distribution with P5 of 64K and P95 of 2M. The selected flow
+// CCA alternates between TCP CUBIC and TCP BBR.
+//
+// The middlebox has a single queue CAKE qdisc at 100 Mbps.
 
-package shortflows
+package fct
 
 // stream includes logs for streaming during the test
 // This is passed to all nodes before setup.
@@ -21,7 +25,7 @@ stream: {ResultStream: Include: Log: true}
 // run, the server is started, then the test is run.
 Run: {
 	Test: {
-		ID: {"Name": "shortflows"}
+		ID: {"Name": "fct"}
 		Serial: [stream, setup, server, do]
 	}
 	Report: [

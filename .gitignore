@@ -11,7 +11,7 @@ examples/**/*.gob
 examples/**/*.html
 examples/**/*.log
 examples/**/*.pcap
-examples/shortflows/shortflows.cue
+examples/fct/fct.cue
 
 # node/bin directory
 node/bin/

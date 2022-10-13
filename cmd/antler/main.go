@@ -19,12 +19,13 @@ import (
 func root() (cmd *cobra.Command) {
 	cmd = &cobra.Command{
 		Use:           "antler",
-		Short:         "Active Network Tester for Load et Response",
+		Short:         "Active Network Tester of Load et Response",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
+	cmd.Version = antler.Version
 	return
 }
 

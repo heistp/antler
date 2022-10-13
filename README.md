@@ -7,35 +7,53 @@ intended for congestion control and related work.
 
 * support for stream-oriented and packet-oriented protocols (for now, TCP and
   UDP)
+* auto-installed test nodes that run either locally or via ssh, and optionally
+  in Linux network namespaces
 * configurable hierarchy of "runners", that may execute in serial or parallel
   across nodes
 * runner scheduling with arbitrary timings (e.g. TCP flow introductions on an
   exponential distribution with lognormal lengths)
-* configurable packet release times and lengths for UDP, supporting isochronous
+* configurable UDP packet release times and lengths, supporting isochronous
   and VBR UDP flows
-* auto-installed test node that runs either locally or via ssh, and optionally
-  in Linux network namespaces
-* system runner runs arbtirary system commands, e.g. for setup, teardown, data
+* system runner runs arbitrary system commands, e.g. for setup, teardown, data
   collection, and mid-test config changes
-* optional concurrent test execution, with nested serial and parallel runs
-* optional streaming of some or all results during test
+* parallel test execution, with nested serial and parallel runs
+* result streaming during test (may be enabled, disabled or configured to
+  deliver only some results, e.g. just logs)
 * plots/reports using Go templates, with included templates for time series and
   FCT plots using [Google Charts](https://developers.google.com/chart)
-* configuration using [CUE](https://cuelang.org/), for config schema definition,
-  data validation and test parameter combinations
+* configuration using [CUE](https://cuelang.org/), to support test parameter
+  combinations, config schema definition and data validation
 
-## Status / Known Issues
+## Examples
 
-At version 0.3, some basic tests and visualizations are working. More work is
-needed to complete critical features, stabilize the config and data formats, and
-support platforms other than Linux.
+| Example                     | Plot            |
+| --------------------------- | --------------- |
+| [fct](examples/fct/fct.cue) | [fct](https://raw.githubusercontent.com/heistp/antler/examples/fct/fct.html) |
+| [ratedrop](examples/ratedrop/ratedrop.cue) | [timeseries](https://raw.githubusercontent.com/heistp/antler/examples/ratedrop/timeseries.html) |
+| [sceaqm](examples/sceaqm/sceaqm.cue) | [cake](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/cake_timeseries.html) / [cnq_cobalt](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/cnq_cobalt_timeseries.html) / [codel](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/codel_timeseries.html) / [pfifo](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/pfifo_timeseries.html) / [pie](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/pie_timeseries.html) |
+| [tcpstream](examples/tcpstream/tcpstream.cue) | [timeseries](https://raw.githubusercontent.com/heistp/antler/examples/tcpstream/tcpstream.html) |
+| [vbrudp](examples/vbrudp/vbrudp.cue) | [timeseries](https://raw.githubusercontent.com/heistp/antler/examples/vbrudp/vbrudp.html) |
 
-The initial focus has been on local netns tests. More work is required for tests
-on physical networks, and handling nodes without synchronized time.
+To run the examples yourself, e.g.:
+```
+cd examples/tcpstream
+sudo antler run
+```
+
+Root access is needed to create network namespaces.
+
+The antler binary must be in your PATH, or the full path must be specified.
+Typically, you add ~/go/bin to your PATH so you can run binaries installed by
+Go. If using sudo and the `secure_path` option is set in /etc/sudoers, either
+this must be removed, or additional configuration is required.
+
+All configuration is in the .cue file. After running the examples, you'll 
+typically have gob files, pcaps and an HTML plot.
 
 ## Installation
 
-### Using Go install
+### Using go install
 
 1. Install [Go](https://go.dev/).
 2. `go install github.com/heistp/antler@latest`
@@ -49,25 +67,16 @@ on physical networks, and handling nodes without synchronized time.
 4. `cd go/src/github.com/heistp`
 5. `git clone https://github.com/heistp/antler`
 6. `cd antler`
-5. `make` (builds node binaries, installs antler command)
+7. `make` (builds node binaries, installs antler command)
 
-## Examples
+## Status
 
-The examples are in the examples directory. You can either view the committed
-HTML plots, or run the examples yourself, e.g.:
+At version 0.3, some basic tests and visualizations are working. More work is
+needed on testing functionality, stabilizing the config and data formats, and
+supporting platforms other than Linux.
 
-```
-cd examples/tcpstream
-sudo antler run
-```
-
-Root access is needed to create network namespaces.
-
-The antler binary must be in your PATH. Note: it may not be if the `secure_path`
-option is set in /etc/sudoers.
-
-All configuration is in the .cue file. After running the examples, you'll 
-typically have gob files, pcaps and an HTML plot.
+The initial focus has been on local netns tests. More work is required for tests
+on physical networks, and handling nodes without synchronized time.
 
 ## Todo / Roadmap
 

@@ -7,19 +7,22 @@ intended for congestion control and related work.
 
 * support for stream-oriented and packet-oriented protocols (for now, TCP and
   UDP)
+* configurable hierarchy of "runners", that may execute in serial or parallel
+  across nodes
+* runner scheduling with arbitrary timings (e.g. TCP flow introductions on an
+  exponential distribution with lognormal lengths)
 * configurable packet release times and lengths for UDP, supporting isochronous
   and VBR UDP flows
-* auto-installed test node runs either locally or via ssh, and optionally in
-  Linux network namespaces
-* configurable hierarchy of "runners", that may execute in serial or parallel
-  across nodes, and may be scheduled with arbitrary timings (e.g. TCP flow
-  introductions on an exponential distribution with lognormal lengths)
-* system runner runs system commands (e.g. for setup, teardown, data collection,
-  and mid-test config changes)
-* optional streaming of results during test
+* auto-installed test node that runs either locally or via ssh, and optionally
+  in Linux network namespaces
+* system runner runs arbtirary system commands, e.g. for setup, teardown, data
+  collection, and mid-test config changes
+* optional concurrent test execution, with nested serial and parallel runs
+* optional streaming of some or all results during test
 * plots/reports using Go templates, with included templates for time series and
   FCT plots using [Google Charts](https://developers.google.com/chart)
-* flexible configuration using [CUE](https://cuelang.org/)
+* configuration using [CUE](https://cuelang.org/), for config schema definition,
+  data validation and test parameter combinations
 
 ## Status / Known Issues
 
@@ -60,12 +63,11 @@ sudo antler run
 
 Root access is needed to create network namespaces.
 
-The antler binary must be in your PATH. It may not be, if the `secure_path`
-option is set in /etc/sudoers. You may unset this option, or use the full path
-to the binary instead.
+The antler binary must be in your PATH. Note: it may not be if the `secure_path`
+option is set in /etc/sudoers.
 
-All configuration is in the .cue file. After running an example, you'll 
-typically have data.gob, pcaps and an HTML plot.
+All configuration is in the .cue file. After running the examples, you'll 
+typically have gob files, pcaps and an HTML plot.
 
 ## Todo
 
@@ -87,6 +89,7 @@ typically have data.gob, pcaps and an HTML plot.
 - protect public servers with three-way handshake for packet protocols and
   simple authentication for stream protocols
 - add compression support for System runner FileData output
+- cancel Parallel test set when any one of them fails
 - support MacOS
 - support FreeBSD
 

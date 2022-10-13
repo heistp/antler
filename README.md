@@ -69,7 +69,7 @@ option is set in /etc/sudoers.
 All configuration is in the .cue file. After running the examples, you'll 
 typically have gob files, pcaps and an HTML plot.
 
-## Todo
+## Todo / Roadmap
 
 ### Features
 
@@ -89,16 +89,17 @@ typically have gob files, pcaps and an HTML plot.
 - protect public servers with three-way handshake for packet protocols and
   simple authentication for stream protocols
 - add compression support for System runner FileData output
-- cancel Parallel test set when any one of them fails
+- add more plotting templates, e.g. for plotly, Gnuplot and xplot
 - support MacOS
 - support FreeBSD
 
 ### Bugs
 
-- return error immediately when CCA not found
 - improve poor error messages from CUE for syntax errors under disjunctions
+- return error immediately when CCA not found
+- cancel Parallel test set when any one of them fails
 - figure out why packets from tcpdump may be lost without a one-second
-  post-test sleep (buffering? shouldn't SIGINT flush that?)
+  post-test sleep (buffering? but shouldn't SIGINT flush that?)
 
 ### Architecture
 

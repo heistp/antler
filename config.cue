@@ -223,7 +223,7 @@ Run: #TestRun
 // antler.Test
 #Test: {
 	ID: {...}
-	OutputPath: string & !="" | *"./"
+	OutPath: string & !="" | *"./"
 	#Run
 }
 

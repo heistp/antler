@@ -18,10 +18,10 @@ type Test struct {
 	// that identify the key Test properties, e.g. bandwidth, rtt, etc.
 	ID ID
 
-	// OutputPath is the base path for test output files, relative to the output
+	// OutPath is the base path for test output files, relative to the output
 	// directory. Paths ending in '/' are a directory, and '/' is appended
 	// automatically if the path is a directory. The default is "./".
-	OutputPath string
+	OutPath string
 
 	// Run is the top-level Run instance.
 	node.Run
@@ -35,10 +35,10 @@ func (t *Test) do(dr doer, rst reporterStack) (err error) {
 	return dr.do(t, rst)
 }
 
-// outPath returns the path to an output file with the given suffix. OutputPath
-// is first normalized, appending "/" to the path if it refers to a directory.
+// outPath returns the path to an output file with the given suffix. OutPath is
+// first normalized, appending "/" to the path if it refers to a directory.
 func (t *Test) outPath(suffix string) string {
-	p := t.OutputPath
+	p := t.OutPath
 	var d bool
 	if strings.HasSuffix(p, "/") {
 		d = true

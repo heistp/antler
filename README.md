@@ -1,18 +1,18 @@
 # Antler
 
-Antler (Active Network Tester of Load Et Response) is a network testing tool
-intended for congestion control and related work.
+Antler is an open-source network testing tool intended for congestion control
+and related work. Antler stands for **A**ctive **N**etwork **T**ester of
+**L**oad **E**t **R**esponse. :)
 
 ## Introduction
 
-Antler is an open-source network testing tool that grew out of testing needs
-that arose during work on
+Antler grew out of testing needs that arose during work on
 [SCE](https://datatracker.ietf.org/doc/draft-morton-tsvwg-sce/), and related
-congestion control projects in the IETF. Antler can be used to set up and tear
-down test environments, coordinate traffic flows across multiple nodes, gather
-data using external tools like tcpdump, and generate reports and plots from the
-results. At version 0.3, the basic architecture and initial test runners are
-in place, and additional functionality will be added over time.
+congestion control projects in the IETF. It can be used to set up and tear down
+test environments, coordinate traffic flows across multiple nodes, gather data
+using external tools like tcpdump, and generate reports and plots from the
+results. At version 0.3, the basic architecture and a few test runners are in
+place.
 
 ## Features
 
@@ -22,10 +22,10 @@ in place, and additional functionality will be added over time.
   in Linux network namespaces
 * configurable hierarchy of "runners", that may execute in serial or parallel
   across nodes
-* runner scheduling with arbitrary timings (e.g. TCP flow introductions on an
+* runner scheduling with arbitrary timing (e.g. TCP flow introductions on an
   exponential distribution with lognormal lengths)
-* configurable UDP packet release times and lengths, supporting anything from
-  isochronous to VBR or bursty traffic, or combinations in one flow
+* configurable UDP packet release times and lengths, supporting from isochronous
+  to VBR or bursty traffic, or combinations in one flow
 * system runner for system commands, e.g. for setup, teardown, data collection,
   and mid-test config changes
 * parallel test execution, with nested serial and parallel runs
@@ -56,8 +56,8 @@ Root access is needed to create network namespaces.
 
 The antler binary must be in your PATH, or the full path must be specified.
 Typically, you add ~/go/bin to your PATH so you can run binaries installed by
-Go. If using sudo and the `secure_path` option is set in /etc/sudoers, either
-this must be removed, or additional configuration is required.
+Go. *Note:* if using sudo and the `secure_path` option is set in /etc/sudoers,
+either this must be removed, or additional configuration is required.
 
 All configuration is in the .cue file. After running the examples, you'll 
 typically have gob files, pcaps and an HTML plot.
@@ -92,10 +92,11 @@ Full documentation will follow, closer to the first stable release.
 ## Status
 
 As of version 0.3, the node is working, along with some basic tests and
-visualizations. More work is needed on testing functionality, stabilizing the
-config and data formats, and supporting platforms other than Linux.
+visualizations. More work is needed on functionality of the tests themselves,
+stabilizing the config and data formats, and supporting platforms other than
+Linux.
 
-The initial focus has been on local netns tests. More work is required for tests
+The initial focus has been on local netns tests. More work is needed for testing
 on physical networks, and handling nodes without synchronized time.
 
 ## Todo / Roadmap
@@ -110,7 +111,7 @@ on physical networks, and handling nodes without synchronized time.
 - add validate command to check CUE syntax
 - add sudo support to the SSH launcher, instead of requiring root for netns
 - add an HTML index of tests and results
-- implement node platform auto-detection
+- auto-detect node platforms
 - add report type with standard output for each test:
   - node logs and system information
   - descriptive details for test
@@ -130,8 +131,7 @@ on physical networks, and handling nodes without synchronized time.
 ### Bugs
 
 - improve poor error messages from CUE for syntax errors under disjunctions
-- return error immediately when CCA not found
-- cancel Parallel test set when any one of them fails
+- return errors immediately on failed sets of CCA / sockopts
 - figure out why packets from tcpdump may be lost without a one-second
   post-test sleep (buffering? but shouldn't SIGINT flush that?)
 
@@ -141,7 +141,7 @@ on physical networks, and handling nodes without synchronized time.
 - handle timeouts consistently, both for runners and the node control connection
 - see if it's practical to move CUE schema from config.cue into Go
 - share more CUE code for rig setups and between packages
-- design some way to implement incremental test runs, perhaps via hard links
+- design some way to implement incremental test runs, perhaps using hard links
 - reduce use of type switches for result data stream?
 
 ## Thanks

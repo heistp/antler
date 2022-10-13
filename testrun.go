@@ -4,8 +4,6 @@
 package antler
 
 import (
-	"fmt"
-
 	"cuelang.org/go/cue/load"
 )
 
@@ -68,8 +66,8 @@ type Serial []TestRun
 
 // do executes the TestRun's sequentially.
 func (s Serial) do(dr doer, rst reporterStack) (err error) {
-	for _, u := range s {
-		if err = u.do(dr, rst); err != nil {
+	for _, r := range s {
+		if err = r.do(dr, rst); err != nil {
 			return
 		}
 	}
@@ -81,6 +79,21 @@ type Parallel []TestRun
 
 // do executes the TestRun's concurrently.
 func (p Parallel) do(dr doer, rst reporterStack) (err error) {
-	err = fmt.Errorf("Parallel test runs not yet implemented")
+	c := make(chan error)
+	for _, r := range p {
+		r := r
+		go func() {
+			var e error
+			defer func() {
+				c <- e
+			}()
+			e = r.do(dr, rst)
+		}()
+	}
+	for i := 0; i < len(p); i++ {
+		if e := <-c; e != nil && err == nil {
+			err = e
+		}
+	}
 	return
 }

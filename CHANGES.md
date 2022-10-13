@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - UDP flows with VBR support
 - SSH support
 - CUE configuration
-- Examples: iperf3, ratedrop, sce, shortflows, tcpstream, vbrudp
+- netns support
+- Examples: iperf3, ratedrop, sceaqm, shortflows, tcpstream, vbrudp
 
 ### Changed
 

@@ -13,11 +13,6 @@ import (
 
 // Test is an Antler test.
 type Test struct {
-	// ID uniquely identifies a Test within a CUE package. The ID's key/value
-	// pairs may be used to generate output filenames and/or report lists/tables
-	// that identify the key Test properties, e.g. bandwidth, rtt, etc.
-	ID ID
-
 	// OutPath is the base path for test output files, relative to the output
 	// directory. Paths ending in '/' are a directory, and '/' is appended
 	// automatically if the path is a directory. The default is "./".

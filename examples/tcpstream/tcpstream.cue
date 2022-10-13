@@ -24,7 +24,6 @@ stream: {ResultStream: Include: Log: true}
 // run, the server is started, then the test is run.
 Run: {
 	Test: {
-		ID: {"Name": "tcpstream"}
 		Serial: [stream, setup, server, do]
 	}
 	Report: [

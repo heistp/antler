@@ -85,7 +85,12 @@ on physical networks, and handling nodes without synchronized time.
 - record packet replies and calculate RTT for packet flows
 - detect lost and late (out-of-order) packets in packet flows, and flag with
   altered symbology in time series plot
+- ChartsTimeSeries: automatically add one or both Y axes based on the data
+  series present in the Test
+- add validate command to check CUE syntax
+- add sudo support to the SSH launcher, instead of requiring root for netns
 - add an HTML index of tests and results
+- implement node platform auto-detection
 - add report type with standard output for each test:
   - node logs and system information
   - descriptive details for test

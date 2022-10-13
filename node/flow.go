@@ -3,8 +3,7 @@
 
 package node
 
-// Flow is a string name identifying a flow. By convention, it matches
-// [a-z][a-z\.]*.
+// Flow is a string name identifying a flow.
 type Flow string
 
 // A Flower wraps the Flow method, to return a Flow associated with the

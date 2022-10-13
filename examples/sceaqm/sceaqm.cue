@@ -89,7 +89,6 @@ _qdiscTest: {
 			}
 		}
 
-		ID: {"Name": "ratedrop"}
 		Serial: [#stream, _setup, _server, _do]
 		OutPath: strings.Fields(_qdisc)[0]
 	}

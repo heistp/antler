@@ -307,10 +307,6 @@ func (c *conn) ioError(err error, ev chan<- event) {
 	c.doClose()
 }
 
-// ioError
-type ioErrorEvent struct {
-}
-
 // connDone is sent after a conn's goroutines are done and the underlying
 // transport is closed.
 type connDone struct {

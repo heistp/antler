@@ -40,7 +40,7 @@ place.
 
 | Example                     | Plot            |
 | --------------------------- | --------------- |
-| [fct](examples/fct/fct.cue) | [fct](https://raw.githubusercontent.com/heistp/antler/examples/fct/fct.html) |
+| [fct](examples/fct/fct.cue) | [fct](https://htmlpreview.github.io/?https://github.com/heistp/antler/blob/master/examples/fct/fct.html) |
 | [ratedrop](examples/ratedrop/ratedrop.cue) | [timeseries](https://raw.githubusercontent.com/heistp/antler/examples/ratedrop/timeseries.html) |
 | [sceaqm](examples/sceaqm/sceaqm.cue) | [cake](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/cake_timeseries.html) / [cnq_cobalt](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/cnq_cobalt_timeseries.html) / [codel](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/codel_timeseries.html) / [pfifo](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/pfifo_timeseries.html) / [pie](https://raw.githubusercontent.com/heistp/antler/examples/sceaqm/pie_timeseries.html) |
 | [tcpstream](examples/tcpstream/tcpstream.cue) | [timeseries](https://raw.githubusercontent.com/heistp/antler/examples/tcpstream/tcpstream.html) |

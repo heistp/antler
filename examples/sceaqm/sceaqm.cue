@@ -47,8 +47,10 @@ Run: {
 				"pfifo limit 50",
 				"pie",
 				"codel",
+				"cobalt",
 				"cake sce flowblind",
 				"cnq_cobalt sce sce-thresh 16",
+				"deltic",
 		] {{_qdisc: q} & _qdiscTest},
 	]
 }

@@ -1,7 +1,7 @@
 # Antler
 
 Antler is an open-source network testing tool intended for congestion control
-and related work. Antler stands for **A**ctive **N**etwork **T**ester of
+and related work. The name stands for **A**ctive **N**etwork **T**ester of
 **L**oad **E**t **R**esponse. :)
 
 ## Introduction
@@ -11,8 +11,7 @@ Antler grew out of testing needs that arose during work on
 congestion control projects in the IETF. It can be used to set up and tear down
 test environments, coordinate traffic flows across multiple nodes, gather data
 using external tools like tcpdump, and generate reports and plots from the
-results. At version 0.3, the basic architecture and a few test runners are in
-place.
+results.
 
 ## Features
 
@@ -34,7 +33,7 @@ place.
 * plots/reports using Go templates, with included templates for time series and
   FCT plots using [Google Charts](https://developers.google.com/chart)
 * configuration using [CUE](https://cuelang.org/), to support test parameter
-  combinations, config schema definition and data validation
+  combinations, config schema definition, data validation and config reuse
 
 ## Examples
 
@@ -52,7 +51,7 @@ cd examples/tcpstream
 sudo antler run
 ```
 
-Root access is needed to create network namespaces.
+Root access is required to create network namespaces.
 
 The antler binary must be in your PATH, or the full path must be specified.
 Typically, you add ~/go/bin to your PATH so you can run binaries installed by
@@ -83,66 +82,81 @@ typically have gob files, pcaps and an HTML plot.
 ## Documentation
 
 At present, Antler is documented through the [examples](examples), and the
-comments in [config.cue](config.cue). Antler is configured entirely by
-[CUE](https://cuelang.org/), so it helps to get familiar with the language
-at a basic level, though it may be sufficient to just follow the examples.
-
-Full documentation will follow, closer to the first stable release.
+comments in [config.cue](config.cue). Antler is configured using
+[CUE](https://cuelang.org/), so it helps to get familiar with the language at a
+basic level, though for simple tests it may be sufficient to just follow the
+examples.
 
 ## Status
 
-As of version 0.3, the node is working, along with some basic tests and
-visualizations. More work is needed on functionality of the tests themselves,
+As of version 0.3.0-beta, the node is working, along with some basic tests and
+visualizations. The [Roadmap](#roadmap) lists what should be completed before
+upcoming releases.
+
+Long term, more work is needed on functionality of the tests themselves,
 stabilizing the config and data formats, and supporting platforms other than
 Linux.
 
-The initial focus has been on local netns tests. More work is needed for testing
-on physical networks, and handling nodes without synchronized time.
+## Roadmap
 
-## Todo / Roadmap
-
-### Features
+### Version 0.3.0
 
 - record packet replies and calculate RTT for packet flows
 - detect lost and late (out-of-order) packets in packet flows, and flag with
   altered symbology in time series plot
 - ChartsTimeSeries: automatically add one or both Y axes based on the data
   series present in the Test
-- add validate command to check CUE syntax
+- add vet command to check CUE syntax
+- rename EmitLog reporter to Log, and add sorting by time for saved log files
+- test the SSH launcher and add an example of its use
 - add sudo support to the SSH launcher, instead of requiring root for netns
+- verify CUE disjunctions are used properly for union types
+- handle node data properly both with and without node-synchronized time
+
+### Future, Maybe
+
+#### Features
+
 - add an HTML index of tests and results
 - auto-detect node platforms
 - add report type with standard output for each test:
   - node logs and system information
   - descriptive details for test
   - time series and FCT plots, with navigation instructions
-- add SaveLog reporter that sorts logs by time
+  - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
 - add support for sampling Linux socket stats via netlink
   (like [cgmon](https://github.com/heistp/cgmon))
 - add support for setting arbitary sockopts
+- add configuration to simulate conversational stream protocols
 - implement flagForward optimization, and maybe invert it to flagProcess
 - protect public servers with three-way handshake for packet protocols and
   simple authentication for stream protocols
 - add compression support for System runner FileData output
 - add more plotting templates, e.g. for plotly, Gnuplot and xplot
+- implement traffic generators in C, for performance
+- write full documentation
 - support MacOS
 - support FreeBSD
 
-### Bugs
+#### Bugs
 
 - improve poor error messages from CUE for syntax errors under disjunctions
-- return errors immediately on failed sets of CCA / sockopts
-- figure out why packets from tcpdump may be lost without a one-second
-  post-test sleep (buffering? but shouldn't SIGINT flush that?)
+- return errors immediately on failed sets of CCA / sockopts, instead of
+  waiting until the end of the test
+- figure out why packets from tcpdump may be lost without a one-second post-test
+  sleep (maybe buffering, but shouldn't SIGINT flush that? is this a result of
+  the network namespaces teardown issue below?)
+- network namespaces may be deleted before runners have completed, for example
+  if a middlebox is canceled and terminated before the endpoints have completed-
+  possibly add an additional node state during cancellation to handle this
 
-### Architecture
+#### Architecture
 
 - find a better way than unions to create interface implementations from CUE
 - handle timeouts consistently, both for runners and the node control connection
-- see if it's practical to move CUE schema from config.cue into Go
-- share more CUE code for rig setups and between packages
+- add antler init command to save config schema and defaults?
+- share more CUE code in examples, especially for netns rig setups
 - design some way to implement incremental test runs, perhaps using hard links
-- reduce use of type switches for result data stream?
 
 ## Thanks
 

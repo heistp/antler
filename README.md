@@ -101,6 +101,7 @@ Linux.
 
 ### Version 0.3.0
 
+- add README template and sceaqm links for bursty vs non-bursty results
 - add support for sampling Linux socket stats via netlink
   (like [cgmon](https://github.com/heistp/cgmon))
 - test the SSH launcher and add an example of its use

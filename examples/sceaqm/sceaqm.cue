@@ -43,6 +43,7 @@ import (
 // Run defines a serial list of qdisc Tests to run.
 Run: {
 	Serial: [
+		for b in [ true, false]
 		for q in [
 				"pfifo limit 50",
 				"pie",
@@ -51,14 +52,15 @@ Run: {
 				"cake sce flowblind",
 				"cnq_cobalt sce sce-thresh 16",
 				"deltic",
-		] {{_qdisc: q} & _qdiscTest},
+		] {{_qdisc: q, _bursty_udp: b} & _qdiscTest},
 	]
 }
 
 // qdiscTest is the per-qdisc test
 _qdiscTest: {
-	// qdisc is unioned in for each TestRun
-	_qdisc: string
+	// qdisc and bursty_udp are parameters for each TestRun
+	_qdisc:      string
+	_bursty_udp: bool
 
 	// Test is the qdisc test
 	Test: {
@@ -92,7 +94,12 @@ _qdiscTest: {
 		}
 
 		Serial: [#stream, _setup, _server, _do]
-		OutPath: strings.Fields(_qdisc)[0]
+		if _bursty_udp {
+			OutPath: strings.Fields(_qdisc)[0] + "_bursty_udp"
+		}
+		if !_bursty_udp {
+			OutPath: strings.Fields(_qdisc)[0]
+		}
 	}
 
 	// Report defines reports for the qdisc test
@@ -107,7 +114,12 @@ _qdiscTest: {
 				"udp":       "UDP OWD"
 			}
 			Options: {
-				title: "\(FlowLabel[_cca]) Rate Drop \(#rate0) to \(#rate1) | \(#rtt)ms Path RTT | \(_qdisc) "
+				if !_bursty_udp {
+					title: "\(FlowLabel[_cca]) Rate Drop \(#rate0) to \(#rate1) | \(#rtt)ms Path RTT | \(_qdisc) "
+				}
+				if _bursty_udp {
+					title: "\(FlowLabel[_cca]) Rate Drop \(#rate0) to \(#rate1) w/ bursty UDP | \(#rtt)ms Path RTT | \(_qdisc) "
+				}
 				series: {
 					"1": {
 						targetAxisIndex: 1
@@ -227,22 +239,24 @@ _qdiscTest: {
 				}},
 				{Sleep: "500ms"},
 				{Parallel: [
-					{PacketClient: {
-						Addr: #serverAddr
-						Flow: "udp"
-						Sender: [
-							{Unresponsive: {
-								Wait: ["20ms"]
-								Length: [160]
-								Duration: "\(#duration)s"
-							}},
-							{Unresponsive: {
-								Wait: ["0ms", "0ms", "0ms", "0ms", "0ms", "0ms", "0ms", "50ms"]
-								Length: [900]
-								Duration: "\(#duration)s"
-							}},
-						]
-					}},
+					if _bursty_udp {
+						{PacketClient: {
+							Addr: #serverAddr
+							Flow: "udp"
+							Sender: [
+								{Unresponsive: {
+									Wait: ["20ms"]
+									Length: [160]
+									Duration: "\(#duration)s"
+								}},
+								{Unresponsive: {
+									Wait: ["0ms", "0ms", "0ms", "0ms", "0ms", "0ms", "0ms", "50ms"]
+									Length: [900]
+									Duration: "\(#duration)s"
+								}},
+							]
+						}}
+					},
 					{StreamClient: {
 						Addr: #serverAddr
 						Upload: {

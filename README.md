@@ -2,7 +2,7 @@
 
 Antler is an open-source network testing tool intended for congestion control
 and related work. The name stands for **A**ctive **N**etwork **T**ester of
-**L**oad **E**t **R**esponse. :)
+**L**oad & **R**esponse (with '&' derived from the ligature of **E**t :).
 
 ## Introduction
 
@@ -101,17 +101,19 @@ Linux.
 
 ### Version 0.3.0
 
+- add support for sampling Linux socket stats via netlink
+  (like [cgmon](https://github.com/heistp/cgmon))
+- test the SSH launcher and add an example of its use
+- add sudo support to the SSH launcher, instead of requiring root for netns
 - record packet replies and calculate RTT for packet flows
+- handle node data properly both with and without node-synchronized time
 - detect lost and late (out-of-order) packets in packet flows, and flag with
   altered symbology in time series plot
 - ChartsTimeSeries: automatically add one or both Y axes based on the data
   series present in the Test
 - add vet command to check CUE syntax
 - rename EmitLog reporter to Log, and add sorting by time for saved log files
-- test the SSH launcher and add an example of its use
-- add sudo support to the SSH launcher, instead of requiring root for netns
 - verify CUE disjunctions are used properly for union types
-- handle node data properly both with and without node-synchronized time
 
 ### Future, Maybe
 
@@ -124,8 +126,6 @@ Linux.
   - descriptive details for test
   - time series and FCT plots, with navigation instructions
   - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
-- add support for sampling Linux socket stats via netlink
-  (like [cgmon](https://github.com/heistp/cgmon))
 - add support for setting arbitary sockopts
 - add configuration to simulate conversational stream protocols
 - implement flagForward optimization, and maybe invert it to flagProcess

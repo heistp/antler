@@ -6,9 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
-...
+### Added
 
-## 0.3.0 - 2022-10-13
+- Added `vet` command for checking CUE config
+
+## 0.3.0-beta - 2022-10-13
 
 ### Added
 

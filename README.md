@@ -111,7 +111,6 @@ Linux.
   altered symbology in time series plot
 - ChartsTimeSeries: automatically add one or both Y axes based on the data
   series present in the Test
-- add vet command to check CUE syntax
 - rename EmitLog reporter to Log, and add sorting by time for saved log files
 - verify CUE disjunctions are used properly for union types
 

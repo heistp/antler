@@ -3,10 +3,6 @@
 
 package antler
 
-import (
-	"cuelang.org/go/cue/load"
-)
-
 // TestRun contains the information needed to orchestrate the execution of Tests
 // and Reports. A TestRun may have a Test, or nested TestRun's listed in the
 // Serial or Parallel fields, which are executed sequentially or concurrently,
@@ -43,16 +39,6 @@ func (t *TestRun) do(dr doer, rst reporterStack) (err error) {
 	default:
 		err = t.Test.do(dr, rst)
 	}
-	return
-}
-
-// do loads the configuration and calls do on the top-level TestRun.
-func do(dr doer) (err error) {
-	var cfg *Config
-	if cfg, err = LoadConfig(&load.Config{}); err != nil {
-		return
-	}
-	err = cfg.Run.do(dr, reporterStack{})
 	return
 }
 

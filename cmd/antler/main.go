@@ -23,8 +23,9 @@ func root() (cmd *cobra.Command) {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	cmd.AddCommand(run())
 	cmd.AddCommand(report())
+	cmd.AddCommand(run())
+	cmd.AddCommand(vet())
 	cmd.Version = antler.Version
 	return
 }
@@ -35,7 +36,7 @@ func run() (cmd *cobra.Command) {
 	r := &antler.RunCommand{c, false}
 	cmd = &cobra.Command{
 		Use:   "run",
-		Short: "Runs tests and reports in current directory",
+		Short: "Runs tests and reports",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			defer c.Stop()
 			sc := make(chan os.Signal, 1)
@@ -65,6 +66,18 @@ func report() (cmd *cobra.Command) {
 		Short: "Re-runs reports using existing data files",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return antler.Run(r)
+		},
+	}
+}
+
+// vet returns the vet cobra command.
+func vet() (cmd *cobra.Command) {
+	v := &antler.VetCommand{}
+	return &cobra.Command{
+		Use:   "vet",
+		Short: "Checks the CUE configuration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return antler.Run(v)
 		},
 	}
 }

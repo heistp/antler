@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 
+	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
 )
 
@@ -19,7 +20,7 @@ import (
 // results.
 const DataFile = "data.gob"
 
-// Run runs an Antler Command, e.g. RunCommand and ReportCommand.
+// Run runs an Antler Command.
 func Run(cmd Command) error {
 	return cmd.run()
 }
@@ -39,8 +40,13 @@ type RunCommand struct {
 }
 
 // run implements command
-func (c *RunCommand) run() error {
-	return do(c)
+func (r *RunCommand) run() (err error) {
+	var c *Config
+	if c, err = LoadConfig(&load.Config{}); err != nil {
+		return
+	}
+	err = c.Run.do(r, reporterStack{})
+	return
 }
 
 // dataChanBufSize is used as the buffer size for data channels.
@@ -90,8 +96,13 @@ type ReportCommand struct {
 }
 
 // run implements command
-func (c *ReportCommand) run() error {
-	return do(c)
+func (r *ReportCommand) run() (err error) {
+	var c *Config
+	if c, err = LoadConfig(&load.Config{}); err != nil {
+		return
+	}
+	err = c.Run.do(r, reporterStack{})
+	return
 }
 
 // do implements doer
@@ -121,5 +132,15 @@ func (*ReportCommand) do(test *Test, rst reporterStack) (err error) {
 		}
 	}()
 	err = rst.tee(d, test, nil)
+	return
+}
+
+// VetCommand loads and checks the CUE config.
+type VetCommand struct {
+}
+
+// run implements command
+func (*VetCommand) run() (err error) {
+	_, err = LoadConfig(&load.Config{})
 	return
 }

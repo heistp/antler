@@ -1,9 +1,5 @@
-# disable cgo
-env = CGO_ENABLED=0
-
 # race detection
 #INSTALL_FLAGS := -race
-#env = CGO_ENABLED=1
 
 all: install
 

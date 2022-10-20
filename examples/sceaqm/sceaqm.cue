@@ -263,7 +263,7 @@ _qdiscTest: {
 							Flow:             "cubic-sce"
 							CCA:              "cubic-sce"
 							Duration:         "\(#duration)s"
-							SampleIOInterval: "\(#rtt*4)ms"
+							IOSampleInterval: "\(#rtt*4)ms"
 						}
 					}},
 				]},

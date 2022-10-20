@@ -175,7 +175,7 @@ do: {
 						Flow:             "cubic"
 						CCA:              "cubic"
 						Duration:         "\(#duration)s"
-						SampleIOInterval: "\(#rtt*4)ms"
+						IOSampleInterval: "\(#rtt*4)ms"
 					}
 				}},
 				{Serial: [
@@ -186,7 +186,7 @@ do: {
 							Flow:             "reno"
 							CCA:              "reno"
 							Duration:         "\(#duration/3)s"
-							SampleIOInterval: "\(#rtt*4)ms"
+							IOSampleInterval: "\(#rtt*4)ms"
 						}
 					}},
 				]},

@@ -389,9 +389,9 @@ type Transfer struct {
 	// Length is the number of bytes after which the sender stops writing.
 	Length metric.Bytes
 
-	// SampleIOInterval is the minimum time between IO samples. Zero means a
+	// IOSampleInterval is the minimum time between IO samples. Zero means a
 	// sample will be recorded for every read and write.
-	SampleIOInterval metric.Duration
+	IOSampleInterval metric.Duration
 
 	// BufLen is the size of the buffer used to read and write from the conn.
 	BufLen int
@@ -427,7 +427,7 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 	for i := 0; i < x.BufLen; i++ {
 		b[i] = transferFill
 	}
-	in, dur := x.SampleIOInterval.Duration(), x.Duration.Duration()
+	in, dur := x.IOSampleInterval.Duration(), x.Duration.Duration()
 	t0 := metric.Now()
 	rec.Send(StreamIO{x.Flow, t0, 0, true})
 	t := t0
@@ -480,7 +480,7 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 func (x Transfer) receive(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 	err error) {
 	b := make([]byte, x.BufLen)
-	in := x.SampleIOInterval.Duration()
+	in := x.IOSampleInterval.Duration()
 	t0 := metric.Now()
 	rec.Send(StreamIO{x.Flow, t0, 0, false})
 	ts := t0

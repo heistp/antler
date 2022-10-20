@@ -188,7 +188,7 @@ do: {
 							Flow:             "bbr"
 							CCA:              "bbr"
 							Duration:         "\(#duration)s"
-							SampleIOInterval: "\(#rtt*8)ms"
+							IOSampleInterval: "\(#rtt*8)ms"
 						}
 					}},
 				]},

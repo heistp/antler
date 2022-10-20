@@ -158,7 +158,7 @@ do: {
 								Flow: "\(cca).\(i+1)"
 								CCA: cca
 								Length: l
-								SampleIOInterval: "\(#rtt*4)ms"
+								IOSampleInterval: "\(#rtt*4)ms"
 							}
 						}}
 				]

@@ -197,7 +197,7 @@ do: {
 							Flow:             "bbr"
 							CCA:              "bbr"
 							Duration:         "\(#duration*2/5)s"
-							SampleIOInterval: "500ms"
+							IOSampleInterval: "500ms"
 						}
 					}},
 				]},
@@ -209,7 +209,7 @@ do: {
 							Flow:             "cubic"
 							CCA:              "cubic"
 							Duration:         "\(#duration*2/5)s"
-							SampleIOInterval: "250ms"
+							IOSampleInterval: "250ms"
 						}
 					}},
 				]},

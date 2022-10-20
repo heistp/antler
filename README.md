@@ -2,7 +2,7 @@
 
 Antler is an open-source network testing tool intended for congestion control
 and related work. The name stands for **A**ctive **N**etwork **T**ester of
-**L**oad & **R**esponse (with '&' derived from the ligature of **E**t :).
+**L**oad & **R**esponse, where '&' == **E**t. :)
 
 ## Introduction
 
@@ -124,7 +124,7 @@ Linux.
 - add report type with standard output for each test:
   - node logs and system information
   - descriptive details for test
-  - time series and FCT plots, with navigation instructions
+  - time series and FCT plots, with navigation controls
   - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
 - add support for setting arbitary sockopts
 - add configuration to simulate conversational stream protocols
@@ -133,7 +133,7 @@ Linux.
   simple authentication for stream protocols
 - add compression support for System runner FileData output
 - add more plotting templates, e.g. for plotly, Gnuplot and xplot
-- implement traffic generators in C, for performance
+- implement traffic generators in C
 - write full documentation
 - support MacOS
 - support FreeBSD

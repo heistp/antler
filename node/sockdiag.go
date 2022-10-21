@@ -13,6 +13,7 @@ import "C"
 import (
 	"encoding/gob"
 	"fmt"
+	"net"
 	"net/netip"
 	"sync"
 	"time"
@@ -45,9 +46,9 @@ func newSockdiag(ev chan event) *sockdiag {
 }
 
 // Add adds the given socket address for TCPInfo sampling at the given interval.
-// Since Flow corresponds to the 5-tuple for TCP, the Flow in the given info
+// Since Flow corresponds to the 5-tuple for TCP, the Flow in the given id
 // must uniquely identify the src and dst socket addresses in addr.
-func (d *sockdiag) Add(addr sockAddr, info tcpFlowInfo, interval time.Duration) {
+func (d *sockdiag) Add(addr sockAddr, id TCPInfoID, interval time.Duration) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	var s *sockdiagSampler
@@ -55,7 +56,7 @@ func (d *sockdiag) Add(addr sockAddr, info tcpFlowInfo, interval time.Duration) 
 		s = newSockdiagSampler(d.ev, interval)
 		d.sampler[interval] = s
 	}
-	s.Add(addr, info)
+	s.Add(addr, id)
 }
 
 // Remove stops sampling for the given sock address, at the given interval.
@@ -85,7 +86,7 @@ func (d *sockdiag) Stop() {
 // sockdiagSampler samples socket statistics on a fixed interval, and sends
 // TCPInfo's with the statistics to the node's event channel.
 type sockdiagSampler struct {
-	addr     map[sockAddr]tcpFlowInfo
+	addr     map[sockAddr]TCPInfoID
 	addr4    int
 	addr6    int
 	ev       chan event
@@ -100,7 +101,7 @@ type sockdiagSampler struct {
 // statistics on the given interval.
 func newSockdiagSampler(ev chan event, interval time.Duration) *sockdiagSampler {
 	return &sockdiagSampler{
-		make(map[sockAddr]tcpFlowInfo),
+		make(map[sockAddr]TCPInfoID),
 		0,
 		0,
 		ev,
@@ -113,9 +114,9 @@ func newSockdiagSampler(ev chan event, interval time.Duration) *sockdiagSampler 
 }
 
 // Add registers the given socket address to send TCPInfo for, with the given
-// flow info. If this is the first address added, the sampling goroutine is
+// flow id. If this is the first address added, the sampling goroutine is
 // started.
-func (m *sockdiagSampler) Add(addr sockAddr, info tcpFlowInfo) {
+func (m *sockdiagSampler) Add(addr sockAddr, id TCPInfoID) {
 	m.mtx.Lock()
 	defer func() {
 		if !m.started && len(m.addr) > 0 {
@@ -131,11 +132,11 @@ func (m *sockdiagSampler) Add(addr sockAddr, info tcpFlowInfo) {
 			m.addr6++
 		}
 	}
-	m.addr[addr] = info
+	m.addr[addr] = id
 }
 
-// tcpFlowInfo contains the flow and orientation information in TCPInfo.
-type tcpFlowInfo struct {
+// TCPFlowInfo contains the flow and orientation information in TCPInfo.
+type TCPInfoID struct {
 	Flow     Flow
 	Location Location
 }
@@ -221,11 +222,11 @@ func (m *sockdiagSampler) sampleFamily(fd C.int, family C.uchar) (err error) {
 	ss := (*[1 << 30]C.struct_sample)(unsafe.Pointer(cs.sample))[:cs.len:cs.len]
 	for _, s := range ss {
 		var ok bool
-		var fi tcpFlowInfo
-		if fi, ok = m.addr[sampleSockAddr(s)]; !ok {
+		var id TCPInfoID
+		if id, ok = m.addr[sockAddrSample(s)]; !ok {
 			continue
 		}
-		m.ev <- newTCPInfo(fi, t, time.Duration(t-t0), s.info)
+		m.ev <- newTCPInfo(id, t, time.Duration(t-t0), s.info)
 	}
 	C.sockdiag_free_samples(&cs)
 	return
@@ -234,7 +235,7 @@ func (m *sockdiagSampler) sampleFamily(fd C.int, family C.uchar) (err error) {
 // TCPInfo contains a subset of the socket statistics from Linux's tcp_info
 // struct, defined in include/uapi/linux/tcp.h.
 type TCPInfo struct {
-	tcpFlowInfo
+	TCPInfoID
 
 	// T is the relative time the corresponding tcp_info was received.
 	T metric.RelativeTime
@@ -270,10 +271,10 @@ type TCPInfo struct {
 }
 
 // newTCPInfo returns a new TCPInfo from a sockdiag sample.
-func newTCPInfo(fi tcpFlowInfo, t metric.RelativeTime, st time.Duration,
+func newTCPInfo(id TCPInfoID, t metric.RelativeTime, st time.Duration,
 	ti C.struct_tcp_info) TCPInfo {
 	return TCPInfo{
-		fi,
+		id,
 		t,
 		st,
 		time.Duration(time.Duration(ti.tcpi_rtt) * time.Microsecond),
@@ -333,8 +334,15 @@ type sockAddr struct {
 	Dst netip.AddrPort
 }
 
-// sampleSockAddr returns a sockAddr for the given sample from C.
-func sampleSockAddr(s C.struct_sample) (addr sockAddr) {
+// sockAddrConn returns a sockAddr for the given Conn.
+func sockAddrConn(c net.Conn) (addr sockAddr) {
+	addr.Src = c.LocalAddr().(*net.TCPAddr).AddrPort()
+	addr.Dst = c.RemoteAddr().(*net.TCPAddr).AddrPort()
+	return
+}
+
+// sockAddrSample returns a sockAddr for the given sample from C.
+func sockAddrSample(s C.struct_sample) (addr sockAddr) {
 	var sa, da netip.Addr
 	switch s.family {
 	case unix.AF_INET:

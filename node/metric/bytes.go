@@ -3,6 +3,8 @@
 
 package metric
 
+import "fmt"
+
 // Bytes is a number of bytes.
 type Bytes uint64
 
@@ -68,4 +70,8 @@ func (b Bytes) Tebibytes() float64 {
 // Pebibytes returns the Bytes in Pebibytes.
 func (b Bytes) Pebibytes() float64 {
 	return float64(b) / float64(Pebibyte)
+}
+
+func (b Bytes) String() string {
+	return fmt.Sprintf("Bytes[%d]", b)
 }

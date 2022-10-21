@@ -127,7 +127,8 @@ Linux.
   - time series and FCT plots, with navigation controls
   - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
 - add support for setting arbitary sockopts
-- add configuration to simulate conversational stream protocols
+- add support for simulating conversational stream protocols, and for this,
+  refactor the sample and orientation fields in StreamClient/Server
 - implement flagForward optimization, and maybe invert it to flagProcess
 - protect public servers with three-way handshake for packet protocols and
   simple authentication for stream protocols

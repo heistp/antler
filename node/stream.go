@@ -45,7 +45,7 @@ func (s *StreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 		ofb[s.ListenAddrKey] = l.Addr().String()
 	}
 	s.errc = make(chan error)
-	s.start(ctx, l, arg.rec)
+	s.start(ctx, l, arg)
 	arg.cxl <- s
 	return
 }
@@ -57,7 +57,7 @@ func (s *StreamServer) Cancel(rec *recorder) error {
 
 // start starts the main and accept goroutines.
 func (s *StreamServer) start(ctx context.Context, lst net.Listener,
-	rec *recorder) {
+	arg runArg) {
 	ec := make(chan error)
 	cc := make(chan net.Conn)
 	// accept goroutine
@@ -97,7 +97,7 @@ func (s *StreamServer) start(ctx context.Context, lst net.Listener,
 				}
 				t := c.(*net.TCPConn)
 				g++
-				go s.serve(ctx, t, rec, ec)
+				go s.serve(ctx, t, arg, ec)
 			case <-d:
 				d = nil
 				err = lst.Close()
@@ -110,7 +110,7 @@ func (s *StreamServer) start(ctx context.Context, lst net.Listener,
 					//rec.Logf("post-cancel error: %s", e)
 					break
 				}
-				rec.SendErrore(e)
+				arg.rec.SendErrore(e)
 			}
 		}
 	}()
@@ -118,7 +118,7 @@ func (s *StreamServer) start(ctx context.Context, lst net.Listener,
 
 // serve serves one connection.
 func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
-	rec *recorder, errc chan error) {
+	arg runArg, errc chan error) {
 	var e error
 	defer func() {
 		conn.Close()
@@ -132,7 +132,7 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 	if e = d.Decode(&m); e != nil {
 		return
 	}
-	e = m.handleServer(ctx, conn, rec)
+	e = m.handleServer(ctx, conn, arg)
 }
 
 // StreamClient is the client used for stream oriented protocols.
@@ -147,10 +147,6 @@ type StreamClient struct {
 
 	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
 	Protocol string
-
-	// TCPInfoInterval is the sampling interval for TCPInfo from Linux. Zero
-	// means TCPInfo sampling is disabled.
-	TCPInfoInterval metric.Duration
 
 	Streamers
 }
@@ -172,14 +168,6 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 		return
 	}
 	defer c.Close()
-	if s.TCPInfoInterval > 0 {
-		// TODO fix args
-		a := sockAddr{}
-		fi := tcpFlowInfo{}
-		i := s.TCPInfoInterval.Duration()
-		arg.sockdiag.Add(a, fi, i)
-		defer arg.sockdiag.Remove(a, i)
-	}
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
@@ -203,7 +191,7 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if err = e.Encode(&m); err != nil {
 		return
 	}
-	err = m.handleClient(ctx, c, arg.rec)
+	err = m.handleClient(ctx, c, arg)
 	return
 }
 
@@ -223,10 +211,10 @@ func (s *StreamClient) addr(ifb Feedback) (a string, err error) {
 // A streamer handles connections in StreamClient and StreamServer.
 type streamer interface {
 	// handleClient handles a client connection.
-	handleClient(context.Context, net.Conn, *recorder) error
+	handleClient(context.Context, net.Conn, runArg) error
 
 	// handleServer handles a server connection.
-	handleServer(context.Context, net.Conn, *recorder) error
+	handleServer(context.Context, net.Conn, runArg) error
 }
 
 // A dialController provides Dialer.Control for the StreamClient, and may be
@@ -265,16 +253,16 @@ func init() {
 
 // handleClient implements streamer
 func (u Upload) handleClient(ctx context.Context, conn net.Conn,
-	rec *recorder) error {
-	rec.Send(u.Info(false))
-	return u.send(ctx, conn, rec)
+	arg runArg) error {
+	arg.rec.Send(u.Info(false))
+	return u.send(ctx, conn, arg)
 }
 
 // handleServer implements streamer
 func (u Upload) handleServer(ctx context.Context, conn net.Conn,
-	rec *recorder) error {
-	rec.Send(u.Info(true))
-	return u.receive(ctx, conn, rec)
+	arg runArg) error {
+	arg.rec.Send(u.Info(true))
+	return u.receive(ctx, conn, arg)
 }
 
 func (u Upload) String() string {
@@ -293,14 +281,14 @@ func init() {
 
 // handleClient implements streamer
 func (d Download) handleClient(ctx context.Context, conn net.Conn,
-	rec *recorder) error {
-	rec.Send(d.Info(false))
-	return d.receive(ctx, conn, rec)
+	arg runArg) error {
+	arg.rec.Send(d.Info(false))
+	return d.receive(ctx, conn, arg)
 }
 
 // handleServer implements streamer
 func (d Download) handleServer(ctx context.Context, conn net.Conn,
-	rec *recorder) (err error) {
+	arg runArg) (err error) {
 	if d.CCA != "" {
 		if t, ok := conn.(*net.TCPConn); ok {
 			if err = setTCPSockoptString(t, unix.IPPROTO_TCP,
@@ -309,8 +297,8 @@ func (d Download) handleServer(ctx context.Context, conn net.Conn,
 			}
 		}
 	}
-	rec.Send(d.Info(true))
-	err = d.send(ctx, conn, rec)
+	arg.rec.Send(d.Info(true))
+	err = d.send(ctx, conn, arg)
 	return
 }
 
@@ -397,6 +385,10 @@ type Transfer struct {
 	// sample will be recorded for every read and write.
 	IOSampleInterval metric.Duration
 
+	// TCPInfoInterval is the sampling interval for TCPInfo from Linux. Zero
+	// means TCPInfo sampling is disabled.
+	TCPInfoInterval metric.Duration
+
 	// BufLen is the size of the buffer used to read and write from the conn.
 	BufLen int
 
@@ -425,7 +417,7 @@ const (
 )
 
 // send runs the send side of a transfer.
-func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
+func (x Transfer) send(ctx context.Context, conn net.Conn, arg runArg) (
 	err error) {
 	b := make([]byte, x.BufLen)
 	for i := 0; i < x.BufLen; i++ {
@@ -433,7 +425,14 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 	}
 	in, dur := x.IOSampleInterval.Duration(), x.Duration.Duration()
 	t0 := metric.Now()
-	rec.Send(StreamIO{x.Flow, t0, 0, true})
+	arg.rec.Send(StreamIO{x.Flow, t0, 0, true})
+	if x.TCPInfoInterval > 0 {
+		a := sockAddrConn(conn)
+		id := TCPInfoID{x.Flow, Client}
+		i := x.TCPInfoInterval.Duration()
+		arg.sockdiag.Add(a, id, i)
+		defer arg.sockdiag.Remove(a, i)
+	}
 	t := t0
 	ts := t0
 	var l metric.Bytes
@@ -451,12 +450,12 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 		if done {
 			b[bl-1] = transferFinal
 		}
-		n, err = rw.Write(b[:bl])
+		n, err = conn.Write(b[:bl])
 		t = metric.Now()
 		l += metric.Bytes(n)
 		if n > 0 {
 			if time.Duration(t-ts) > in || done {
-				rec.Send(StreamIO{x.Flow, t, l, true})
+				arg.rec.Send(StreamIO{x.Flow, t, l, true})
 				ts = t
 			}
 		}
@@ -469,7 +468,7 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 			return
 		}
 	}
-	if n, err = rw.Read(b); err != nil {
+	if n, err = conn.Read(b); err != nil {
 		return
 	}
 	if n != 1 {
@@ -481,18 +480,18 @@ func (x Transfer) send(ctx context.Context, rw io.ReadWriter, rec *recorder) (
 }
 
 // receive runs the receive side of a transfer.
-func (x Transfer) receive(ctx context.Context, rw io.ReadWriter, rec *recorder) (
+func (x Transfer) receive(ctx context.Context, conn io.ReadWriter, arg runArg) (
 	err error) {
 	b := make([]byte, x.BufLen)
 	in := x.IOSampleInterval.Duration()
 	t0 := metric.Now()
-	rec.Send(StreamIO{x.Flow, t0, 0, false})
+	arg.rec.Send(StreamIO{x.Flow, t0, 0, false})
 	ts := t0
 	var l metric.Bytes
 	var done bool
 	var n int
 	for !done {
-		n, err = rw.Read(b)
+		n, err = conn.Read(b)
 		t := metric.Now()
 		l += metric.Bytes(n)
 		if n > 0 {
@@ -500,7 +499,7 @@ func (x Transfer) receive(ctx context.Context, rw io.ReadWriter, rec *recorder) 
 				done = true
 			}
 			if time.Duration(t-ts) > in || done || err != nil {
-				rec.Send(StreamIO{x.Flow, t, l, false})
+				arg.rec.Send(StreamIO{x.Flow, t, l, false})
 				ts = t
 			}
 		}
@@ -509,7 +508,7 @@ func (x Transfer) receive(ctx context.Context, rw io.ReadWriter, rec *recorder) 
 		}
 	}
 	b[0] = transferACK
-	if n, err = rw.Write(b[:1]); n != 1 {
+	if n, err = conn.Write(b[:1]); n != 1 {
 		fmt.Errorf("unexpected ack write len: %d", n)
 	}
 	return

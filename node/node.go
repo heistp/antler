@@ -87,7 +87,7 @@ const RootNodeID = "-"
 
 // Do runs a Run tree in an in-process "root" node, and sends data items back on
 // the given channel. The item types that may be sent include StreamInfo,
-// StreamIO, PacketInfo, PacketIO, FileData, LogEntry and Error.
+// StreamIO, TCPInfo, PacketInfo, PacketIO, FileData, LogEntry and Error.
 //
 // Do is used by the antler package and executable.
 func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
@@ -108,7 +108,8 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 		defer wg.Done()
 		for e := range ev {
 			switch v := e.(type) {
-			case StreamInfo, StreamIO, PacketInfo, PacketIO, FileData, LogEntry:
+			case StreamInfo, StreamIO, TCPInfo, PacketInfo, PacketIO,
+				FileData, LogEntry:
 				data <- v
 			case errorEvent:
 				data <- f.NewErrore(v.err)

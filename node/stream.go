@@ -373,14 +373,6 @@ func (s StreamInfo) String() string {
 	return fmt.Sprintf("StreamInfo[Tinit:%s Stream:%s]", s.Tinit, s.Stream)
 }
 
-// Direction is the client to server sense for a Stream.
-type Direction string
-
-const (
-	Up   Direction = "up"   // client to server
-	Down Direction = "down" // server to client
-)
-
 // Transfer contains the parameters for an Upload or Download.
 type Transfer struct {
 	// Duration is the length of time after which the sender stops writing.

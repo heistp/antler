@@ -40,10 +40,10 @@ type node struct {
 	runc   chan run
 	parent *conn
 	rec    *recorder
+	child  *child
 
 	// mutable state for run/events
 	state      state
-	child      *child
 	cancel     bool  // true after error or cancel, starts cancellation
 	runsDone   bool  // true after runs goroutine is done
 	parentDone bool  // true after parent conn is done
@@ -59,8 +59,8 @@ func newNode(nodeID string, parent transport) *node {
 		make(chan run),                 // runc
 		p,                              // parent
 		newRecorder(nodeID, "node", p), // rec
-		stateRun,                       // state
 		newChild(ev),                   // child
+		stateRun,                       // state
 		false,                          // cancel
 		false,                          // runsDone
 		false,                          // parentDone
@@ -316,6 +316,6 @@ type runsDone struct {
 }
 
 // handle implements event
-func (r runsDone) handle(node *node) {
+func (runsDone) handle(node *node) {
 	node.runsDone = true
 }

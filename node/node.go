@@ -212,7 +212,8 @@ func (n *node) runs() {
 				}
 				n.parent.Send(ran{r.ID, f, ok, r.conn})
 			}()
-			f, ok = r.Run.run(ctx, runArg{n.child, r.Feedback, n.rec, c}, n.ev)
+			f, ok = r.Run.run(ctx,
+				runArg{n.child, r.Feedback, n.sockdiag, n.rec, c}, n.ev)
 		}()
 	}
 }

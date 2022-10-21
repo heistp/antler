@@ -148,6 +148,10 @@ type StreamClient struct {
 	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
 	Protocol string
 
+	// TCPInfoInterval is the sampling interval for TCPInfo from Linux. Zero
+	// means TCPInfo sampling is disabled.
+	TCPInfoInterval metric.Duration
+
 	Streamers
 }
 
@@ -168,6 +172,14 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 		return
 	}
 	defer c.Close()
+	if s.TCPInfoInterval > 0 {
+		// TODO fix args
+		a := sockAddr{}
+		fi := tcpFlowInfo{}
+		i := s.TCPInfoInterval.Duration()
+		arg.sockdiag.Add(a, fi, i)
+		defer arg.sockdiag.Remove(a, i)
+	}
 	done := make(chan struct{})
 	defer close(done)
 	go func() {

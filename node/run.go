@@ -322,10 +322,11 @@ type runner interface {
 
 // runArg contains the arguments supplied to a runner.
 type runArg struct {
-	child *child        // caches child conns
-	ifb   Feedback      // incoming Feedback from prior runners
-	rec   *recorder     // recorder for logging, data and errors
-	cxl   chan canceler // canceler stack
+	child    *child        // caches child conns
+	ifb      Feedback      // incoming Feedback from prior runners
+	sockdiag *sockdiag     // access to socket information on Linux
+	rec      *recorder     // recorder for logging, data and errors
+	cxl      chan canceler // canceler stack
 }
 
 // canceler is the interface that wraps the Cancel method. If a runner

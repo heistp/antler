@@ -13,7 +13,7 @@ import "C"
 import (
 	"encoding/gob"
 	"fmt"
-	"net"
+	"net/netip"
 	"sync"
 	"time"
 	"unsafe"
@@ -85,8 +85,9 @@ func (d *sockdiag) Stop() {
 // sockdiagSampler samples socket statistics on a fixed interval, and sends
 // TCPInfo's with the statistics to the node's event channel.
 type sockdiagSampler struct {
-	addr4    map[sockAddr4]tcpFlowInfo
-	addr6    map[sockAddr6]tcpFlowInfo
+	addr     map[sockAddr]tcpFlowInfo
+	addr4    int
+	addr6    int
 	ev       chan event
 	interval time.Duration
 	mtx      sync.Mutex
@@ -99,8 +100,9 @@ type sockdiagSampler struct {
 // statistics on the given interval.
 func newSockdiagSampler(ev chan event, interval time.Duration) *sockdiagSampler {
 	return &sockdiagSampler{
-		make(map[sockAddr4]tcpFlowInfo),
-		make(map[sockAddr6]tcpFlowInfo),
+		make(map[sockAddr]tcpFlowInfo),
+		0,
+		0,
 		ev,
 		interval,
 		sync.Mutex{},
@@ -116,24 +118,20 @@ func newSockdiagSampler(ev chan event, interval time.Duration) *sockdiagSampler 
 func (m *sockdiagSampler) Add(addr sockAddr, info tcpFlowInfo) {
 	m.mtx.Lock()
 	defer func() {
-		if !m.started && !m.empty() {
+		if !m.started && len(m.addr) > 0 {
 			m.started = true
 			go m.run()
 		}
 		m.mtx.Unlock()
 	}()
-	var a4 sockAddr4
-	var ok bool
-	if a4, ok = addr.To4(); ok {
-		m.addr4[a4] = info
-		return
+	if _, ok := m.addr[addr]; !ok {
+		if addr.Is4() {
+			m.addr4++
+		} else {
+			m.addr6++
+		}
 	}
-	var a6 sockAddr6
-	if a6, ok = addr.To6(); ok {
-		m.addr6[a6] = info
-		return
-	}
-	panic(fmt.Sprintf("unknown IP version for address: %s", addr))
+	m.addr[addr] = info
 }
 
 // tcpFlowInfo contains the flow and orientation information in TCPInfo.
@@ -142,30 +140,22 @@ type tcpFlowInfo struct {
 	Location Location
 }
 
-// empty returns true if no addresses are registered.
-func (m *sockdiagSampler) empty() bool {
-	return len(m.addr4) == 0 && len(m.addr6) == 0
-}
-
 // Remove unregisters the given ...
 func (m *sockdiagSampler) Remove(addr sockAddr) (empty bool) {
 	m.mtx.Lock()
 	defer func() {
-		empty = m.empty()
+		empty = len(m.addr) == 0
 		m.mtx.Unlock()
 	}()
-	var a4 sockAddr4
-	var ok bool
-	if a4, ok = addr.To4(); ok {
-		delete(m.addr4, a4)
-		return
+	if _, ok := m.addr[addr]; ok {
+		delete(m.addr, addr)
+		if addr.Is4() {
+			m.addr4++
+		} else {
+			m.addr6++
+		}
 	}
-	var a6 sockAddr6
-	if a6, ok = addr.To6(); ok {
-		delete(m.addr6, a6)
-		return
-	}
-	panic(fmt.Sprintf("unknown IP version for address: %s", addr))
+	return
 }
 
 // run is the entry point for the sockdiagSampler goroutine.
@@ -207,12 +197,12 @@ func (m *sockdiagSampler) run() {
 func (m *sockdiagSampler) sample(fd C.int) (err error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-	if len(m.addr4) > 0 {
+	if m.addr4 > 0 {
 		if err = m.sampleFamily(fd, unix.AF_INET); err != nil {
 			return
 		}
 	}
-	if len(m.addr6) > 0 {
+	if m.addr6 > 0 {
 		err = m.sampleFamily(fd, unix.AF_INET6)
 	}
 	return
@@ -232,12 +222,7 @@ func (m *sockdiagSampler) sampleFamily(fd C.int, family C.uchar) (err error) {
 	for _, s := range ss {
 		var ok bool
 		var fi tcpFlowInfo
-		if s.family == unix.AF_INET {
-			fi, ok = m.addr4[sampleSockAddr4(s)]
-		} else {
-			fi, ok = m.addr6[sampleSockAddr6(s)]
-		}
-		if !ok {
+		if fi, ok = m.addr[sampleSockAddr(s)]; !ok {
 			continue
 		}
 		m.ev <- newTCPInfo(fi, t, time.Duration(t-t0), s.info)
@@ -317,12 +302,20 @@ func (t TCPInfo) handle(node *node) {
 }
 
 func (t TCPInfo) String() string {
-	return fmt.Sprintf("TCPInfo[Flow:%s Location:%s T:%s SampleTime:%s RTT:%s]",
+	return fmt.Sprintf("TCPInfo[Flow:%s Location:%s T:%s SampleTime:%s "+
+		"RTT:%s RTTVar:%s TotalRetransmits:%d DeliveryRate:%s PacingRate: %s "+
+		"SendCwnd:%d SendMSS:%s]",
 		t.Flow,
 		t.Location,
 		t.T,
 		t.SampleTime,
 		t.RTT,
+		t.RTTVar,
+		t.TotalRetransmits,
+		t.DeliveryRate,
+		t.PacingRate,
+		t.SendCwnd,
+		t.SendMSS,
 	)
 }
 
@@ -336,93 +329,45 @@ func (s *sockdiagSampler) Stop() {
 // sockAddr contains the identifying addresses for a socket (source and
 // destination IP and port), used to find the socket statistics for a flow.
 type sockAddr struct {
-	SrcIP   net.IP
-	SrcPort int
-	DstIP   net.IP
-	DstPort int
+	Src netip.AddrPort
+	Dst netip.AddrPort
 }
 
-// To4 returns sockAddr as a sockAddr4. The return parameter ok is false if this
-// is not an IPv4 address.
-func (a sockAddr) To4() (addr sockAddr4, ok bool) {
-	if len(a.SrcIP) != 4 {
-		return
+// sampleSockAddr returns a sockAddr for the given sample from C.
+func sampleSockAddr(s C.struct_sample) (addr sockAddr) {
+	var sa, da netip.Addr
+	switch s.family {
+	case unix.AF_INET:
+		var b [4]byte
+		for i := 0; i < 4; i++ {
+			b[i] = byte(s.saddr[i])
+		}
+		sa = netip.AddrFrom4(b)
+		for i := 0; i < 4; i++ {
+			b[i] = byte(s.daddr[i])
+		}
+		da = netip.AddrFrom4(b)
+	case unix.AF_INET6:
+		var b [16]byte
+		for i := 0; i < 16; i++ {
+			b[i] = byte(s.saddr[i])
+		}
+		sa = netip.AddrFrom16(b)
+		for i := 0; i < 16; i++ {
+			b[i] = byte(s.daddr[i])
+		}
+		da = netip.AddrFrom16(b)
 	}
-	copy(addr.SrcIP[:], a.SrcIP)
-	addr.SrcPort = a.SrcPort
-	copy(addr.DstIP[:], a.DstIP)
-	addr.DstPort = a.DstPort
-	ok = true
+	addr.Src = netip.AddrPortFrom(sa, uint16(s.sport))
+	addr.Dst = netip.AddrPortFrom(da, uint16(s.dport))
 	return
 }
 
-// To4 returns sockAddr as a sockAddr6. The return parameter ok is false if this
-// is not an IPv6 address.
-func (a sockAddr) To6() (addr sockAddr6, ok bool) {
-	if len(a.SrcIP) != 16 {
-		return
-	}
-	copy(addr.SrcIP[:], a.SrcIP)
-	addr.SrcPort = a.SrcPort
-	copy(addr.DstIP[:], a.DstIP)
-	addr.DstPort = a.DstPort
-	ok = true
-	return
+// Is4 returns true if this is an IPv4 sockAddr.
+func (a sockAddr) Is4() bool {
+	return a.Src.Addr().Is4()
 }
 
 func (a sockAddr) String() string {
-	return fmt.Sprintf("sockAddr[%s:%d %s:%d]",
-		a.SrcIP, a.SrcPort, a.DstIP, a.DstPort)
-}
-
-// sockAddr4 contains an IPv4 socket address.
-type sockAddr4 struct {
-	SrcIP   [4]byte
-	SrcPort int
-	DstIP   [4]byte
-	DstPort int
-}
-
-// sampleSockAddr4 returns a sockAddr4 for the given sample from C.
-func sampleSockAddr4(s C.struct_sample) (addr sockAddr4) {
-	for i := 0; i < 4; i++ {
-		addr.SrcIP[i] = byte(s.saddr[i])
-	}
-	addr.SrcPort = int(s.sport)
-	for i := 0; i < 4; i++ {
-		addr.DstIP[i] = byte(s.daddr[i])
-	}
-	addr.DstPort = int(s.dport)
-	return
-}
-
-func (a sockAddr4) String() string {
-	return fmt.Sprintf("sockAddr4[%s:%d %s:%d]",
-		net.IP(a.SrcIP[:]), a.SrcPort, net.IP(a.DstIP[:]), a.DstPort)
-}
-
-// sockAddr6 contains an IPv6 socket address.
-type sockAddr6 struct {
-	SrcIP   [16]byte
-	SrcPort int
-	DstIP   [16]byte
-	DstPort int
-}
-
-// sampleSockAddr6 returns a sockAddr6 for the given sample from C.
-func sampleSockAddr6(s C.struct_sample) (addr sockAddr6) {
-	for i := 0; i < 16; i++ {
-		addr.SrcIP[i] = byte(s.saddr[i])
-	}
-	addr.SrcPort = int(s.sport)
-	for i := 0; i < 16; i++ {
-		addr.DstIP[i] = byte(s.daddr[i])
-	}
-	addr.DstPort = int(s.dport)
-	return
-}
-
-func (a sockAddr6) String() string {
-	return fmt.Sprintf("sockAddr6[%s:%d %s:%d]",
-		net.IP(a.SrcIP[:]), a.SrcPort, net.IP(a.DstIP[:]), a.DstPort)
+	return fmt.Sprintf("sockAddr[Src:%s Dst:%s]", a.Src, a.Dst)
 }

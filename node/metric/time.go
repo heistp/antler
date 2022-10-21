@@ -3,7 +3,10 @@
 
 package metric
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Tinit is the base time used for RelativeTime values.
 var Tinit = time.Now()
@@ -29,4 +32,8 @@ func Now() RelativeTime {
 // Relative returns the RelativeTime for t, with Tinit as a base.
 func Relative(t time.Time) RelativeTime {
 	return RelativeTime(t.Sub(Tinit))
+}
+
+func (r RelativeTime) String() string {
+	return fmt.Sprintf("RelativeTime[%s]", time.Duration(r))
 }

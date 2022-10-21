@@ -330,7 +330,7 @@ func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
 	return
 }
 
-// saveData is an reporter that saves all data using gob to the named file.
+// saveData is a reporter that saves all data using gob to the named file.
 type saveData struct {
 	name string
 }

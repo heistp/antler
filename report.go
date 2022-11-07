@@ -54,6 +54,7 @@ type Report struct {
 // reporters is a union of the available reporters.
 type reporters struct {
 	EmitLog          *EmitLog
+	EmitTCPInfo      *EmitTCPInfo
 	ExecuteTemplate  *ExecuteTemplate
 	ChartsFCT        *ChartsFCT
 	ChartsTimeSeries *ChartsTimeSeries
@@ -65,6 +66,8 @@ func (r *reporters) reporter() reporter {
 	switch {
 	case r.EmitLog != nil:
 		return r.EmitLog
+	case r.EmitTCPInfo != nil:
+		return r.EmitTCPInfo
 	case r.ExecuteTemplate != nil:
 		return r.ExecuteTemplate
 	case r.ChartsFCT != nil:
@@ -222,6 +225,64 @@ func (l *EmitLog) reportOne(in reportIn) (err error) {
 		case node.LogEntry, node.Error:
 			for _, w := range ww {
 				if _, err = fmt.Fprintln(w, v); err != nil {
+					return
+				}
+			}
+		}
+	}
+	return
+}
+
+// EmitTCPInfo is a reporter that emits TCPInfo to files and/or stdout.
+type EmitTCPInfo struct {
+	// To lists the destinations to send output to. "-" sends output to stdout,
+	// and everything else sends output to the named file. If To is empty,
+	// output is emitted to stdout.
+	To []string
+}
+
+// report implements reporter
+func (l *EmitTCPInfo) report(in reportIn) {
+	var f simpleReportFunc = l.reportOne
+	f.report(in)
+}
+
+// reportOne runs one EmitTCPInfo reporter.
+func (l *EmitTCPInfo) reportOne(in reportIn) (err error) {
+	var ff []*os.File
+	defer func() {
+		for _, f := range ff {
+			f.Close()
+		}
+	}()
+	ww := []io.Writer{os.Stdout}
+	if len(l.To) > 0 {
+		ww = ww[:0]
+		for _, s := range l.To {
+			if s == "-" {
+				ww = append(ww, os.Stdout)
+				continue
+			}
+			n := in.test.outPath(s)
+			var f *os.File
+			if f, err = os.Create(n); err != nil {
+				return
+			}
+			ww = append(ww, f)
+			ff = append(ff, f)
+		}
+	}
+	var a analysis
+	for d := range in.data {
+		switch v := d.(type) {
+		case analysis:
+			a = v
+		}
+	}
+	for _, sa := range a.streams.byTime() {
+		for _, i := range sa.TCPInfo {
+			for _, w := range ww {
+				if _, err = fmt.Fprintln(w, i); err != nil {
 					return
 				}
 			}

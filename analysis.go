@@ -39,6 +39,9 @@ func (y *analysis) add(a interface{}) {
 		} else {
 			s.Rcvd = append(s.Rcvd, v)
 		}
+	case node.TCPInfo:
+		s := y.streams.analysis(v.Flow)
+		s.TCPInfo = append(s.TCPInfo, v)
 	case node.PacketInfo:
 		p := y.packets.analysis(v.Flow)
 		if v.Server {
@@ -152,6 +155,11 @@ func (m *streams) synchronize(start time.Time) {
 			io := &r.Rcvd[i]
 			t := io.T.Time(r.Server.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
+		}
+		for i := 0; i < len(r.TCPInfo); i++ {
+			n := &r.TCPInfo[i]
+			t := n.T.Time(r.Server.Tinit)
+			n.T = metric.RelativeTime(t.Sub(start))
 		}
 	}
 }

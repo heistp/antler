@@ -222,7 +222,7 @@ Run: #TestRun
 				...
 			}
 			"1": {
-				title: string | *"Cwnd"
+				title: string | *"CWND"
 				titleTextStyle: {
 					italic: bool | *false
 					...

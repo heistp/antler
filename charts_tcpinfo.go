@@ -87,7 +87,7 @@ func (n *ChartsTCPInfo) data(san []streamAnalysis) (data chartsData) {
 		if ll, ok := n.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		h.addColumn(l + " Retransmits")
+		h.addColumn(l + " Retransmit Rate")
 	}
 	for _, d := range san {
 		l := string(d.Client.Flow)

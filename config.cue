@@ -205,7 +205,7 @@ Run: #TestRun
 		//curveType: "function",
 		vAxes: {
 			"0": {
-				title: string | *"Total Retransmits"
+				title: string | *"Cum. Avg. Retransmit Rate (rtx/sec)"
 				titleTextStyle: {
 					italic: bool | *false
 					...
@@ -222,7 +222,7 @@ Run: #TestRun
 				...
 			}
 			"1": {
-				title: string | *"CWND"
+				title: string | *"CWND (units of MSS)"
 				titleTextStyle: {
 					italic: bool | *false
 					...

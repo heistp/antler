@@ -75,15 +75,15 @@ func (y *analysis) analyze() {
 
 // streamAnalysis contains the data and calculated stats for a stream.
 type streamAnalysis struct {
-	Client  node.StreamInfo
-	Server  node.StreamInfo
-	Sent    []node.StreamIO
-	Rcvd    []node.StreamIO
-	TCPInfo []node.TCPInfo
-	Goodput []goodput
-	RtxRate []rtxRate
-	FCT     metric.Duration
-	Length  metric.Bytes
+	Client    node.StreamInfo
+	Server    node.StreamInfo
+	Sent      []node.StreamIO
+	Rcvd      []node.StreamIO
+	TCPInfo   []node.TCPInfo
+	Goodput   []goodput
+	RtxCumAvg []rtxCumAvg
+	FCT       metric.Duration
+	Length    metric.Bytes
 }
 
 // T0 returns the earliest absolute time from Sent or Rcvd.
@@ -113,13 +113,14 @@ type goodput struct {
 	Goodput metric.Bitrate
 }
 
-// rtxRate is a single retransmission rate data point.
-type rtxRate struct {
+// rtxCumAvg is a single cumulative average retransmission data point.
+type rtxCumAvg struct {
 	// T is the time relative to the start of the earliest stream.
 	T metric.RelativeTime
 
-	// RtxRate is the retransmission rate, in retransmissions / sec.
-	RtxRate float64
+	// RtxCumAvg is the cumulative average retransmission rate, in
+	// retransmissions / sec.
+	RtxCumAvg float64
 }
 
 // streams aggregates data for multiple streams.
@@ -188,16 +189,10 @@ func (m *streams) analyze() {
 			s.Goodput = append(s.Goodput, goodput{r.T, g})
 			pr = r
 		}
-		var pt node.TCPInfo
-		for i := 0; i < len(s.TCPInfo)-1; i++ {
+		for i := 0; i < len(s.TCPInfo); i++ {
 			t := s.TCPInfo[i]
-			var r float64
-			if pt != (node.TCPInfo{}) {
-				r = float64(t.TotalRetransmits-pt.TotalRetransmits) /
-					time.Duration(t.T-pt.T).Seconds()
-			}
-			s.RtxRate = append(s.RtxRate, rtxRate{t.T, r})
-			pt = t
+			r := float64(t.TotalRetransmits) / t.T.Duration().Seconds()
+			s.RtxCumAvg = append(s.RtxCumAvg, rtxCumAvg{t.T, r})
 		}
 		s.FCT = metric.Duration(s.Rcvd[len(s.Rcvd)-1].T - s.Sent[0].T)
 		s.Length = s.Rcvd[len(s.Rcvd)-1].Total

@@ -87,32 +87,17 @@ func (n *ChartsTCPInfo) data(san []streamAnalysis) (data chartsData) {
 		if ll, ok := n.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		h.addColumn(l + " Retransmit Rate")
+		h.addColumn(l + " CWND")
 	}
 	for _, d := range san {
 		l := string(d.Client.Flow)
 		if ll, ok := n.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		h.addColumn(l + " CWND")
+		h.addColumn(l + " Retransmit Rate")
 	}
 	data.addRow(h)
 	for i, d := range san {
-		for _, x := range d.RtxCumAvg {
-			var r chartsRow
-			r.addColumn(x.T.Duration().Seconds())
-			for j := 0; j < len(san); j++ {
-				if j != i {
-					r.addColumn(nil)
-					continue
-				}
-				r.addColumn(x.RtxCumAvg)
-			}
-			for j := 0; j < len(san); j++ {
-				r.addColumn(nil)
-			}
-			data.addRow(r)
-		}
 		for _, n := range d.TCPInfo {
 			var r chartsRow
 			r.addColumn(n.T.Duration().Seconds())
@@ -125,6 +110,21 @@ func (n *ChartsTCPInfo) data(san []streamAnalysis) (data chartsData) {
 					continue
 				}
 				r.addColumn(n.SendCwnd)
+			}
+			data.addRow(r)
+		}
+		for _, x := range d.RtxCumAvg {
+			var r chartsRow
+			r.addColumn(x.T.Duration().Seconds())
+			for j := 0; j < len(san); j++ {
+				if j != i {
+					r.addColumn(nil)
+					continue
+				}
+				r.addColumn(x.RtxCumAvg)
+			}
+			for j := 0; j < len(san); j++ {
+				r.addColumn(nil)
 			}
 			data.addRow(r)
 		}

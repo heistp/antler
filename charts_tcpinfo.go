@@ -88,7 +88,7 @@ func (n *ChartsTCPInfo) data(san []streamAnalysis) (data chartsData) {
 			l = ll
 		}
 		h.addColumn(l + " Retransmits")
-		h.addColumn(l + " Cwnd")
+		h.addColumn(l + " CWND")
 	}
 	data.addRow(h)
 	for i, d := range san {

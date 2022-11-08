@@ -55,6 +55,8 @@ Run: #TestRun
 	} | {
 		ChartsTimeSeries?: #ChartsTimeSeries
 	} | {
+		ChartsTCPInfo?: #ChartsTCPInfo
+	} | {
 		ChartsFCT?: #ChartsFCT
 	} | {
 		SaveFiles?: #SaveFiles
@@ -129,6 +131,98 @@ Run: #TestRun
 			}
 			"1": {
 				title: string | *"Delay (ms)"
+				titleTextStyle: {
+					italic: bool | *false
+					...
+				}
+				viewWindow: {
+					min: float | *0
+					...
+				}
+				baselineColor: string | *"#cccccc"
+				gridlines: {
+					color: string | *"transparent"
+					...
+				}
+				...
+			}
+			...
+		}
+		hAxis: {
+			title: string | *"Time (sec)"
+			titleTextStyle: {
+				italic: bool | *false
+				...
+			}
+			viewWindow: {
+				min: int | *0
+				...
+			}
+			baselineColor: string | *"#cccccc"
+			gridlines: {
+				color: string | *"transparent"
+				...
+			}
+			...
+		}
+		chartArea: {
+			backgroundColor: string | *"#f7f7f7"
+			top:             int | *100
+			width:           string | *"80%"
+			//left:            int | *75
+			//height:          string | *"75%"
+			...
+		}
+		explorer: {
+			actions:   [...string] | *["dragToZoom", "rightClickToReset"]
+			maxZoomIn: float | *0.001
+			...
+		}
+		...
+	}
+}
+
+// antler.ChartsTCPInfo runs a Go template to create a time series plot using
+// Google Charts containing two axes, with the cwnd and retransmission rate.
+// The Options field may be used to set any Configuration Options that Google
+// Charts supports:
+//
+// https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+#ChartsTCPInfo: {
+	FlowLabel?: {
+		[=~".*"]: string
+	}
+	To:      [string & !="", ...string & !=""] | *["tcpinfo.html"]
+	Options: {...} & {
+		title: string | *"TCP Info"
+		titleTextStyle: {
+			fontSize: 18
+			...
+		}
+		width:     1280
+		height:    720
+		lineWidth: 1
+		//curveType: "function",
+		vAxes: {
+			"0": {
+				title: string | *"Retransmission Rate (rtx/sec)"
+				titleTextStyle: {
+					italic: bool | *false
+					...
+				}
+				viewWindow: {
+					min: float | *0
+					...
+				}
+				baselineColor: string | *"#cccccc"
+				gridlines: {
+					color: string | *"transparent"
+					...
+				}
+				...
+			}
+			"1": {
+				title: string | *"Cwnd"
 				titleTextStyle: {
 					italic: bool | *false
 					...

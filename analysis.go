@@ -81,6 +81,7 @@ type streamAnalysis struct {
 	Rcvd    []node.StreamIO
 	TCPInfo []node.TCPInfo
 	Goodput []goodput
+	RtxRate []rtxRate
 	FCT     metric.Duration
 	Length  metric.Bytes
 }
@@ -110,6 +111,15 @@ type goodput struct {
 
 	// Goodput is the goodput bitrate.
 	Goodput metric.Bitrate
+}
+
+// rtxRate is a single retransmission rate data point.
+type rtxRate struct {
+	// T is the time relative to the start of the earliest stream.
+	T metric.RelativeTime
+
+	// RtxRate is the retransmission rate, in retransmissions / sec.
+	RtxRate float64
 }
 
 // streams aggregates data for multiple streams.
@@ -177,6 +187,17 @@ func (m *streams) analyze() {
 			}
 			s.Goodput = append(s.Goodput, goodput{r.T, g})
 			pr = r
+		}
+		var pt node.TCPInfo
+		for i := 0; i < len(s.TCPInfo)-1; i++ {
+			t := s.TCPInfo[i]
+			var r float64
+			if pt != (node.TCPInfo{}) {
+				r = float64(t.TotalRetransmits-pt.TotalRetransmits) /
+					time.Duration(t.T-pt.T).Seconds()
+			}
+			s.RtxRate = append(s.RtxRate, rtxRate{t.T, r})
+			pt = t
 		}
 		s.FCT = metric.Duration(s.Rcvd[len(s.Rcvd)-1].T - s.Sent[0].T)
 		s.Length = s.Rcvd[len(s.Rcvd)-1].Total

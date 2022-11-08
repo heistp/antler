@@ -58,6 +58,7 @@ type reporters struct {
 	ExecuteTemplate  *ExecuteTemplate
 	ChartsFCT        *ChartsFCT
 	ChartsTimeSeries *ChartsTimeSeries
+	ChartsTCPInfo    *ChartsTCPInfo
 	SaveFiles        *SaveFiles
 }
 
@@ -74,6 +75,8 @@ func (r *reporters) reporter() reporter {
 		return r.ChartsFCT
 	case r.ChartsTimeSeries != nil:
 		return r.ChartsTimeSeries
+	case r.ChartsTCPInfo != nil:
+		return r.ChartsTCPInfo
 	case r.SaveFiles != nil:
 		return r.SaveFiles
 	default:

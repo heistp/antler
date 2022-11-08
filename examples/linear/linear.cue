@@ -41,8 +41,7 @@ _linearTest: {
 		{EmitLog: {To: ["node.log", "-"]}},
 		{EmitTCPInfo: {To: ["tcpinfo.txt"]}},
 		{SaveFiles: {}},
-		{ChartsTimeSeries: {
-			To: ["timeseries.html"]
+		{ChartsTCPInfo: {
 			FlowLabel: {
 				"linear-a": "Linear-A"
 				"linear-b": "Linear-B"
@@ -52,7 +51,22 @@ _linearTest: {
 				title: "\(FlowLabel[_cca]) / \(#rtt)ms Path RTT / \(#qdisc)"
 				vAxes: {
 					"0": viewWindow: {
-						max: 55
+						max: 500
+					}
+					"1": viewWindow: {
+						max: 500
+					}
+				}
+				series: {
+					"0": {
+						//lineWidth: 0
+						//pointSize: 0.2
+					}
+					"1": {
+						targetAxisIndex: 1
+						//lineWidth:       0
+						//pointSize: 0.2
+						//color: "#4f9634"
 					}
 				}
 			}

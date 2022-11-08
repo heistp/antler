@@ -89,18 +89,32 @@ func (n *ChartsTCPInfo) data(san []streamAnalysis) (data chartsData) {
 		}
 		h.addColumn(l)
 	}
+	/*
+		for _, d := range san {
+			l := string(d.Client.Flow)
+			if ll, ok := n.FlowLabel[d.Client.Flow]; ok {
+				l = ll
+			}
+			h.addColumn(l)
+		}
+	*/
 	data.addRow(h)
 	for i, d := range san {
-		for _, x := range d.RtxRate {
+		for _, n := range d.TCPInfo {
 			var r chartsRow
-			r.addColumn(x.T.Duration().Seconds())
+			r.addColumn(n.T.Duration().Seconds())
 			for j := 0; j < len(san); j++ {
 				if j != i {
 					r.addColumn(nil)
 					continue
 				}
-				r.addColumn(x.RtxRate)
+				r.addColumn(n.TotalRetransmits)
 			}
+			/*
+				for j := 0; j < len(san); j++ {
+					r.addColumn(nil)
+				}
+			*/
 			data.addRow(r)
 		}
 	}

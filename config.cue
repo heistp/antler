@@ -205,7 +205,7 @@ Run: #TestRun
 		//curveType: "function",
 		vAxes: {
 			"0": {
-				title: string | *"Retransmission Rate (rtx/sec)"
+				title: string | *"Total Retransmits"
 				titleTextStyle: {
 					italic: bool | *false
 					...

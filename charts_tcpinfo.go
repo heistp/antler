@@ -102,14 +102,14 @@ func (n *ChartsTCPInfo) data(san []streamAnalysis) (data chartsData) {
 			var r chartsRow
 			r.addColumn(n.T.Duration().Seconds())
 			for j := 0; j < len(san); j++ {
-				r.addColumn(nil)
-			}
-			for j := 0; j < len(san); j++ {
 				if j != i {
 					r.addColumn(nil)
 					continue
 				}
 				r.addColumn(n.SendCwnd)
+			}
+			for j := 0; j < len(san); j++ {
+				r.addColumn(nil)
 			}
 			data.addRow(r)
 		}
@@ -117,14 +117,14 @@ func (n *ChartsTCPInfo) data(san []streamAnalysis) (data chartsData) {
 			var r chartsRow
 			r.addColumn(x.T.Duration().Seconds())
 			for j := 0; j < len(san); j++ {
+				r.addColumn(nil)
+			}
+			for j := 0; j < len(san); j++ {
 				if j != i {
 					r.addColumn(nil)
 					continue
 				}
 				r.addColumn(x.RtxCumAvg)
-			}
-			for j := 0; j < len(san); j++ {
-				r.addColumn(nil)
 			}
 			data.addRow(r)
 		}

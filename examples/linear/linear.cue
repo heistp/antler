@@ -48,13 +48,13 @@ _linearTest: {
 				"linear-c": "Linear-C"
 			}
 			Options: {
-				title: "\(FlowLabel[_cca]) / \(#rtt)ms Path RTT / \(#qdisc)"
+				title: "TCP \(FlowLabel[_cca]) CWND and Retransmission Rate / \(#rtt)ms Path RTT / \(#qdisc)"
 				vAxes: {
 					"0": viewWindow: {
-						max: 500
+						max: 200
 					}
 					"1": viewWindow: {
-						max: 500
+						max: 250
 					}
 				}
 				series: {

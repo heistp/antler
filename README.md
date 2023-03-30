@@ -56,7 +56,7 @@ Root access is required to create network namespaces.
 The antler binary must be in your PATH, or the full path must be specified.
 Typically, you add ~/go/bin to your PATH so you can run binaries installed by
 Go. *Note:* if using sudo and the `secure_path` option is set in /etc/sudoers,
-either this must be removed, or additional configuration is required.
+either this must be added to that path, or additional configuration is required.
 
 All configuration is in the .cue file. After running the examples, you'll 
 typically have gob files, pcaps and an HTML plot.
@@ -90,58 +90,58 @@ examples.
 ## Status
 
 As of version 0.3.0-beta, the node is working, along with some basic tests and
-visualizations. The [Roadmap](#roadmap) lists what should be completed before
-upcoming releases.
+visualizations. The [Roadmap](#roadmap) shows future plans.
 
-Long term, more work is needed on functionality of the tests themselves,
-stabilizing the config and data formats, and supporting platforms other than
-Linux.
+TODO
+
+More work is needed on the tests and visualizations, stabilizing the config and
+data formats, and supporting platforms other than Linux.
 
 ## Roadmap
 
-### Version 0.3.0
+### Version 1.0.0
 
-- add README template and sceaqm links for bursty vs non-bursty results
-- add support for sampling Linux socket stats via netlink
-  (like [cgmon](https://github.com/heistp/cgmon))
-- test the SSH launcher and add an example of its use
-- add sudo support to the SSH launcher, instead of requiring root for netns
-- record packet replies and calculate RTT for packet flows
-- handle node data properly both with and without node-synchronized time
-- detect lost and late (out-of-order) packets in packet flows, and flag with
-  altered symbology in time series plot
-- ChartsTimeSeries: automatically add one or both Y axes based on the data
-  series present in the Test
-- rename EmitLog reporter to Log, and add sorting by time for saved log files
-- verify CUE disjunctions are used properly for union types
+- add standard reports for each test:
+  - node logs and system information
+  - time series and FCT plots
+  - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
+  - an HTML index of tests and results
+- add support for sampling Linux socket stats via netlink (in C)
+- implement incremental test runs using hard links
+- implement timeouts, both for runners and the node control connection
+- complete the SSH launcher, with sudo support, and add an example of its use
+- for packet flows:
+  - record replies and calculate RTT
+  - detect lost and late (out of order) packets
+- handle tests both with and without node-synchronized time
+- add support for setting arbitary sockopts
+- rename EmitLog Reporter to Log, and add sorting by time for saved log files
+- optionally secure the servers for public use using a three-way handshake
+- add compression support for System runner FileData output
+- make UDP flood more efficient
+- add an antler _init_ command to create a default project
+- write documentation (in markdown)
 
-### Future, Maybe
+### Inbox
 
 #### Features
 
-- add an HTML index of tests and results
-- auto-detect node platforms
-- add report type with standard output for each test:
-  - node logs and system information
-  - descriptive details for test
-  - time series and FCT plots, with navigation controls
-  - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
-- add support for setting arbitary sockopts
-- add support for simulating conversational stream protocols, and for this,
-  refactor the sample and orientation fields in StreamClient/Server
 - implement flagForward optimization, and maybe invert it to flagProcess
-- protect public servers with three-way handshake for packet protocols and
-  simple authentication for stream protocols
-- add compression support for System runner FileData output
-- add more plotting templates, e.g. for plotly, Gnuplot and xplot
+- add support for simulating conversational stream protocols
+- consider adding more plotting templates, e.g. for plotly, Gnuplot and xplot
 - implement traffic generators in C
-- write full documentation
+- show bandwidth for FCT distribution
+- add support for messages between nodes for runner coordination
+- find a better way than unions to create interface implementations from CUE
+- share more CUE code in examples, especially for netns rig setups
 - support MacOS
 - support FreeBSD
 
 #### Bugs
 
-- improve poor error messages from CUE for syntax errors under disjunctions
+- fix that tests are not canceled until the second interrupt
+- improve poor error messages from CUE for syntax errors under disjunctions, and
+  verify disjunctions are used properly for union types
 - return errors immediately on failed sets of CCA / sockopts, instead of
   waiting until the end of the test
 - figure out why packets from tcpdump may be lost without a one-second post-test
@@ -150,14 +150,6 @@ Linux.
 - network namespaces may be deleted before runners have completed, for example
   if a middlebox is canceled and terminated before the endpoints have completed-
   possibly add an additional node state during cancellation to handle this
-
-#### Architecture
-
-- find a better way than unions to create interface implementations from CUE
-- handle timeouts consistently, both for runners and the node control connection
-- add antler init command to save config schema and defaults?
-- share more CUE code in examples, especially for netns rig setups
-- design some way to implement incremental test runs, perhaps using hard links
 
 ## Thanks
 

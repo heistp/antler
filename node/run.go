@@ -309,7 +309,7 @@ func (r *Runners) do(ctx context.Context, arg runArg, ev chan event) (
 // runner interface and related types
 //
 
-// runner is the interface that wraps the run method. runners are passed to a
+// runner is the interface that wraps the Run method. runners are passed to a
 // node for execution, and are used for all node calls, from child connection
 // setup, to test environment setup, to test clients and servers.
 //

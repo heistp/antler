@@ -37,7 +37,7 @@ func (l LogEntry) handle(node *node) {
 func (e LogEntry) String() string {
 	t := e.Text
 	if strings.Contains(t, "\n") {
-		t = "->\n" + t
+		t = "⏎\n" + t
 	}
 	return fmt.Sprintf("%s %s %s: %s", e.Time.Format(readableTimeFormat),
 		e.NodeID, e.Tag, t)

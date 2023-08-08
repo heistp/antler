@@ -144,8 +144,10 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 		return
 	}
 	c.Run(rn, r.Feedback, rc)
-	data <- LogEntry{time.Now(), RootNodeID, "feedback",
-		fmt.Sprintf("feedback: %s", (<-rc).Feedback)}
+	if k := (<-rc).Feedback; len(k) > 0 {
+		data <- LogEntry{time.Now(), RootNodeID, "feedback",
+			fmt.Sprintf("feedback: %s", k)}
+	}
 	return
 }
 

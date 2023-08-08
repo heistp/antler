@@ -12,6 +12,7 @@ examples/**/*.html
 examples/**/*.log
 examples/**/*.pcap
 examples/**/*.txt
+examples/**/*.bin
 examples/fct/fct.cue
 
 # node/bin directory

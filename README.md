@@ -131,8 +131,11 @@ data formats, and supporting platforms other than Linux.
 
 #### Bugs
 
+- stream everything by default in root node
 - test for heap retention when streaming FileData
-- remove hard-coded emitting of feedback
+- reconsider semantics for System.Stdout and Stderr
+- return error when trying to write FileData to absolute paths
+- improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)
 - fix that tests may not be canceled until the second interrupt
 - return errors immediately on failed sets of CCA / sockopts, instead of
   waiting until the end of the test

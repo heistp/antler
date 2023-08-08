@@ -49,6 +49,7 @@ func (l *Local) launch(node Node, log logFunc) (tr transport, err error) {
 	c.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
+	c.Env = node.Env.vars()
 	log("%s", c)
 	var nc *nodeCmd
 	if nc, err = newNodeCmd(c, cl, log); err != nil {

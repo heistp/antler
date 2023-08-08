@@ -37,6 +37,10 @@ func (s *SSH) launch(node Node, log logFunc) (tr transport, err error) {
 		err = fmt.Errorf("Netns not supported with the SSH launcher")
 		return
 	}
+	if len(node.Env.Vars) > 0 {
+		err = fmt.Errorf("Env not supported with the SSH launcher")
+		return
+	}
 	var script string
 	if script, err = executeSSHTemplate(node); err != nil {
 		return

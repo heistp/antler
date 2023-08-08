@@ -8,32 +8,33 @@ package node
 type tree map[Node]tree
 
 // newTree returns a tree of Nodes used in the given Run tree.
-func newTree(run *Run) (ntree tree) {
-	ntree = make(map[Node]tree)
-	buildTree(run, ntree)
+func newTree(run *Run) (t tree) {
+	t = make(map[Node]tree)
+	buildTree(run, t)
 	return
 }
 
 // buildTree is called recursively to create a Node tree.
-func buildTree(run *Run, ntree tree) {
+func buildTree(run *Run, tre tree) {
 	switch {
 	case len(run.Serial) > 0:
 		for _, r := range run.Serial {
-			buildTree(&r, ntree)
+			buildTree(&r, tre)
 		}
 	case len(run.Parallel) > 0:
 		for _, r := range run.Parallel {
-			buildTree(&r, ntree)
+			buildTree(&r, tre)
 		}
 	case run.Child != nil:
 		var ok bool
 		var t tree
-		if t, ok = ntree[run.Child.Node]; !ok {
+		if t, ok = tre[run.Child.Node]; !ok {
 			t = make(map[Node]tree)
-			ntree[run.Child.Node] = t
+			tre[run.Child.Node] = t
 		}
 		buildTree(&run.Child.Run, t)
 	}
+	return
 }
 
 // Platforms returns a list of unique Platforms for each Node in the tree.
@@ -51,13 +52,8 @@ func (t tree) Platforms() (platform []string) {
 
 // walk calls the given visitor func for each Node in this tree.
 func (t tree) walk(visitor func(Node)) {
-	walkTree(t, visitor)
-}
-
-// walkTree calls the given visitor func for each Node in the given tree.
-func walkTree(ntree tree, visitor func(Node)) {
-	for n, r := range ntree {
+	for n, r := range t {
 		visitor(n)
-		walkTree(r, visitor)
+		r.walk(visitor)
 	}
 }

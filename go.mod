@@ -5,7 +5,7 @@ go 1.17
 require (
 	cuelang.org/go v0.5.0
 	github.com/spf13/cobra v1.4.0
-	golang.org/x/sys v0.10.0
+	golang.org/x/sys v0.11.0
 	gonum.org/v1/gonum v0.13.0
 )
 
@@ -21,8 +21,8 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.4.0 // indirect
 	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b // indirect
-	golang.org/x/net v0.13.0 // indirect
-	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/text v0.12.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -122,6 +122,28 @@ data formats, and supporting platforms other than Linux.
 - add an antler _init_ command to create a default project
 - write documentation (in markdown)
 
+### Version 0.3.0
+
+#### Features
+
+- refactor examples to share common setup
+  - add explicit htb quantum
+
+#### Bugs
+
+- test for heap retention when streaming FileData
+- remove hard-coded emitting of feedback
+- fix that tests may not be canceled until the second interrupt
+- return errors immediately on failed sets of CCA / sockopts, instead of
+  waiting until the end of the test
+- figure out why packets from tcpdump may be lost without a one-second post-test
+  sleep (maybe buffering, but shouldn't SIGINT flush that? is this a result of
+  the network namespaces teardown issue below?)
+- network namespaces may be deleted before runners have completed, for example
+  if a middlebox is canceled and terminated before the endpoints have completed-
+  possibly add an additional node state during cancellation to handle this
+- fix poor CUE error when Env length > max (Run.Test: field not allowed)
+
 ### Inbox
 
 #### Features
@@ -139,17 +161,8 @@ data formats, and supporting platforms other than Linux.
 
 #### Bugs
 
-- fix that tests are not canceled until the second interrupt
 - improve poor error messages from CUE for syntax errors under disjunctions, and
   verify disjunctions are used properly for union types
-- return errors immediately on failed sets of CCA / sockopts, instead of
-  waiting until the end of the test
-- figure out why packets from tcpdump may be lost without a one-second post-test
-  sleep (maybe buffering, but shouldn't SIGINT flush that? is this a result of
-  the network namespaces teardown issue below?)
-- network namespaces may be deleted before runners have completed, for example
-  if a middlebox is canceled and terminated before the endpoints have completed-
-  possibly add an additional node state during cancellation to handle this
 
 ## Thanks
 

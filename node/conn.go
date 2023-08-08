@@ -315,7 +315,7 @@ type connDone struct {
 
 // handle implements event
 func (c connDone) handle(node *node) {
-	if c.to.parent() {
+	if c.to == ParentNode {
 		node.parentDone = true
 		return
 	}

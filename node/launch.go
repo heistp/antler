@@ -26,15 +26,18 @@ type launcher interface {
 	launch(Node, logFunc) (transport, error)
 }
 
-// Node represents the information needed to launch a node. It must stay a value
-// object with no pointer fields, so Nodes may be compared and used as map keys.
-//
-// The zero value for Node is used for the parent Node.
+// ParentNode defines the parent Node (the zero Node value).
+var ParentNode = Node{}
+
+// Node represents the information needed to launch a node. This struct must
+// remain a valid map key (see https://go.dev/blog/maps#key-types). A zero Node
+// value represents the parent node.
 type Node struct {
 	ID       string    // identifies the Node
 	Platform string    // the Node's platform (e.g. linux-amd64)
 	Launcher launchers // union of available launchers
 	Netns    Netns     // parameters for Linux network namespaces
+	Env      Env       // process environment
 }
 
 // launch installs and starts the Node, and returns a transport connected to it
@@ -44,19 +47,8 @@ func (n Node) launch(log logFunc) (transport, error) {
 	return n.Launcher.launcher().launch(n, log)
 }
 
-// zero returns true if this Node is equal to the zero value.
-func (n Node) zero() bool {
-	return n == (Node{})
-}
-
-// parent returns true if this Node represents the parent Node.
-func (n Node) parent() bool {
-	return n.zero()
-}
-
-// String returns the Node ID, or "parent" for the parent node.
 func (n Node) String() string {
-	if n.parent() {
+	if n == ParentNode {
 		return "parent"
 	}
 	return n.ID
@@ -97,6 +89,35 @@ type Netns struct {
 // zero returns true if this Netns is the zero value.
 func (n Netns) zero() bool {
 	return n == Netns{}
+}
+
+// EnvMax is the maximum number of allowed environment variables for a Node.
+// This must be kept in sync with the length restriction in config.cue.
+const EnvMax = 8
+
+// Env specifies the environment of the node process.
+type Env struct {
+	// Vars lists the environment variables. Each entry must be of the form
+	// "key=value". This field is an array so Node can remain a valid map key.
+	Vars [EnvMax]string
+
+	// Inherit indicates whether to include the parent process's environment
+	// (true), or not (false).
+	Inherit bool
+}
+
+// vars returns Vars as a slice, without empty elements, and inheriting the
+// parent environment, if Inherit is true.
+func (n Env) vars() (s []string) {
+	if n.Inherit {
+		s = append(s, os.Environ()...)
+	}
+	for _, e := range n.Vars {
+		if e != "" {
+			s = append(s, e)
+		}
+	}
+	return
 }
 
 // An ExeSource provides contents and metadata for node executables.

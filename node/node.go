@@ -22,7 +22,7 @@ import (
 //
 // The Node has four states: run, cancel, canceled, and done.
 //
-// During run, the Node handles Runs from its parent Node. Setup establishes
+// During run, the node handles Runs from its parent node. Setup establishes
 // connections to zero or more child nodes, and run executes a Run tree,
 // sometimes using child nodes in the process.
 //
@@ -54,7 +54,7 @@ type node struct {
 // newNode returns a new node.
 func newNode(nodeID string, parent transport) *node {
 	ev := make(chan event)
-	p := newConn(parent, Node{})
+	p := newConn(parent, ParentNode)
 	return &node{
 		ev,                             // ev
 		make(chan run),                 // runc
@@ -92,12 +92,18 @@ const RootNodeID = "-"
 // Do is used by the antler package and executable.
 func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 	defer close(data)
-	f := ErrorFactory{RootNodeID, "execute"}
+	f := ErrorFactory{RootNodeID, "do"}
+	var err error
+	defer func() {
+		if err != nil {
+			data <- f.NewErrore(err)
+		}
+	}()
 	// run tree
 	t := newTree(rn)
-	x, e := newExes(src, t.Platforms())
-	if e != nil {
-		data <- f.NewErrore(e)
+	// executables
+	var x exes
+	if x, err = newExes(src, t.Platforms()); err != nil {
 		return
 	}
 	// root conn
@@ -119,7 +125,7 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 		}
 	}()
 	tr := newChannelTransport()
-	c := newConn(tr, Node{})
+	c := newConn(tr, ParentNode)
 	c.start(ev)
 	defer func() {
 		c.Cancel()

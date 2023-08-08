@@ -6,6 +6,8 @@
 
 package antler
 
+import "list"
+
 // Run is the top-level antler.TestRun, and only top-level concrete field.
 // Run consists of a hierarchy of TestRuns, and associated Reports.
 Run: #TestRun
@@ -413,18 +415,22 @@ Run: #TestRun
 	#Run
 }
 
-// node.Node contains the connection parameters for a node. ID is a string
-// identifier for the node. Platform defines the GOOS-GOARCH combination for
-// the node, e.g. linux-amd64. The specified platform must be built into the
-// antler binary (see the Makenode script). An exhaustive list of Go supported
-// platforms is here:
+// node.Node contains the connection parameters for a node.
+//
+// ID is a string identifier for the node.
+//
+// Platform defines the GOOS-GOARCH combination for the node, e.g. linux-amd64.
+// The specified platform must be built into the antler binary (see the
+// Makenode script). An exhaustive list of Go supported platforms is here:
 // https://github.com/golang/go/blob/master/src/go/build/syslist.go
-// Launchers and Netns are documented in their respective types.
+//
+// Launchers, Netns and Env are documented in their respective types.
 #Node: {
 	ID:       string & !=""
 	Platform: string & !=""
 	Launcher: #Launchers
 	Netns?:   #Netns
+	Env?:     #Env
 }
 
 // node.Launchers lists the available ways to start a node. For SSH, Destination
@@ -453,6 +459,19 @@ Run: #TestRun
 #Netns: {
 	Create?: bool
 	Name?:   string & !=""
+}
+
+// node.Env may be used to set environment variables for the node.
+//
+// Vars is a list of variables. Each entry must be in the form "key=value".
+// See https://pkg.go.dev/os/exec#Cmd. The maximum number of elements must be
+// respected, and kept in sync with the definition for Node.Env in Go.
+//
+// If Inherit is true (the default), the environment of the parent process is
+// included.
+#Env: {
+	Vars?:   [string, ...string] & list.MaxItems(8)
+	Inherit: bool | *true
 }
 
 // node.Runners lists the Runners available for execution. Each is documented

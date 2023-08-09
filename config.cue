@@ -8,8 +8,9 @@ package antler
 
 import "list"
 
-// Run is the top-level antler.TestRun, and only top-level concrete field.
-// Run consists of a hierarchy of TestRuns, and associated Reports.
+// Run is the top-level antler.TestRun, and consists of a hierarchy of TestRuns
+// and associated Reports. It is the only top-level concrete field, so the only
+// field that antler test packages must define.
 Run: #TestRun
 
 //
@@ -33,15 +34,24 @@ Run: #TestRun
 	Report?: [#Report, ...#Report]
 }
 
-// antler.Test defines a test to run. The given OutPath defines a base path for
-// output. If it ends in '/', it will be treated as a directory to create,
-// under which any output files will be placed. If not, it will be treated as a
-// base filename (with optional preceding path), and each output filename is
-// joined with this name using an '_' character to obtain the final filename.
+// antler.Test defines a test to run.
+//
+// OutPath defines a base path for output. If it ends in '/', it will be
+// treated as a directory to create, under which any output files will be
+// placed. If not, it will be treated as a base filename (with optional
+// preceding path), and each output filename is joined with this name using
+// an '_' character to obtain the final filename.
+//
+// DataFile sets the name of the gob file used to save the raw result data. If
+// empty, it will not be saved. In that case, the runtime overhead for saving
+// the raw data is avoided (a minimal gain), but the test must always be
+// re-run, and the report command to re-generate reports from existing results
+// will not work.
 //
 // Run defines the Run hierarchy, and is documented in more detail in #Run.
 #Test: {
-	OutPath: string & !="" | *"./"
+	OutPath:  string & !="" | *"./"
+	DataFile: string | *"data.gob"
 	#Run
 }
 

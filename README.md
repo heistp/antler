@@ -128,10 +128,10 @@ data formats, and supporting platforms other than Linux.
 
 - refactor examples to share common setup
   - add explicit htb quantum
+- set default log file and SaveFiles report in a common way
 
 #### Bugs
 
-- stream everything by default in root node
 - test for heap retention when streaming FileData
 - reconsider semantics for System.Stdout and Stderr
 - return error when trying to write FileData to absolute paths

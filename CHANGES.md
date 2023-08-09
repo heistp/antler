@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Added `vet` command for checking CUE config
 - Added support for setting node environment variables via Env CUE field
+- Add support for setting DataFile in Test
 
 ## 0.3.0-beta - 2022-10-13
 

@@ -7,6 +7,7 @@ package env
 
 // Run contains a single Test that emits test environment variables.
 Run: {
+	Test: DataFile: ""
 	Test: Child: {
 		Node: {
 			ID:       "envtest"

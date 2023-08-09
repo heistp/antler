@@ -16,10 +16,6 @@ import (
 	"github.com/heistp/antler/node"
 )
 
-// DataFile is the fixed name of the gob-encoded data file containing all the
-// results.
-const DataFile = "data.gob"
-
 // Run runs an Antler Command.
 func Run(cmd Command) error {
 	return cmd.run()
@@ -54,17 +50,20 @@ const dataChanBufSize = 64
 
 // do implements doer
 func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
-	g := test.outPath(DataFile)
-	var ok bool
-	if ok, err = c.check(g); err != nil {
-		return
-	}
-	if !ok {
-		fmt.Printf("%s already exists, skipping test (use -f to force)\n", g)
-		return
+	var g string
+	if test.DataFile != "" {
+		g = test.outPath(test.DataFile)
+		var ok bool
+		if ok, err = c.check(g); err != nil {
+			return
+		}
+		if !ok {
+			fmt.Printf("%s already exists, skipping test (use -f to force)\n", g)
+			return
+		}
+		rst.push([]reporter{&saveData{g}})
 	}
 	d := make(chan interface{}, dataChanBufSize)
-	rst.push([]reporter{&saveData{g}})
 	defer func() {
 		if e := rst.pop(); e != nil && err == nil {
 			err = e
@@ -107,7 +106,7 @@ func (r *ReportCommand) run() (err error) {
 
 // do implements doer
 func (*ReportCommand) do(test *Test, rst reporterStack) (err error) {
-	g := test.outPath(DataFile)
+	g := test.outPath(test.DataFile)
 	var f *os.File
 	if f, err = os.Open(g); err != nil {
 		return

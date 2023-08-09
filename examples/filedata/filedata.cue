@@ -7,6 +7,7 @@ package env
 
 // Run contains a single Test that streams data from /dev/random.
 Run: {
+	Test: DataFile: ""
 	Test: Serial: [
 		{ResultStream: Include: File: [".*"]},
 		{Child: {

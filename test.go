@@ -18,6 +18,10 @@ type Test struct {
 	// automatically if the path is a directory. The default is "./".
 	OutPath string
 
+	// DataFile is the name of the gob file containing the raw result data. If
+	// empty, raw result data is not saved for the Test.
+	DataFile string
+
 	// Run is the top-level Run instance.
 	node.Run
 }

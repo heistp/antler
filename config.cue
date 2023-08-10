@@ -61,8 +61,6 @@ Run: #TestRun
 	{} | {
 		EmitLog?: #EmitLog
 	} | {
-		ExecuteTemplate?: #ExecuteTemplate
-	} | {
 		ChartsTimeSeries?: #ChartsTimeSeries
 	} | {
 		ChartsFCT?: #ChartsFCT
@@ -75,20 +73,6 @@ Run: #TestRun
 // may be listed in To, either filenames, or the '-' character for stdout.
 #EmitLog: {
 	To?: [string & !="", ...]
-}
-
-// antler.ExecuteTemplate runs a Go template from the given source file From,
-// or with the given Text. The template receives a .Data field, which is a
-// channel that receives the raw data from the node, before it has been
-// analyzed in any way. This may not be for the feint of heart.
-#ExecuteTemplate: {
-	Name?: string & !=""
-	To:    string & !=""
-	{} | {
-		Text?: string & !=""
-	} | {
-		From?: [string & !="", ...string & !=""]
-	}
 }
 
 // antler.ChartsTimeSeries runs a Go template to create a time series plot

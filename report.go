@@ -7,7 +7,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 
@@ -54,7 +53,6 @@ type Report struct {
 // reporters is a union of the available reporters.
 type reporters struct {
 	EmitLog          *EmitLog
-	ExecuteTemplate  *ExecuteTemplate
 	ChartsFCT        *ChartsFCT
 	ChartsTimeSeries *ChartsTimeSeries
 	SaveFiles        *SaveFiles
@@ -65,8 +63,6 @@ func (r *reporters) reporter() reporter {
 	switch {
 	case r.EmitLog != nil:
 		return r.EmitLog
-	case r.ExecuteTemplate != nil:
-		return r.ExecuteTemplate
 	case r.ChartsFCT != nil:
 		return r.ChartsFCT
 	case r.ChartsTimeSeries != nil:
@@ -267,66 +263,6 @@ func (s *SaveFiles) reportOne(in reportIn) (err error) {
 			return
 		}
 	}
-	return
-}
-
-// ExecuteTemplate is a reporter that executes a Go template and saves the
-// results to a file.
-type ExecuteTemplate struct {
-	// Name is the name of the template.
-	Name string
-
-	// From is the names of files to parse the template from
-	// (template.ParseFiles).
-	From []string
-
-	// Text is the body of the template, to be parsed by Template.Parse.
-	Text string
-
-	// To is the name of a file to execute the template to, or "-" for stdout.
-	To string
-}
-
-// report implements reporter
-func (x *ExecuteTemplate) report(in reportIn) {
-	var f simpleReportFunc = x.reportOne
-	f.report(in)
-}
-
-// reportOne runs one ExecuteTemplate report.
-func (x *ExecuteTemplate) reportOne(in reportIn) (err error) {
-	type templateData struct {
-		Test *Test
-		Data chan interface{}
-	}
-	var w io.WriteCloser
-	defer func() {
-		if w != nil && w != os.Stdout {
-			w.Close()
-		}
-	}()
-	var t *template.Template
-	if x.Text != "" {
-		if t, err = template.New(x.Name).Parse(x.Text); err != nil {
-			return
-		}
-	} else {
-		var f []string
-		for _, n := range x.From {
-			f = append(f, in.test.outPath(n))
-		}
-		if t, err = template.ParseFiles(f...); err != nil {
-			return
-		}
-	}
-	w = os.Stdout
-	if x.To != "-" {
-		n := in.test.outPath(x.To)
-		if w, err = os.Create(n); err != nil {
-			return
-		}
-	}
-	err = t.Execute(w, templateData{in.test, in.data})
 	return
 }
 

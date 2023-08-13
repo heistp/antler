@@ -28,17 +28,28 @@ type reporter interface {
 	report(reportIn)
 }
 
-// reportIn is sent to a reporter to do its work. The goroutine that handles the
-// reportIn must receive from the data channel until it's closed. It may send
-// any errors on errc, and must send reportDone on errc when complete.
+// reportIn is sent to a reporter to do its work.
+//
+// The goroutine that handles the reportIn must receive from the data channel
+// until it's closed. It may send any errors on errc, and must send reportDone
+// on errc when complete.
 //
 // The data channel may be closed by the sender at any time to cancel the
 // report. Therefore, receivers must be prepared to handle partial input, and
 // complete as soon as possible.
+//
+// The embedded writerer provides an Open method for writing result data.
 type reportIn struct {
-	test *Test
+	writerer
 	data chan interface{}
 	errc chan error
+}
+
+// writerer wraps the Writer method, to return a WriteCloser for writing test
+// output. The name parameter identifies the result data according to the
+// underlying implementation, and is typically a filename, or filename suffix.
+type writerer interface {
+	Writer(name string, overwrite bool) (io.WriteCloser, error)
 }
 
 // reportDone is sent on the error channel by reporters to indicate they are
@@ -99,18 +110,9 @@ func (s *reporterStack) push(r []reporter) {
 	*s = append(*s, r)
 }
 
-// pop pops a slice of reporters from the stack, runs Close on each if it
-// implements io.Closer, and returns the first error.
-func (s *reporterStack) pop() (err error) {
-	rr := (*s)[len(*s)-1]
+// pop pops a slice of reporters from the stack.
+func (s *reporterStack) pop() {
 	*s = (*s)[:len(*s)-1]
-	for _, r := range rr {
-		if c, ok := r.(io.Closer); ok {
-			if e := c.Close(); e != nil && err == nil {
-				err = e
-			}
-		}
-	}
 	return
 }
 
@@ -133,14 +135,14 @@ func (s *reporterStack) size() (sz int) {
 // tee receives data from the given channel, and sends it to each reporter in
 // the stack. On the first error, the node is canceled if the Control is not
 // nil. After data is read in full, the first error, if any, is returned.
-func (s *reporterStack) tee(data chan interface{}, test *Test,
+func (s *reporterStack) tee(data chan interface{}, wr writerer,
 	ctrl *node.Control) (err error) {
 	ec := make(chan error)
 	var cc []chan interface{}
 	for _, r := range s.list() {
 		c := make(chan interface{}, dataChanBufSize)
 		cc = append(cc, c)
-		r.report(reportIn{test, c, ec})
+		r.report(reportIn{wr, c, ec})
 	}
 	n := s.size()
 	a := newAnalysis()
@@ -196,13 +198,14 @@ func (l *EmitLog) report(in reportIn) {
 
 // reportOne runs one EmitLog reporter.
 func (l *EmitLog) reportOne(in reportIn) (err error) {
-	var ff []*os.File
+	ww := []io.WriteCloser{os.Stdout}
 	defer func() {
-		for _, f := range ff {
-			f.Close()
+		for _, w := range ww {
+			if w != nil && w != os.Stdout {
+				w.Close()
+			}
 		}
 	}()
-	ww := []io.Writer{os.Stdout}
 	if len(l.To) > 0 {
 		ww = ww[:0]
 		for _, s := range l.To {
@@ -210,13 +213,11 @@ func (l *EmitLog) reportOne(in reportIn) (err error) {
 				ww = append(ww, os.Stdout)
 				continue
 			}
-			n := in.test.outPath(s)
-			var f *os.File
-			if f, err = os.Create(n); err != nil {
+			var w io.WriteCloser
+			if w, err = in.Writer(s, true); err != nil {
 				return
 			}
-			ww = append(ww, f)
-			ff = append(ff, f)
+			ww = append(ww, w)
 		}
 	}
 	for d := range in.data {
@@ -248,13 +249,14 @@ func (l *EmitTCPInfo) report(in reportIn) {
 
 // reportOne runs one EmitTCPInfo reporter.
 func (l *EmitTCPInfo) reportOne(in reportIn) (err error) {
-	var ff []*os.File
+	ww := []io.WriteCloser{os.Stdout}
 	defer func() {
-		for _, f := range ff {
-			f.Close()
+		for _, w := range ww {
+			if w != nil && w != os.Stdout {
+				w.Close()
+			}
 		}
 	}()
-	ww := []io.Writer{os.Stdout}
 	if len(l.To) > 0 {
 		ww = ww[:0]
 		for _, s := range l.To {
@@ -262,13 +264,11 @@ func (l *EmitTCPInfo) reportOne(in reportIn) (err error) {
 				ww = append(ww, os.Stdout)
 				continue
 			}
-			n := in.test.outPath(s)
-			var f *os.File
-			if f, err = os.Create(n); err != nil {
+			var w io.WriteCloser
+			if w, err = in.Writer(s, true); err != nil {
 				return
 			}
-			ww = append(ww, f)
-			ff = append(ff, f)
+			ww = append(ww, w)
 		}
 	}
 	var a analysis
@@ -302,10 +302,10 @@ func (s *SaveFiles) report(in reportIn) {
 
 // reportOne runs one SaveFiles reporter.
 func (s *SaveFiles) reportOne(in reportIn) (err error) {
-	m := make(map[string]*os.File)
+	m := make(map[string]io.WriteCloser)
 	defer func() {
-		for n, f := range m {
-			f.Close()
+		for n, w := range m {
+			w.Close()
 			delete(m, n)
 		}
 	}()
@@ -315,28 +315,28 @@ func (s *SaveFiles) reportOne(in reportIn) (err error) {
 		if fd, ok = d.(node.FileData); !ok {
 			continue
 		}
-		var f *os.File
-		if f, ok = m[fd.Name]; !ok {
-			n := in.test.outPath(fd.Name)
-			if f, err = os.Create(n); err != nil {
+		var w io.WriteCloser
+		if w, ok = m[fd.Name]; !ok {
+			if w, err = in.Writer(fd.Name, true); err != nil {
 				return
 			}
-			m[fd.Name] = f
+			m[fd.Name] = w
 		}
-		if _, err = f.Write(fd.Data); err != nil {
+		if _, err = w.Write(fd.Data); err != nil {
 			return
 		}
 	}
 	return
 }
 
-// saveData is a reporter that saves all data using gob to the named file.
+// saveData is a WriteCloser that implements reporter to save result data using
+// gob.
 type saveData struct {
-	name string
+	io.WriteCloser
 }
 
 // report implements reporter
-func (s *saveData) report(in reportIn) {
+func (s saveData) report(in reportIn) {
 	go func() {
 		var e error
 		defer func() {
@@ -347,12 +347,8 @@ func (s *saveData) report(in reportIn) {
 			}
 			in.errc <- reportDone
 		}()
-		var f *os.File
-		if f, e = os.Create(s.name); e != nil {
-			return
-		}
-		defer f.Close()
-		c := gob.NewEncoder(f)
+		defer s.Close()
+		c := gob.NewEncoder(s)
 		for d := range in.data {
 			switch d.(type) {
 			case node.FileData, analysis:

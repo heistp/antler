@@ -34,7 +34,7 @@ _linearTest: {
 
 	Test: {
 		Serial: [stream, setup, server, _do]
-		OutPath: _cca
+		ID: cca: _cca
 	}
 
 	Report: [

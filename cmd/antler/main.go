@@ -33,7 +33,14 @@ func root() (cmd *cobra.Command) {
 // run returns the run cobra command.
 func run() (cmd *cobra.Command) {
 	c := node.NewControl()
-	r := &antler.RunCommand{c, false}
+	r := &antler.RunCommand{
+		c,
+		false,
+		func(test *antler.Test, path string) {
+			fmt.Printf("%s already exists, skipping test (use -f to force)\n",
+				path)
+		},
+	}
 	cmd = &cobra.Command{
 		Use:   "run",
 		Short: "Runs tests and reports",
@@ -60,7 +67,16 @@ func run() (cmd *cobra.Command) {
 
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
-	r := &antler.ReportCommand{}
+	r := &antler.ReportCommand{
+		func(test *antler.Test) {
+			fmt.Printf("%s was skipped because its DataFile field is empty\n",
+				test.ID)
+		},
+		func(test *antler.Test, path string) {
+			fmt.Printf("%s was skipped because '%s' was not found\n",
+				test.ID, path)
+		},
+	}
 	return &cobra.Command{
 		Use:   "report",
 		Short: "Re-runs reports using existing data files",

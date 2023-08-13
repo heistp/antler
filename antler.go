@@ -8,13 +8,15 @@ package antler
 import (
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"io"
-	"os"
+	"io/fs"
 
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
 )
+
+// dataChanBufSize is used as the buffer size for data channels.
+const dataChanBufSize = 64
 
 // Run runs an Antler Command.
 func Run(cmd Command) error {
@@ -33,6 +35,10 @@ type RunCommand struct {
 
 	// Force re-runs the test and overwrites any existing data.
 	Force bool
+
+	// Skipped is called when a test was skipped because there's already an
+	// output data file for it and RunCommand.Force is false.
+	Skipped func(test *Test, path string)
 }
 
 // run implements command
@@ -45,53 +51,42 @@ func (r *RunCommand) run() (err error) {
 	return
 }
 
-// dataChanBufSize is used as the buffer size for data channels.
-const dataChanBufSize = 64
-
 // do implements doer
 func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
-	var g string
-	if test.DataFile != "" {
-		g = test.outPath(test.DataFile)
-		var ok bool
-		if ok, err = c.check(g); err != nil {
+	var w io.WriteCloser
+	if w, err = test.DataWriter(c.Force); err != nil {
+		switch e := err.(type) {
+		case *FileExistsError:
+			if c.Skipped != nil {
+				c.Skipped(test, e.Path)
+			}
+			err = nil
+			return
+		case *NoDataFileError:
+			err = nil
+		default:
 			return
 		}
-		if !ok {
-			fmt.Printf("%s already exists, skipping test (use -f to force)\n", g)
-			return
-		}
-		rst.push([]reporter{&saveData{g}})
+	}
+	if w != nil {
+		rst.push([]reporter{saveData{w}})
 	}
 	d := make(chan interface{}, dataChanBufSize)
-	defer func() {
-		if e := rst.pop(); e != nil && err == nil {
-			err = e
-		}
-	}()
+	defer rst.pop()
 	go node.Do(&test.Run, &exeSource{}, c.Control, d)
 	err = rst.tee(d, test, &c.Control)
 	return
 }
 
-// check determines if a test should or should not be run for the given named
-// data file. The ok return parameter is true if it should be run, false if it
-// should not be run because the data file already exists, and an error if an
-// error occurred while checking.
-func (c *RunCommand) check(name string) (ok bool, err error) {
-	if c.Force {
-		ok = true
-		return
-	}
-	if _, err = os.Stat(name); err != nil && errors.Is(err, os.ErrNotExist) {
-		ok = true
-		err = nil
-	}
-	return
-}
-
 // ReportCommand runs reports.
 type ReportCommand struct {
+	// SkippedNoDataFile is called when a report was skipped because the Test's
+	// DataFile field is empty.
+	SkippedNoDataFile func(test *Test)
+
+	// SkippedNotFound is called when a report was skipped because the data file
+	// needed to run it doesn't exist.
+	SkippedNotFound func(test *Test, path string)
 }
 
 // run implements command
@@ -105,13 +100,27 @@ func (r *ReportCommand) run() (err error) {
 }
 
 // do implements doer
-func (*ReportCommand) do(test *Test, rst reporterStack) (err error) {
-	g := test.outPath(test.DataFile)
-	var f *os.File
-	if f, err = os.Open(g); err != nil {
+func (c *ReportCommand) do(test *Test, rst reporterStack) (err error) {
+	var r io.ReadCloser
+	if r, err = test.DataReader(); err != nil {
+		if _, ok := err.(*NoDataFileError); ok {
+			if c.SkippedNoDataFile != nil {
+				c.SkippedNoDataFile(test)
+			}
+			err = nil
+			return
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return
+		}
+		e := err.(*fs.PathError)
+		if c.SkippedNotFound != nil {
+			c.SkippedNotFound(test, e.Path)
+		}
+		err = nil
 		return
 	}
-	defer f.Close()
+	defer r.Close()
 	d := make(chan interface{}, dataChanBufSize)
 	go func() {
 		var e error
@@ -121,7 +130,7 @@ func (*ReportCommand) do(test *Test, rst reporterStack) (err error) {
 			}
 			defer close(d)
 		}()
-		dc := gob.NewDecoder(f)
+		dc := gob.NewDecoder(r)
 		var a interface{}
 		for {
 			if e = dc.Decode(&a); e != nil {

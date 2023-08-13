@@ -94,14 +94,19 @@ _qdiscTest: {
 			}
 		}
 
+		// ID is the test ID
+		ID: {
+			qdisc: _qdisc
+			cca:   _cca
+			if _bursty_udp {
+				udp: "bursty-udp"
+			}
+			if !_bursty_udp {
+				udp: "no-udp"
+			}
+		}
+
 		Serial: [#stream, _setup, _server, _do]
-		_outPath: strings.Fields(_qdisc)[0] + "_" + _cca
-		if _bursty_udp {
-			OutPath: _outPath + "_bursty_udp"
-		}
-		if !_bursty_udp {
-			OutPath: _outPath
-		}
 	}
 
 	// Report defines reports for the qdisc test

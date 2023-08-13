@@ -26,11 +26,7 @@ type TestRun struct {
 // do runs a doer, observing the Serial and Parallel structure of the TestRun.
 func (t *TestRun) do(dr doer, rst reporterStack) (err error) {
 	rst.push(t.Report.reporters())
-	defer func() {
-		if e := rst.pop(); e != nil && err == nil {
-			err = e
-		}
-	}()
+	defer rst.pop()
 	switch {
 	case len(t.Serial) > 0:
 		err = t.Serial.do(dr, rst)

@@ -127,11 +127,12 @@ data formats, and supporting platforms other than Linux.
 #### Features
 
 - refactor examples to share common setup
-  - add explicit htb quantum
 - set default log file and SaveFiles report in a common way
 
 #### Bugs
 
+- figure out structural cycle error in config.cue with latest CUE 0.6.0
+- add explicit HTB quantums to all examples
 - test for heap retention when streaming FileData
 - reconsider semantics for System.Stdout and Stderr
 - return error when trying to write FileData to absolute paths
@@ -144,6 +145,8 @@ data formats, and supporting platforms other than Linux.
 
 #### Features
 
+- implement list command to list tests
+- implement selective test runs with regular expressions of ID key/value pairs
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
 - consider adding more plotting templates, e.g. for plotly, Gnuplot and xplot

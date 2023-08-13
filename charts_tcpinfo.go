@@ -69,7 +69,7 @@ func (n *ChartsTCPInfo) reportOne(in reportIn) (err error) {
 	for _, to := range n.To {
 		if to == "-" {
 			w = os.Stdout
-		} else if w, err = os.Create(in.test.outPath(to)); err != nil {
+		} else if w, err = in.Writer(to, true); err != nil {
 			return
 		}
 		ww = append(ww, w)

@@ -76,7 +76,7 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 		c.Cancel = func() error {
 			return c.Process.Signal(os.Interrupt)
 		}
-		c.WaitDelay = 2 * time.Second
+		c.WaitDelay = 1 * time.Second
 	}
 	c.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,

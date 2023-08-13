@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Fix System Runner not always waiting for IO to complete (e.g. short pcaps)
+- Fix System Runner not always exiting until second interrupt
 
 ### Changed
 

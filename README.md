@@ -136,12 +136,8 @@ data formats, and supporting platforms other than Linux.
 - reconsider semantics for System.Stdout and Stderr
 - return error when trying to write FileData to absolute paths
 - improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)
-- fix that tests may not be canceled until the second interrupt
 - return errors immediately on failed sets of CCA / sockopts, instead of
   waiting until the end of the test
-- network namespaces may be deleted before runners have completed, for example
-  if a middlebox is canceled and terminated before the endpoints have completed-
-  possibly add an additional node state during cancellation to handle this
 - fix poor CUE error when Env length > max (Run.Test: field not allowed)
 
 ### Inbox
@@ -163,6 +159,8 @@ data formats, and supporting platforms other than Linux.
 
 - improve poor error messages from CUE for syntax errors under disjunctions, and
   verify disjunctions are used properly for union types
+- network namespaces may be deleted or pcaps terminated before runners have
+  completed, as cancellations are performed in an arbitrary order
 
 ## Thanks
 

@@ -46,12 +46,12 @@ Run: {
 		for b in [ true, false]
 		for q in [
 				"pfifo limit 50",
-				"pie",
-				"codel",
-				"cobalt",
-				"cake sce flowblind",
-				"cnq_cobalt sce sce-thresh 16",
-				"deltic",
+				//"pie",
+				//"codel",
+				//"cobalt",
+				//"cake sce flowblind",
+				//"cnq_cobalt sce sce-thresh 16",
+				//"deltic",
 		] {{_qdisc: q, _bursty_udp: b} & _qdiscTest},
 	]
 }
@@ -93,13 +93,19 @@ _qdiscTest: {
 			}
 		}
 
+		// ID is the Test ID
+		ID: {
+			qdisc: strings.Fields(_qdisc)[0]
+			cca:   _cca
+			if _bursty_udp {
+				udp: "bursty-udp"
+			}
+			if !_bursty_udp {
+				udp: "no-udp"
+			}
+		}
+
 		Serial: [#stream, _setup, _server, _do]
-		if _bursty_udp {
-			OutPath: strings.Fields(_qdisc)[0] + "_bursty_udp"
-		}
-		if !_bursty_udp {
-			OutPath: strings.Fields(_qdisc)[0]
-		}
 	}
 
 	// Report defines reports for the qdisc test

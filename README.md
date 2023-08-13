@@ -139,9 +139,6 @@ data formats, and supporting platforms other than Linux.
 - fix that tests may not be canceled until the second interrupt
 - return errors immediately on failed sets of CCA / sockopts, instead of
   waiting until the end of the test
-- figure out why packets from tcpdump may be lost without a one-second post-test
-  sleep (maybe buffering, but shouldn't SIGINT flush that? is this a result of
-  the network namespaces teardown issue below?)
 - network namespaces may be deleted before runners have completed, for example
   if a middlebox is canceled and terminated before the endpoints have completed-
   possibly add an additional node state during cancellation to handle this

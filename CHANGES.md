@@ -8,9 +8,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-- Added `vet` command for checking CUE config
-- Added support for setting node environment variables via Env CUE field
+- Add `vet` command for checking CUE config
+- Add support for setting node environment variables via Env CUE field
 - Add support for setting DataFile in Test
+
+### Fixed
+
+- Fix System Runner not always waiting for IO to complete (e.g. short pcaps)
+
+### Changed
+
+- In System Runner, use new Command.Cancel func instead of interrupt goroutine
 
 ## 0.3.0-beta - 2022-10-13
 

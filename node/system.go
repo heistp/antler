@@ -57,11 +57,10 @@ type System struct {
 	// signal it with an interrupt (false).
 	Kill bool
 
-	cmd      *exec.Cmd
-	outw     sync.WaitGroup
-	gatherc  chan string
-	gathern  int
-	procDone chan struct{}
+	cmd     *exec.Cmd
+	io      sync.WaitGroup
+	gatherc chan string
+	gathern int
 }
 
 // Run implements runner
@@ -72,11 +71,12 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 		}()
 	}
 	n, a := s.params()
-	var c *exec.Cmd
-	if s.Kill {
-		c = exec.CommandContext(ctx, n, a...)
-	} else {
-		c = exec.Command(n, a...)
+	c := exec.CommandContext(ctx, n, a...)
+	if !s.Kill {
+		c.Cancel = func() error {
+			return c.Process.Signal(os.Interrupt)
+		}
+		c.WaitDelay = 2 * time.Second
 	}
 	c.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
@@ -94,50 +94,25 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 	if err = c.Start(); err != nil {
 		return
 	}
-	s.procDone = make(chan struct{})
-	if !s.Kill {
-		s.interrupt(ctx, c.Process)
-	}
 	if s.Background {
 		s.cmd = c
 		arg.cxl <- s
 		return
 	}
-	err = c.Wait()
-	close(s.procDone)
-	s.outw.Wait()
-	return
-}
-
-// Cancel implements canceler
-func (s *System) Cancel(rec *recorder) (err error) {
-	if err = s.cmd.Wait(); err != nil {
-		rec.Logf("%s", err)
-		err = nil
+	s.io.Wait()
+	if err = c.Wait(); err != nil {
+		arg.rec.Logf("%s", err)
 	}
-	close(s.procDone)
-	s.outw.Wait()
 	return
 }
 
-// interrupt starts a goroutine to interrupt the started process after the
-// Context is canceled, then kill it if it hasn't completed after 2 seconds.
-func (s *System) interrupt(ctx context.Context, proc *os.Process) {
-	go func() {
-		select {
-		case <-ctx.Done():
-			go func() {
-				select {
-				case <-time.After(2 * time.Second):
-					proc.Kill()
-				case <-s.procDone:
-				}
-			}()
-			// NOTE this should not attempt to interrupt on Windows
-			proc.Signal(os.Interrupt)
-		case <-s.procDone:
-		}
-	}()
+// Cancel implements canceler, which is only used when Background is true.
+func (s *System) Cancel(rec *recorder) (err error) {
+	s.io.Wait()
+	if e := s.cmd.Wait(); e != nil {
+		rec.Logf("%s", e)
+	}
+	return
 }
 
 // handleOutput is called to start processing of stdout and stderr.
@@ -189,9 +164,9 @@ func (s *System) gather(rcl io.ReadCloser, rec *recorder) {
 // gatherLog contains a goroutine to read lines from gatherc, and log them with
 // one call when once gathern reaches zero.
 func (s *System) gatherLog(rec *recorder) {
-	s.outw.Add(1)
+	s.io.Add(1)
 	go func() {
-		defer s.outw.Done()
+		defer s.io.Done()
 		var b bytes.Buffer
 		for l := range s.gatherc {
 			if l == "" {
@@ -216,9 +191,9 @@ func (s *System) gatherLog(rec *recorder) {
 
 // stream contains a goroutine to log the given ReadCloser, a line at a time.
 func (s *System) stream(rcl io.ReadCloser, rec *recorder) {
-	s.outw.Add(1)
+	s.io.Add(1)
 	go func() {
-		defer s.outw.Done()
+		defer s.io.Done()
 		c := bufio.NewScanner(rcl)
 		for c.Scan() {
 			rec.Logf("%s", c.Text())
@@ -228,9 +203,9 @@ func (s *System) stream(rcl io.ReadCloser, rec *recorder) {
 
 // file contains a goroutine to send data from the given ReadCloser as FileData.
 func (s *System) file(rcl io.ReadCloser, name string, rec *recorder) {
-	s.outw.Add(1)
+	s.io.Add(1)
 	go func() {
-		defer s.outw.Done()
+		defer s.io.Done()
 		var e error
 		for {
 			b := make([]byte, 64*1024)

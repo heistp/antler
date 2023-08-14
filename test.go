@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -112,6 +113,8 @@ func (n *NoDataFileError) Error() string {
 // The overwrite parameter indicates whether to overwrite an existing file (if
 // true), or not (if false), in which case FileExistsError is returned if the
 // file referred to by name already exists.
+//
+// Any directories in name are automatically created.
 func (t *Test) Writer(name string, overwrite bool) (wc io.WriteCloser,
 	err error) {
 	var p string
@@ -128,7 +131,11 @@ func (t *Test) Writer(name string, overwrite bool) (wc io.WriteCloser,
 			return
 		}
 	}
-	// TODO create directories when creating output files
+	if d := filepath.Dir(p); d != "/" && d != "." && d != ".." {
+		if err = os.MkdirAll(d, 0755); err != nil {
+			return
+		}
+	}
 	wc, err = os.Create(p)
 	return
 }

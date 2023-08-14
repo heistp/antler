@@ -25,6 +25,7 @@ and this project adheres to
 ### Changed
 
 - In System Runner, use new Command.Cancel func instead of interrupt goroutine
+- Require Go 1.20 in go.mod
 
 ## 0.3.0-beta - 2022-10-13
 

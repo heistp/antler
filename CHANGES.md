@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add `vet` command for checking CUE config
 - Add support for setting node environment variables via Env CUE field
 - Add support for setting DataFile in Test
+- Add HTB quantums for all examples
 
 ### Fixed
 

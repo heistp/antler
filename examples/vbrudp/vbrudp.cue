@@ -46,7 +46,7 @@ Run: {
 				"udp":   "UDP OWD"
 			}
 			Options: {
-				title: "CUBIC vs Reno | \(#rate) bottleneck | \(#rtt)ms Path RTT | \(#qdisc)"
+				title: "CUBIC vs BBR | \(#rate) bottleneck | \(#rtt)ms Path RTT | \(#qdisc)"
 				series: {
 					"2": {
 						targetAxisIndex: 1
@@ -114,7 +114,7 @@ ns: {
 			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
 			//"tc qdisc add dev mid.r root \(#qdisc)",
 			"tc qdisc add dev mid.r root handle 1: htb default 1",
-			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate)",
+			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate) quantum 1514",
 			"tc qdisc add dev mid.r parent 1:1 \(#qdisc)",
 		]
 	}

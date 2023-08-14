@@ -22,6 +22,9 @@ import (
 // rate1 is the rate after the drop
 #rate1: "10mbit"
 
+// quantum is the HTB quantum
+#quantum: 1514
+
 // duration is the test duration, in seconds
 #duration: 120
 
@@ -46,12 +49,12 @@ Run: {
 		for b in [ true, false]
 		for q in [
 				"pfifo limit 50",
-				//"pie",
-				//"codel",
-				//"cobalt",
-				//"cake sce flowblind",
-				//"cnq_cobalt sce sce-thresh 16",
-				//"deltic",
+				"pie",
+				"codel",
+				"cobalt",
+				"cake sce flowblind",
+				"cnq_cobalt sce sce-thresh 16",
+				"deltic",
 		] {{_qdisc: q, _bursty_udp: b} & _qdiscTest},
 	]
 }
@@ -158,7 +161,7 @@ _qdiscTest: {
 		if !list.Contains(#cakeyQdiscs, strings.Fields(_qdisc)[0]) {
 			[
 				"tc qdisc add dev mid.r root handle 1: htb default 1",
-				"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate0)",
+				"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate0) quantum \(#quantum)",
 				"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
 			]
 		}
@@ -172,7 +175,7 @@ _qdiscTest: {
 		if !list.Contains(#cakeyQdiscs, strings.Split(_qdisc, " ")[0]) {
 			[
 				"tc qdisc add dev mid.r root handle 1: htb default 1",
-				"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate0)",
+				"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate0) quantum \(#quantum)",
 				"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
 			]
 		}
@@ -283,14 +286,14 @@ _qdiscTest: {
 					System: Command: "tc-sce qdisc change dev mid.r root \(_qdisc) bandwidth \(#rate1)"
 				},
 				if !list.Contains(#cakeyQdiscs, strings.Split(_qdisc, " ")[0]) {
-					System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate1)"
+					System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate1) quantum \(#quantum)"
 				},
 				{Sleep: "\(#duration/3)s"},
 				if list.Contains(#cakeyQdiscs, strings.Split(_qdisc, " ")[0]) {
 					System: Command: "tc-sce qdisc change dev mid.r root \(_qdisc) bandwidth \(#rate0)"
 				},
 				if !list.Contains(#cakeyQdiscs, strings.Split(_qdisc, " ")[0]) {
-					System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate0)"
+					System: Command: "tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate0) quantum \(#quantum)"
 				},
 			]
 		}},

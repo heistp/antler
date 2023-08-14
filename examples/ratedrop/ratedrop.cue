@@ -22,6 +22,9 @@ package ratedrop
 // rate1 is the rate after the drop
 #rate1: "10mbit"
 
+// quantum is the HTB quantum
+#quantum: 1514
+
 // duration is the test duration, in seconds
 #duration: 120
 
@@ -112,7 +115,7 @@ ns: {
 			"ip link set dev imid.l up",
 			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
 			"tc qdisc add dev mid.r root handle 1: htb default 1",
-			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate0)",
+			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(#rate0) quantum \(#quantum)",
 			"tc qdisc add dev mid.r parent 1:1 \(#qdisc)",
 		]
 	}
@@ -199,11 +202,11 @@ do: {
 			Serial: [
 				{Sleep: "\(#duration/3)s"},
 				{System: Command:
-					"tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate1)"
+					"tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate1) quantum \(#quantum)"
 				},
 				{Sleep: "\(#duration/3)s"},
 				{System: Command:
-					"tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate0)"
+					"tc class change dev mid.r parent 1: classid 1:1 htb rate \(#rate0) quantum \(#quantum)"
 				},
 			]
 		}},

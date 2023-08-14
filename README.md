@@ -27,9 +27,9 @@ results.
   to VBR or bursty traffic, or combinations in one flow
 * system runner for system commands, e.g. for setup, teardown, data collection,
   and mid-test config changes
-* parallel test execution, with nested serial and parallel runs
+* parallel execution of entire tests, with nested serial and parallel test runs
 * result streaming during test (may be enabled, disabled or configured to
-  deliver only some results, e.g. just logs)
+  deliver only some results, e.g. just logs, but not pcaps)
 * plots/reports using Go templates, with included templates for time series and
   FCT plots using [Google Charts](https://developers.google.com/chart)
 * configuration using [CUE](https://cuelang.org/), to support test parameter
@@ -51,15 +51,16 @@ cd examples/tcpstream
 sudo antler run
 ```
 
-Root access is required to create network namespaces.
+Root access is required to create network namespaces. Examples that do not need
+namespaces, like the id or env examples, do not need root.
 
 The antler binary must be in your PATH, or the full path must be specified.
 Typically, you add ~/go/bin to your PATH so you can run binaries installed by
 Go. *Note:* if using sudo and the `secure_path` option is set in /etc/sudoers,
 either this must be added to that path, or additional configuration is required.
 
-All configuration is in the .cue file. After running the examples, you'll 
-typically have gob files, pcaps and an HTML plot.
+All configuration is in the .cue file. After running the examples, you'll have
+output depending on the example, like gob files, logs, pcaps or HTML plots.
 
 ## Installation
 
@@ -84,18 +85,15 @@ typically have gob files, pcaps and an HTML plot.
 At present, Antler is documented through the [examples](examples), and the
 comments in [config.cue](config.cue). Antler is configured using
 [CUE](https://cuelang.org/), so it helps to get familiar with the language at a
-basic level, though for simple tests it may be sufficient to just follow the
+basic level, although for simple tests it may be sufficient to just follow the
 examples.
 
 ## Status
 
 As of version 0.3.0-beta, the node is working, along with some basic tests and
-visualizations. The [Roadmap](#roadmap) shows future plans.
-
-TODO
-
-More work is needed on the tests and visualizations, stabilizing the config and
-data formats, and supporting platforms other than Linux.
+visualizations. The [Roadmap](#roadmap) shows future plans. Overall, more work
+is needed on the tests and visualizations, stabilizing the config and data
+formats, and supporting platforms other than Linux.
 
 ## Roadmap
 
@@ -116,7 +114,7 @@ data formats, and supporting platforms other than Linux.
 - handle tests both with and without node-synchronized time
 - add support for setting arbitary sockopts
 - rename EmitLog Reporter to Log, and add sorting by time for saved log files
-- optionally secure the servers for public use using a three-way handshake
+- secure the servers for use on Internet with challenge-response authentication
 - add compression support for System runner FileData output
 - make UDP flood more efficient
 - add an antler _init_ command to create a default project
@@ -126,44 +124,40 @@ data formats, and supporting platforms other than Linux.
 
 #### Features
 
+- set defaults for EmitLog, SaveFiles and SaveData in a common way
+- add a list command to list Tests
+- support regex's of ID key/value pairs in run, report and list commands
 - refactor examples to share common setup
-- set default log file and SaveFiles report in a common way
+- build examples to a public server and remove from README
 
 #### Bugs
 
-- figure out structural cycle error in config.cue with latest CUE 0.6.0
 - add explicit HTB quantums to all examples
+- validate that all Test IDs are unique
+- validate that Node IDs identify Nodes uniquely
 - test for heap retention when streaming FileData
 - reconsider semantics for System.Stdout and Stderr
 - return error when trying to write FileData to absolute paths
 - improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)
-- return errors immediately on failed sets of CCA / sockopts, instead of
-  waiting until the end of the test
+- return errors immediately on failed sets of CCA / sockopts
 - fix poor CUE error when Env length > max (Run.Test: field not allowed)
+- pcaps may not include all traffic without a sleep at the end of the test
 
 ### Inbox
 
 #### Features
 
-- implement list command to list tests
-- implement selective test runs with regular expressions of ID key/value pairs
+- allow Go template syntax right in .cue files, instead of using .ant files
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
-- consider adding more plotting templates, e.g. for plotly, Gnuplot and xplot
-- implement traffic generators in C
 - show bandwidth for FCT distribution
-- add support for messages between nodes for runner coordination
 - find a better way than unions to create interface implementations from CUE
-- share more CUE code in examples, especially for netns rig setups
 - support MacOS
 - support FreeBSD
 
 #### Bugs
 
-- improve poor error messages from CUE for syntax errors under disjunctions, and
-  verify disjunctions are used properly for union types
-- network namespaces may be deleted or pcaps terminated before runners have
-  completed, as cancellations are performed in an arbitrary order
+- improve poor error messages from CUE for syntax errors under disjunctions
 
 ## Thanks
 

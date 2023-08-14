@@ -34,12 +34,9 @@ package ratedrop
 // Run contains a single Test. After log streaming is configured, setup is
 // run, the server is started, then the test is run.
 Run: {
-	Test: {
-		Serial: [#stream, #setup, server, do]
-	}
+	Test: Serial: [#stream, #setup, server, do]
+
 	Report: [
-		{EmitLog: {To: ["node.log", "-"]}},
-		{SaveFiles: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {

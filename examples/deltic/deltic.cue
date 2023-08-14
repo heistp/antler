@@ -251,7 +251,7 @@ _qdiscTest: {
 					Background: true
 					Stdout:     "left.pcap"
 				}},
-				{Sleep: "500ms"},
+				{Sleep: "1s"},
 				{Parallel: [
 					if _bursty_udp {
 						{PacketClient: {
@@ -281,6 +281,7 @@ _qdiscTest: {
 						}
 					}},
 				]},
+				{Sleep: "1s"},
 			]
 		}},
 		{Child: {

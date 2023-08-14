@@ -124,7 +124,6 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- set defaults for EmitLog, SaveFiles and SaveData in a common way
 - add a list command to list Tests
 - support regex's of ID key/value pairs in run, report and list commands
 - refactor examples to share common setup
@@ -132,7 +131,6 @@ formats, and supporting platforms other than Linux.
 
 #### Bugs
 
-- add explicit HTB quantums to all examples
 - validate that all Test IDs are unique
 - validate that Node IDs identify Nodes uniquely
 - test for heap retention when streaming FileData
@@ -141,7 +139,6 @@ formats, and supporting platforms other than Linux.
 - improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)
 - return errors immediately on failed sets of CCA / sockopts
 - fix poor CUE error when Env length > max (Run.Test: field not allowed)
-- pcaps may not include all traffic without a sleep at the end of the test
 
 ### Inbox
 

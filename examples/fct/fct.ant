@@ -144,7 +144,7 @@ do: {
 				Background: true
 				Stdout:     "left.pcap"
 			}},
-			{Sleep: "500ms"},
+			{Sleep: "1s"},
 			{Schedule: {
 				Wait: {{expRandDuration "50ms" 1200 1.0}}
 				Run: [

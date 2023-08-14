@@ -155,7 +155,7 @@ do: {
 				Background: true
 				Stdout:     "left.pcap"
 			}},
-			{Sleep: "500ms"},
+			{Sleep: "1s"},
 			{Parallel: [
 				{PacketClient: {
 					Addr: #serverAddr
@@ -189,6 +189,7 @@ do: {
 					}},
 				]},
 			]},
+			{Sleep: "1s"},
 		]
 	}
 }

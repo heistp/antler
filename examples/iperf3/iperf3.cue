@@ -88,7 +88,7 @@ server: {
 	Child: {
 		Node: ns.right.node
 		System: {
-			Command:    "iperf3 -s"
+			Command:    "iperf3 -s -1"
 			Background: true
 		}
 	}
@@ -104,8 +104,9 @@ run: {
 				Background: true
 				Stdout:     "left.pcap"
 			}},
-			{Sleep:           "500ms"},
+			{Sleep:           "1s"},
 			{System: Command: "iperf3 -t 30 -c 10.0.0.2"},
+			{Sleep:           "1s"},
 		]
 	}
 }

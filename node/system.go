@@ -110,7 +110,7 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 func (s *System) Cancel(rec *recorder) (err error) {
 	s.io.Wait()
 	if e := s.cmd.Wait(); e != nil {
-		rec.Logf("%s", e)
+		rec.Logf("%s (%s)", e, s.cmd)
 	}
 	return
 }

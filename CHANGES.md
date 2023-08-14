@@ -2,7 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
-and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+and this project adheres to
+[Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
@@ -14,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add support for setting node environment variables via Env CUE field
 - Add support for setting DataFile in Test
 - Add HTB quantums for all examples
+- Add Report field to Test and default with EmitLog and SaveFiles
 
 ### Fixed
 

@@ -14,13 +14,7 @@ streamLog: {ResultStream: Include: Log: true}
 // Run contains a single Test. After log streaming is configured, setup is
 // run, the server is started, then the test is run.
 Run: {
-	Test: {
-		Serial: [streamLog, setup, server, run]
-	}
-	Report: [
-		{EmitLog: {To: ["-", "node.log"]}},
-		{SaveFiles: {}},
-	]
+	Test: Serial: [streamLog, setup, server, run]
 }
 
 // setup runs the setup commands in each namespace

@@ -24,16 +24,16 @@ type TestRun struct {
 }
 
 // do runs a doer, observing the Serial and Parallel structure of the TestRun.
-func (t *TestRun) do(dr doer, rst reporterStack) (err error) {
+func (t *TestRun) do(d doer, rst reporterStack) (err error) {
 	rst.push(t.Report.reporters())
 	defer rst.pop()
 	switch {
 	case len(t.Serial) > 0:
-		err = t.Serial.do(dr, rst)
+		err = t.Serial.do(d, rst)
 	case len(t.Parallel) > 0:
-		err = t.Parallel.do(dr, rst)
+		err = t.Parallel.do(d, rst)
 	default:
-		err = t.Test.do(dr, rst)
+		err = t.Test.do(d, rst)
 	}
 	return
 }
@@ -47,9 +47,9 @@ type doer interface {
 type Serial []TestRun
 
 // do executes the TestRun's sequentially.
-func (s Serial) do(dr doer, rst reporterStack) (err error) {
+func (s Serial) do(d doer, rst reporterStack) (err error) {
 	for _, r := range s {
-		if err = r.do(dr, rst); err != nil {
+		if err = r.do(d, rst); err != nil {
 			return
 		}
 	}
@@ -60,7 +60,7 @@ func (s Serial) do(dr doer, rst reporterStack) (err error) {
 type Parallel []TestRun
 
 // do executes the TestRun's concurrently.
-func (p Parallel) do(dr doer, rst reporterStack) (err error) {
+func (p Parallel) do(d doer, rst reporterStack) (err error) {
 	c := make(chan error)
 	for _, r := range p {
 		r := r
@@ -69,7 +69,7 @@ func (p Parallel) do(dr doer, rst reporterStack) (err error) {
 			defer func() {
 				c <- e
 			}()
-			e = r.do(dr, rst)
+			e = r.do(d, rst)
 		}()
 	}
 	for i := 0; i < len(p); i++ {

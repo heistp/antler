@@ -28,8 +28,6 @@ Run: {
 		Serial: [stream, setup, server, do]
 	}
 	Report: [
-		{EmitLog: {To: ["node.log", "-"]}},
-		{SaveFiles: {}},
 		{ChartsFCT: {
 			To: ["fct.html"]
 			Series: [

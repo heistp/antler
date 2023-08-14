@@ -32,6 +32,9 @@ type Test struct {
 
 	// Run is the top-level Run instance.
 	node.Run
+
+	// Report lists Reports to be run on this Test.
+	Report reports
 }
 
 // TestID is a compound Test identifier. Keys and values must match the regex
@@ -58,9 +61,11 @@ func (i TestID) String() string {
 	return b.String()
 }
 
-// do calls the given doer on the Test.
-func (t *Test) do(dr doer, rst reporterStack) (err error) {
-	return dr.do(t, rst)
+// do pushes the Test Reports to the stack, and calls the given doer.
+func (t *Test) do(d doer, rst reporterStack) (err error) {
+	rst.push(t.Report.reporters())
+	defer rst.pop()
+	return d.do(t, rst)
 }
 
 // DataWriter returns a WriteCloser for writing result data.

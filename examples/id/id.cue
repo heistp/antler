@@ -13,7 +13,7 @@ Run: {
 	]
 }
 
-// _test is the abstract Test.
+// _test is the abstract TestRun.
 _test: {
 	_A: string
 	_B: string
@@ -25,7 +25,4 @@ _test: {
 		OutPathTemplate: "{{.A}}/{{.B}}-"
 		System: Command: "echo A=\(_A) B=\(_B)"
 	}
-	Report: [
-		{EmitLog: {To: ["-", "node.log"]}},
-	]
 }

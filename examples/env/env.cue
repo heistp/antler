@@ -5,9 +5,8 @@
 
 package env
 
-// Run contains a single Test that emits test environment variables.
+// Run contains a single Test that emits environment variables.
 Run: {
-	Test: DataFile: ""
 	Test: Child: {
 		Node: {
 			ID:       "envtest"
@@ -22,7 +21,13 @@ Run: {
 			]
 		}
 	}
-	Report: [
-		{EmitLog: {To: ["-"]}},
-	]
+
+	Test: {
+		// disable saving of gob data
+		DataFile: ""
+		// override default report to only emit to stdout
+		Report: [
+			{EmitLog: {To: ["-"]}},
+		]
+	}
 }

@@ -27,8 +27,6 @@ Run: {
 		Serial: [stream, setup, server, do]
 	}
 	Report: [
-		{EmitLog: {To: ["node.log", "-"]}},
-		{SaveFiles: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {

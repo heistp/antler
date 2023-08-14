@@ -38,9 +38,7 @@ _linearTest: {
 	}
 
 	Report: [
-		{EmitLog: {To: ["node.log", "-"]}},
 		{EmitTCPInfo: {To: ["tcpinfo.txt"]}},
-		{SaveFiles: {}},
 		{ChartsTCPInfo: {
 			FlowLabel: {
 				"linear-a": "Linear-A"

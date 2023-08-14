@@ -7,7 +7,6 @@ package env
 
 // Run contains a single Test that streams data from /dev/random.
 Run: {
-	Test: DataFile: ""
 	Test: Serial: [
 		{ResultStream: Include: File: [".*"]},
 		{Child: {
@@ -29,8 +28,13 @@ Run: {
 			]
 		}},
 	]
-	Report: [
-		{EmitLog: {To: ["-"]}},
-		{SaveFiles: {}},
-	]
+
+	Test: {
+		// disable saving of gob data
+		DataFile: ""
+		// override default report to only emit to stdout
+		Report: [
+			{EmitLog: {To: ["-"]}},
+		]
+	}
 }

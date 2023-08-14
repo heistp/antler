@@ -114,8 +114,6 @@ _qdiscTest: {
 
 	// Report defines reports for the qdisc test
 	Report: [
-		{EmitLog: {To: ["node.log", "-"]}},
-		{SaveFiles: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {

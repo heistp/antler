@@ -1,6 +1,6 @@
 module github.com/heistp/antler
 
-go 1.17
+go 1.20
 
 require (
 	cuelang.org/go v0.5.0

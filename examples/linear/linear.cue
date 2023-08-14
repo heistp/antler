@@ -81,7 +81,7 @@ _linearTest: {
 					Background: true
 					Stdout:     "left.pcap"
 				}},
-				{Sleep: "500ms"},
+				{Sleep: "1s"},
 				{StreamClient: {
 					Addr: #serverAddr
 					Upload: {
@@ -92,6 +92,7 @@ _linearTest: {
 						TCPInfoInterval:  "5ms"
 					}
 				}},
+				{Sleep: "1s"},
 			]
 		}
 	}

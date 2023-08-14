@@ -22,6 +22,7 @@ _test: {
 			A: _A
 			B: _B
 		}
+		OutPathTemplate: "{{.A}}/{{.B}}-"
 		System: Command: "echo A=\(_A) B=\(_B)"
 	}
 	Report: [

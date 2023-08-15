@@ -16,6 +16,7 @@ and this project adheres to
 - Add support for setting DataFile in Test
 - Add HTB quantums for all examples
 - Add Report field to Test and default with EmitLog and SaveFiles
+- Add All field to MessageFilter to easily accept all messages
 
 ### Fixed
 

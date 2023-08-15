@@ -52,7 +52,9 @@ func (s *ResultStream) accept(msg message) (stream bool) {
 
 // MessageFilter selects messages based on some simple type and field criteria.
 type MessageFilter struct {
-	// File is a valid glob pattern of FileData names to accept.
+	// File is a valid glob pattern of FileData names to accept. Use '*' to
+	// select all files. The pattern format is documented here:
+	// https://pkg.go.dev/path/filepath#Match
 	File []string
 
 	// Log indicates whether to accept (true) or reject (false) LogEntry's.
@@ -60,10 +62,17 @@ type MessageFilter struct {
 
 	// Flows to accept.
 	Flow []Flow
+
+	// All indicates whether to accept all messages (true) or not (false).
+	All bool
 }
 
 // accept returns true if the MessageFilter accepts the given message.
 func (f *MessageFilter) accept(msg message) (verdict bool) {
+	if f.All {
+		verdict = true
+		return
+	}
 	switch v := msg.(type) {
 	case FileData:
 		for _, p := range f.File {

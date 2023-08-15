@@ -113,12 +113,20 @@ formats, and supporting platforms other than Linux.
   - detect lost and late (out of order) packets
 - handle tests both with and without node-synchronized time
 - add support for setting arbitary sockopts
-- rename EmitLog Reporter to Log, and add sorting by time for saved log files
-- secure the servers for use on Internet with challenge-response authentication
+- add sorting by time for saved log files
+- secure the servers for use on the Internet
 - add compression support for System runner FileData output
 - make UDP flood more efficient
 - add an antler _init_ command to create a default project
 - write documentation (in markdown)
+
+### Version 0.4.0
+
+#### Features
+
+- refactor examples to share common setup
+- move SCE examples into sce-tests repo
+- build examples to a public server and remove from README
 
 ### Version 0.3.0
 
@@ -126,14 +134,11 @@ formats, and supporting platforms other than Linux.
 
 - add a list command to list Tests
 - support regex's of ID key/value pairs in run, report and list commands
-- refactor examples to share common setup
-- build examples to a public server and remove from README
+- validate that all Test IDs are unique
+- validate that Node IDs identify Nodes uniquely
 
 #### Bugs
 
-- validate that all Test IDs are unique
-- validate that Node IDs identify Nodes uniquely
-- test for heap retention when streaming FileData
 - reconsider semantics for System.Stdout and Stderr
 - return error when trying to write FileData to absolute paths
 - improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)

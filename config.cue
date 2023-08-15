@@ -422,14 +422,22 @@ Run: #TestRun
 }
 
 // node.MessageFilter selects results (messages) based on some simple type and
-// field criteria. File lists glob patterns matching FileData Names to accept.
-// The pattern syntax is documented here:
-// https://pkg.go.dev/path/filepath#Match
+// field criteria.
+//
+// File lists glob patterns matching FileData Names to accept. The pattern
+// syntax is documented here: https://pkg.go.dev/path/filepath#Match. Use '*'
+// to include all files.
+//
 // Log, if true, means to accept LogEntry's.
+//
+// Flow lists flow results to stream, by their flow identifier.
+//
+// All, if true, means to accept all messages.
 #MessageFilter: {
 	File?: [string, ...string]
 	Log?:  bool
 	Flow?: #Flow
+	All?:  bool
 }
 
 // node.System is a system command Runner. See the Go documentation in

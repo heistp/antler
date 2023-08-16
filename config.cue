@@ -508,13 +508,14 @@ Run: #TestRun
 // https://pkg.go.dev/time#ParseDuration
 #Duration: string & =~"^([0-9]*\\.)?[0-9]+(ns|us|µs|ms|s|m|h)$"
 
-// node.Flow is a string flow identifier. Flow identifiers typically give a
-// relevant label to a network flow, which for TCP and UDP is often a 5-tuple
-// of protocol, src/dst host and src/dst port. Flow identifiers are limited to
-// lowercase characters, '.' and '-', merely to set a readable convention. They
-// are limited to 255 characters as they may be passed with data points and
-// inside negotiating packets.
-#Flow: string & !="" & =~"^[a-z][a-z\\.-]{0,255}$"
+// node.Flow is a string flow identifier. Flow identifiers give a relevant
+// label to a network flow (e.g. for TCP and UDP, a 5-tuple of protocol,
+// src/dst host and src/dst port). To establish a readable convention, flow
+// identifiers are lowercase, must start with a-z, and may use digits 0-9,
+// '.' or '-'. They are limited to 16 characters, as they may be passed in
+// data points. Flow identifiers are best kept small to reduce the size,
+// transfer and processing time of results.
+#Flow: string & !="" & =~"^[a-z][a-z0-9\\.-]{0,16}$"
 
 // node.ResultStream defines Include and Exclude filters that select which
 // results are included and excluded from realtime streaming during a Test.

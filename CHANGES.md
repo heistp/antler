@@ -28,6 +28,9 @@ and this project adheres to
 
 - In System Runner, use new Command.Cancel func instead of interrupt goroutine
 - Require Go 1.20 in go.mod
+- Add 0-9 to allowable characters in flow IDs (`#Flow`)
+- Limit flow IDs (`#Flow`) to 16 characters to reduce size of results
+- Rename CUE template extension from `.ant` to `.cue.tmpl`
 
 ## 0.3.0-beta - 2022-10-13
 

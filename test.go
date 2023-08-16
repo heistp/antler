@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -40,6 +41,12 @@ type Test struct {
 // TestID is a compound Test identifier. Keys and values must match the regex
 // defined in config.cue.
 type TestID map[string]string
+
+// Equal returns true if other is equal to this TestID (they contain the same
+// key/value pairs).
+func (i TestID) Equal(other TestID) bool {
+	return maps.Equal(i, other)
+}
 
 // String returns a canonical version of the Test ID in the form:
 // [K=V ...] with key/value pairs sorted by their keys.

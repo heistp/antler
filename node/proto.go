@@ -97,7 +97,7 @@ func (r ran) String() string {
 // run before any other Runs.
 type setup struct {
 	ID       runID
-	Children tree
+	Children Tree
 	Exes     exes
 }
 

@@ -100,7 +100,7 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 		}
 	}()
 	// run tree
-	t := newTree(rn)
+	t := NewTree(rn)
 	// executables
 	var x exes
 	if x, err = newExes(src, t.Platforms()); err != nil {

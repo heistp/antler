@@ -10,6 +10,7 @@ and this project adheres to
 ### Added
 
 - Make Test ID a map of key/value pairs and validate they are unique
+- Validate that Node IDs identify Nodes unambiguously
 - Make output filenames configurable with a Go template (Test.OutPathTemplate)
 - Add `vet` command for checking CUE config
 - Add support for setting node environment variables via Env CUE field

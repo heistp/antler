@@ -132,7 +132,6 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- validate that Node IDs identify Nodes uniquely
 - add a list command to list Tests
 - support regex's of ID key/value pairs in run, report and list commands
 - improve semantics for System.Stdout and Stderr
@@ -156,11 +155,16 @@ formats, and supporting platforms other than Linux.
 - add ability to buffer System Stdout to /tmp before sending as FileData
 - find a better way than unions to create interface implementations from CUE
 - allow Go template syntax right in .cue files, instead of using .cue.tmpl files
+- support multiple nodes in the same namespace
 - add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
 - support MacOS
 - support FreeBSD
 
 #### Bugs
+
+#### Questions
+
+- should ambiguous node IDs be allowed across Tests in a package?
 
 ## Thanks
 

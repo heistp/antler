@@ -38,8 +38,8 @@ type Test struct {
 	Report reports
 }
 
-// TestID is a compound Test identifier. Keys and values must match the regex
-// defined in config.cue.
+// TestID represents a compound Test identifier. Keys and values must match the
+// regex defined in config.cue.
 type TestID map[string]string
 
 // Equal returns true if other is equal to this TestID (they contain the same

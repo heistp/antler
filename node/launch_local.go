@@ -29,7 +29,7 @@ func (l *Local) launch(node Node, log logFunc) (tr transport, err error) {
 	ns := node.Netns.Name
 	if node.Netns.Create {
 		if ns == "" {
-			ns = node.ID
+			ns = string(node.ID)
 		}
 		if err = addNetns(ns, log); err != nil {
 			return
@@ -44,7 +44,7 @@ func (l *Local) launch(node Node, log logFunc) (tr transport, err error) {
 	} else {
 		n = f.Path
 	}
-	a = append(a, node.ID)
+	a = append(a, string(node.ID))
 	c := exec.Command(n, a...)
 	c.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,

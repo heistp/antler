@@ -323,7 +323,8 @@ Run: #TestRun
 
 // node.Node contains the connection parameters for a node.
 //
-// ID is a string identifier for the node.
+// ID is a string identifier for the node. This must uniquely identify the
+// Node's other fields within the test package.
 //
 // Platform defines the GOOS-GOARCH combination for the node, e.g. linux-amd64.
 // The specified platform must be built into the antler binary (see the

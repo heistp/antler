@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
+	"github.com/heistp/antler/node"
 	"github.com/heistp/antler/node/metric"
 	"gonum.org/v1/gonum/stat/distuv"
 )
@@ -38,6 +40,9 @@ type Config struct {
 // possible to do with the schema in config.cue.
 func (c *Config) validate() (err error) {
 	if err = c.validateTestIDs(); err != nil {
+		return
+	}
+	if err = c.validateNodeIDs(); err != nil {
 		return
 	}
 	return
@@ -67,15 +72,58 @@ func (c *Config) validateTestIDs() (err error) {
 
 // DuplicateTestIDError is returned when multiple Tests have the same ID.
 type DuplicateTestIDError struct {
-	Dup []TestID
+	ID []TestID
 }
 
 func (d *DuplicateTestIDError) Error() string {
 	var s []string
-	for _, i := range d.Dup {
+	for _, i := range d.ID {
 		s = append(s, i.String())
 	}
 	return fmt.Sprintf("duplicate Test IDs: %s", strings.Join(s, ", "))
+}
+
+// validateNodeIDs returns an error if any Node IDs do not uniquely identify
+// their fields.
+func (c *Config) validateNodeIDs() (err error) {
+	nn := make(map[node.Node]struct{})
+	c.Run.visitTests(func(t *Test) bool {
+		r := node.NewTree(&t.Run)
+		r.Walk(func(n node.Node) bool {
+			nn[n] = struct{}{}
+			return true
+		})
+		return true
+	})
+	ii := make(map[node.NodeID]struct{})
+	var aa []node.NodeID
+	for n := range nn {
+		if _, ok := ii[n.ID]; ok {
+			if !slices.Contains(aa, n.ID) {
+				aa = append(aa, n.ID)
+			}
+		}
+		ii[n.ID] = struct{}{}
+	}
+	if len(aa) > 0 {
+		err = &AmbiguousNodeIDError{aa}
+	}
+	return
+}
+
+// AmbiguousNodeIDError is returned when multiple Nodes use the same ID but with
+// different field values.
+type AmbiguousNodeIDError struct {
+	ID []node.NodeID
+}
+
+func (a *AmbiguousNodeIDError) Error() string {
+	var s []string
+	for _, i := range a.ID {
+		s = append(s, i.String())
+	}
+	sort.Strings(s)
+	return fmt.Sprintf("ambiguous Node IDs: %s", strings.Join(s, ", "))
 }
 
 // LoadConfig first executes templates in any .cue.tmpl files to create the

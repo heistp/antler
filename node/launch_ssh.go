@@ -55,7 +55,7 @@ func (s *SSH) launch(node Node, log logFunc) (tr transport, err error) {
 	}
 	dest := s.Destination
 	if dest == "" {
-		dest = node.ID
+		dest = string(node.ID)
 	}
 	c := exec.Command("ssh", "-o", "BatchMode yes", dest,
 		"sh", "-c", fmt.Sprintf("'%s'", scmd))
@@ -92,7 +92,7 @@ func executeSSHTemplate(node Node) (s string, err error) {
 		return
 	}
 	data := sshArgs{
-		node.ID,
+		string(node.ID),
 		PlatformExeName(node.Platform).String(),
 		z,
 	}

@@ -39,7 +39,7 @@ results.
 
 | Example                     | Plot            |
 | --------------------------- | --------------- |
-| [fct](examples/fct/fct.ant) | [fct](https://www.heistp.net/downloads/antler/examples/fct/fct.html) |
+| [fct](examples/fct/fct.cue.tmpl) | [fct](https://www.heistp.net/downloads/antler/examples/fct/fct.html) |
 | [ratedrop](examples/ratedrop/ratedrop.cue) | [timeseries](https://www.heistp.net/downloads/antler/examples/ratedrop/timeseries.html) |
 | [sceaqm](examples/sceaqm/sceaqm.cue) | [cake](https://www.heistp.net/downloads/antler/examples/sceaqm/cake_timeseries.html) / [cnq_cobalt](https://www.heistp.net/downloads/antler/examples/sceaqm/cnq_cobalt_timeseries.html) / [codel](https://www.heistp.net/downloads/antler/examples/sceaqm/codel_timeseries.html) / [pfifo](https://www.heistp.net/downloads/antler/examples/sceaqm/pfifo_timeseries.html) / [pie](https://www.heistp.net/downloads/antler/examples/sceaqm/pie_timeseries.html) / [cobalt](https://www.heistp.net/downloads/antler/examples/sceaqm/cobalt_timeseries.html) / [deltic](https://www.heistp.net/downloads/antler/examples/sceaqm/deltic_timeseries.html) |
 | [tcpstream](examples/tcpstream/tcpstream.cue) | [timeseries](https://www.heistp.net/downloads/antler/examples/tcpstream/timeseries.html) |
@@ -136,10 +136,11 @@ formats, and supporting platforms other than Linux.
 - support regex's of ID key/value pairs in run, report and list commands
 - validate that all Test IDs are unique
 - validate that Node IDs identify Nodes uniquely
+- add ability to save System Stdout directly to local file
 
 #### Bugs
 
-- reconsider semantics for System.Stdout and Stderr
+- improve semantics for System.Stdout and Stderr
 - return error when trying to write FileData to absolute paths
 - improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)
 - return errors immediately on failed sets of CCA / sockopts
@@ -149,11 +150,12 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- allow Go template syntax right in .cue files, instead of using .ant files
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
 - show bandwidth for FCT distribution
+- add ability to buffer System Stdout to /tmp before sending as FileData
 - find a better way than unions to create interface implementations from CUE
+- allow Go template syntax right in .cue files, instead of using .cue.tmpl files
 - support MacOS
 - support FreeBSD
 

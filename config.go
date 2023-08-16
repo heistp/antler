@@ -19,6 +19,9 @@ import (
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
+// templateExtension is the filename extension used for Go templates.
+const templateExtension = ".tmpl"
+
 //go:embed config.cue
 var configCUE string
 
@@ -28,7 +31,7 @@ type Config struct {
 	Run TestRun
 }
 
-// LoadConfig first executes templates in any .ant files to create the
+// LoadConfig first executes templates in any .cue.tmpl files to create the
 // corresponding .cue files, then uses the CUE API to load and return the Antler
 // Config.
 func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
@@ -60,11 +63,11 @@ func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
 	return
 }
 
-// executeConfigTemplates runs any .ant files as Go templates, to create their
-// corresponding .cue files.
+// executeConfigTemplates runs any .cue.tmpl files as Go templates, to create
+// their corresponding .cue files.
 func executeConfigTemplates() (err error) {
 	var ff []string
-	if ff, err = filepath.Glob("*.ant"); err != nil {
+	if ff, err = filepath.Glob("*.cue" + templateExtension); err != nil {
 		return
 	}
 	f := configFunc{}
@@ -75,7 +78,7 @@ func executeConfigTemplates() (err error) {
 			return
 		}
 		var c *os.File
-		if c, err = os.Create(tf[:len(tf)-4] + ".cue"); err != nil {
+		if c, err = os.Create(tf[:len(tf)-len(templateExtension)]); err != nil {
 			return
 		}
 		defer c.Close()
@@ -86,7 +89,7 @@ func executeConfigTemplates() (err error) {
 	return
 }
 
-// configFunc contains the template functions for .ant config files.
+// configFunc contains the template functions for .cue.tmpl config files.
 type configFunc struct {
 }
 

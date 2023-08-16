@@ -9,7 +9,9 @@ package id
 Run: {
 	Serial: [
 		for a in [ "X", "Y"]
-		for b in [ "1", "2"] {{_A: a, _B: b} & _test},
+		for b in [ "1", "2"] {
+			{_A: a, _B: b} & _test
+		},
 	]
 }
 

@@ -9,7 +9,7 @@ and this project adheres to
 
 ### Added
 
-- Make Test ID a map of key/value pairs
+- Make Test ID a map of key/value pairs and validate they are unique
 - Make output filenames configurable with a Go template (Test.OutPathTemplate)
 - Add `vet` command for checking CUE config
 - Add support for setting node environment variables via Env CUE field
@@ -26,8 +26,8 @@ and this project adheres to
 
 ### Changed
 
+- Require Go 1.21 in go.mod
 - In System Runner, use new Command.Cancel func instead of interrupt goroutine
-- Require Go 1.20 in go.mod
 - Add 0-9 to allowable characters in flow IDs (`#Flow`)
 - Limit flow IDs (`#Flow`) to 16 characters to reduce size of results
 - Rename CUE template extension from `.ant` to `.cue.tmpl`

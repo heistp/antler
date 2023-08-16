@@ -132,19 +132,19 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
+- validate that Node IDs identify Nodes uniquely
 - add a list command to list Tests
 - support regex's of ID key/value pairs in run, report and list commands
-- validate that all Test IDs are unique
-- validate that Node IDs identify Nodes uniquely
+- improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
 
 #### Bugs
 
-- improve semantics for System.Stdout and Stderr
 - return error when trying to write FileData to absolute paths
 - improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)
 - return errors immediately on failed sets of CCA / sockopts
-- fix poor CUE error when Env length > max (Run.Test: field not allowed)
+- improve poor error messages from CUE for syntax errors under disjunctions
+  (e.g. when Env length > max- Run.Test: field not allowed)
 
 ### Inbox
 
@@ -156,12 +156,11 @@ formats, and supporting platforms other than Linux.
 - add ability to buffer System Stdout to /tmp before sending as FileData
 - find a better way than unions to create interface implementations from CUE
 - allow Go template syntax right in .cue files, instead of using .cue.tmpl files
+- add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
 - support MacOS
 - support FreeBSD
 
 #### Bugs
-
-- improve poor error messages from CUE for syntax errors under disjunctions
 
 ## Thanks
 

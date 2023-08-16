@@ -23,6 +23,27 @@ type TestRun struct {
 	Parallel Parallel
 }
 
+// visitTests calls visitor for each Test in the TestRun, recursively. The
+// visitor may return false to discontinue visiting, in which case visitTests
+// will return false.
+func (t *TestRun) visitTests(visitor func(*Test) bool) bool {
+	var rr []TestRun
+	switch {
+	case len(t.Serial) > 0:
+		rr = t.Serial
+	case len(t.Parallel) > 0:
+		rr = t.Parallel
+	default:
+		return visitor(t.Test)
+	}
+	for _, r := range rr {
+		if !r.visitTests(visitor) {
+			return false
+		}
+	}
+	return true
+}
+
 // do runs a doer, observing the Serial and Parallel structure of the TestRun.
 func (t *TestRun) do(d doer, rst reporterStack) (err error) {
 	rst.push(t.Report.reporters())

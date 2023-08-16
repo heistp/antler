@@ -6,9 +6,12 @@ package antler
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"text/template"
 	"time"
 
@@ -29,6 +32,50 @@ var configCUE string
 type Config struct {
 	// Run is the top-level TestRun instance.
 	Run TestRun
+}
+
+// validate performs any programmatic validation on the Config that isn't
+// possible to do with the schema in config.cue.
+func (c *Config) validate() (err error) {
+	if err = c.validateTestIDs(); err != nil {
+		return
+	}
+	return
+}
+
+// validateTestIDs returns an error if any Test IDs are duplicated.
+func (c *Config) validateTestIDs() (err error) {
+	var ii, dd []TestID
+	c.Run.visitTests(func(t *Test) bool {
+		f := func(i TestID) bool {
+			return i.Equal(t.ID)
+		}
+		if slices.ContainsFunc(ii, f) {
+			if !slices.ContainsFunc(dd, f) {
+				dd = append(dd, t.ID)
+			}
+		} else {
+			ii = append(ii, t.ID)
+		}
+		return true
+	})
+	if len(dd) > 0 {
+		err = &DuplicateTestIDError{dd}
+	}
+	return
+}
+
+// DuplicateTestIDError is returned when multiple Tests have the same ID.
+type DuplicateTestIDError struct {
+	Dup []TestID
+}
+
+func (d *DuplicateTestIDError) Error() string {
+	var s []string
+	for _, i := range d.Dup {
+		s = append(s, i.String())
+	}
+	return fmt.Sprintf("duplicate Test IDs: %s", strings.Join(s, ", "))
 }
 
 // LoadConfig first executes templates in any .cue.tmpl files to create the
@@ -59,7 +106,10 @@ func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
 		return
 	}
 	cfg = &Config{}
-	err = v.Decode(cfg)
+	if err = v.Decode(cfg); err != nil {
+		return
+	}
+	err = cfg.validate()
 	return
 }
 

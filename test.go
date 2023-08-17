@@ -24,7 +24,7 @@ type Test struct {
 	ID TestID
 
 	// OutputPrefix is the base path for output files. It may use Go template
-	// syntax, and is further documented in config.cue
+	// syntax, and is further documented in config.cue.
 	OutputPrefix string
 
 	// DataFile is the name of the gob output file containing the raw result

@@ -9,6 +9,7 @@ and this project adheres to
 
 ### Added
 
+- Add Test ID regex filter support for the `list`, `run` and `report` commands
 - Make Test ID a map of key/value pairs and validate they are unique
 - Validate that Node IDs identify Nodes unambiguously
 - Make output filenames configurable with a Go template (Test.OutputPrefix)

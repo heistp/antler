@@ -36,9 +36,16 @@ type RunCommand struct {
 	// Force re-runs the test and overwrites any existing data.
 	Force bool
 
-	// Skipped is called when a test was skipped because there's already an
-	// output data file for it and RunCommand.Force is false.
-	Skipped func(test *Test, path string)
+	// Filter selects which tests to run.
+	Filter TestFilter
+
+	// SkippedFiltered is called when a test was skipped because it was rejected
+	// by the Filter.
+	SkippedFiltered func(test *Test)
+
+	// SkippedDataFileExists is called when a test was skipped because there's
+	// already an output data file for it and RunCommand.Force is false.
+	SkippedDataFileExists func(test *Test, path string)
 }
 
 // run implements command
@@ -53,12 +60,16 @@ func (r *RunCommand) run() (err error) {
 
 // do implements doer
 func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
+	if c.Filter != nil && !c.Filter.Accept(test) {
+		c.SkippedFiltered(test)
+		return
+	}
 	var w io.WriteCloser
 	if w, err = test.DataWriter(c.Force); err != nil {
 		switch e := err.(type) {
 		case *FileExistsError:
-			if c.Skipped != nil {
-				c.Skipped(test, e.Path)
+			if c.SkippedDataFileExists != nil {
+				c.SkippedDataFileExists(test, e.Path)
 			}
 			err = nil
 			return
@@ -80,6 +91,13 @@ func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
 
 // ReportCommand runs reports.
 type ReportCommand struct {
+	// Filter selects which tests to run.
+	Filter TestFilter
+
+	// SkippedFiltered is called when a test was skipped because it was rejected
+	// by the Filter.
+	SkippedFiltered func(test *Test)
+
 	// SkippedNoDataFile is called when a report was skipped because the Test's
 	// DataFile field is empty.
 	SkippedNoDataFile func(test *Test)
@@ -101,6 +119,10 @@ func (r *ReportCommand) run() (err error) {
 
 // do implements doer
 func (c *ReportCommand) do(test *Test, rst reporterStack) (err error) {
+	if c.Filter != nil && !c.Filter.Accept(test) {
+		c.SkippedFiltered(test)
+		return
+	}
 	var r io.ReadCloser
 	if r, err = test.DataReader(); err != nil {
 		if _, ok := err.(*NoDataFileError); ok {

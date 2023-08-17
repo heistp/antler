@@ -5,11 +5,11 @@
 
 package id
 
-// Run tests a 2x2 compound ID using a list comprehension.
+// Run creates a Serial list of TestRuns with a list comprehension.
 Run: {
 	Serial: [
-		for a in [ "X", "Y"]
-		for b in [ "1", "2"] {
+		for a in [ "W", "X", "Y", "Z"]
+		for b in [ "1", "2", "3", "4"] {
 			{_A: a, _B: b} & _testRun
 		},
 	]
@@ -20,11 +20,16 @@ _testRun: {
 	_A: string
 	_B: string
 	Test: {
+		// ID is a compound ID with two key/value pairs.
 		ID: {
 			A: _A
 			B: _B
 		}
+
+		// OutputPrefix uses a directory for A, and B as the filename prefix.
 		OutputPrefix: "{{.A}}/{{.B}}-"
+
+		// Emit A and B, for testing.
 		System: Command: "echo A=\(_A) B=\(_B)"
 	}
 }

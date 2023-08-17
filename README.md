@@ -132,7 +132,6 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- support regex's of ID key/value pairs in run, report and list commands
 - improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
 

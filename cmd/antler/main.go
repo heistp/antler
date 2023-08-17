@@ -5,8 +5,10 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"text/tabwriter"
 
@@ -36,9 +38,17 @@ func root() (cmd *cobra.Command) {
 // list returns the list cobra command.
 func list() (cmd *cobra.Command) {
 	return &cobra.Command{
-		Use:   "list",
+		Use:   "list [filter] ...",
 		Short: "Lists tests and their output path prefixes",
+		Long: help(`List lists tests and their output path prefixes.
+
+{{template "filter" "list"}}
+`),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			var f antler.TestFilter
+			if f, err = newRegexFilter(args); err != nil {
+				return
+			}
 			var c *antler.Config
 			if c, err = antler.LoadConfig(&load.Config{}); err != nil {
 				return
@@ -47,6 +57,9 @@ func list() (cmd *cobra.Command) {
 			fmt.Fprintln(w, "Test ID\tOutput Prefix")
 			fmt.Fprintln(w, "-------\t-------------")
 			c.Run.VisitTests(func(t *antler.Test) bool {
+				if !f.Accept(t) {
+					return true
+				}
 				var p string
 				if p, err = t.OutputPath(""); err != nil {
 					p = err.Error()
@@ -66,15 +79,26 @@ func run() (cmd *cobra.Command) {
 	r := &antler.RunCommand{
 		c,
 		false,
+		nil,
+		func(test *antler.Test) {
+			fmt.Printf("skipping %s, filtered\n", test.ID)
+		},
 		func(test *antler.Test, path string) {
-			fmt.Printf("%s already exists, skipping test (use -f to force)\n",
-				path)
+			fmt.Printf("skipping %s, '%s' already exists (use -f to force)\n",
+				test.ID, path)
 		},
 	}
 	cmd = &cobra.Command{
-		Use:   "run",
+		Use:   "run [filter] ...",
 		Short: "Runs tests and reports",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Long: help(`Run runs tests and reports.
+
+{{template "filter" "run"}}
+`),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			if r.Filter, err = newRegexFilter(args); err != nil {
+				return
+			}
 			defer c.Stop()
 			sc := make(chan os.Signal, 1)
 			signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
@@ -87,7 +111,8 @@ func run() (cmd *cobra.Command) {
 				fmt.Fprintf(os.Stderr, "%s, exiting forcibly\n", s)
 				os.Exit(-1)
 			}()
-			return antler.Run(r)
+			err = antler.Run(r)
+			return
 		},
 	}
 	cmd.Flags().BoolVarP(&r.Force, "force", "f", false,
@@ -98,20 +123,30 @@ func run() (cmd *cobra.Command) {
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
 	r := &antler.ReportCommand{
+		nil,
 		func(test *antler.Test) {
-			fmt.Printf("%s was skipped because its DataFile field is empty\n",
-				test.ID)
+			fmt.Printf("skipping %s, filtered\n", test.ID)
+		},
+		func(test *antler.Test) {
+			fmt.Printf("skipping %s, DataFile field is empty\n", test.ID)
 		},
 		func(test *antler.Test, path string) {
-			fmt.Printf("%s was skipped because '%s' was not found\n",
-				test.ID, path)
+			fmt.Printf("skipping %s, '%s' not found\n", test.ID, path)
 		},
 	}
 	return &cobra.Command{
-		Use:   "report",
+		Use:   "report [filter] ...",
 		Short: "Re-runs reports using existing data files",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return antler.Run(r)
+		Long: help(`Report re-runs reports using existing data files.
+
+{{template "filter" "report"}}
+`),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			if r.Filter, err = newRegexFilter(args); err != nil {
+				return
+			}
+			err = antler.Run(r)
+			return
 		},
 	}
 }
@@ -126,6 +161,45 @@ func vet() (cmd *cobra.Command) {
 			return antler.Run(v)
 		},
 	}
+}
+
+// newRegexFilter returns a TestFilter that's a logical and of the given
+// regex filters.
+func newRegexFilter(args []string) (flt antler.AndFilter, err error) {
+	for _, a := range args {
+		var f antler.TestFilter
+		if f, err = antler.NewRegexFilterArg(a); err != nil {
+			return
+		}
+		flt = append(flt, f)
+	}
+	return
+}
+
+// helpTemplate contains defined templates for common help snippets.
+const helpTemplate = `
+{{- define "filter" -}}
+Each filter argument may be either a single pattern matching the value of any ID
+field, or a string in the form key=value, where key and value are separate
+patterns that must match both a Test ID key and value for it to be accepted.
+Multiple filters are combined with a logical AND.
+
+Example 1: antler {{.}} cca=cubic
+
+Example 2: antler {{.}} qdisc=codel rtt='(20ms|40ms)'
+{{end}}
+`
+
+// help executes the given template text together with helpTemplate and returns
+// the result as a string.
+func help(text string) string {
+	t := template.Must(template.New("help").Parse(helpTemplate))
+	t = template.Must(t.Parse(text))
+	var h strings.Builder
+	if e := t.Execute(&h, nil); e != nil {
+		panic(e)
+	}
+	return h.String()
 }
 
 // main executes the antler command.

@@ -51,7 +51,7 @@ func (c *Config) validate() (err error) {
 // validateTestIDs returns an error if any Test IDs are duplicated.
 func (c *Config) validateTestIDs() (err error) {
 	var ii, dd []TestID
-	c.Run.visitTests(func(t *Test) bool {
+	c.Run.VisitTests(func(t *Test) bool {
 		f := func(i TestID) bool {
 			return i.Equal(t.ID)
 		}
@@ -87,7 +87,7 @@ func (d *DuplicateTestIDError) Error() string {
 // their fields.
 func (c *Config) validateNodeIDs() (err error) {
 	nn := make(map[node.Node]struct{})
-	c.Run.visitTests(func(t *Test) bool {
+	c.Run.VisitTests(func(t *Test) bool {
 		r := node.NewTree(&t.Run)
 		r.Walk(func(n node.Node) bool {
 			nn[n] = struct{}{}

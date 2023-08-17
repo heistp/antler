@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"text/tabwriter"
 
 	"cuelang.org/go/cue/errors"
+	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler"
 	"github.com/heistp/antler/node"
 	"github.com/spf13/cobra"
@@ -23,11 +25,39 @@ func root() (cmd *cobra.Command) {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	cmd.AddCommand(report())
+	cmd.AddCommand(list())
 	cmd.AddCommand(run())
+	cmd.AddCommand(report())
 	cmd.AddCommand(vet())
 	cmd.Version = antler.Version
 	return
+}
+
+// list returns the list cobra command.
+func list() (cmd *cobra.Command) {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "Lists tests and their output path prefixes",
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			var c *antler.Config
+			if c, err = antler.LoadConfig(&load.Config{}); err != nil {
+				return
+			}
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "Test ID\tOutput Prefix")
+			fmt.Fprintln(w, "-------\t-------------")
+			c.Run.VisitTests(func(t *antler.Test) bool {
+				var p string
+				if p, err = t.OutputPath(""); err != nil {
+					p = err.Error()
+				}
+				fmt.Fprintf(w, "%s\t%s\n", t.ID, p)
+				return true
+			})
+			w.Flush()
+			return
+		},
+	}
 }
 
 // run returns the run cobra command.

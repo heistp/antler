@@ -1,8 +1,8 @@
 # Antler
 
-Antler is an open-source network testing tool intended for congestion control
-and related work. The name stands for **A**ctive **N**etwork **T**ester of
-**L**oad & **R**esponse, where '&' == **E**t. :)
+Antler is a tool for network and congestion control testing. The name stands for
+**A**ctive **N**etwork **T**ester of **L**oad & **R**esponse, where '&' ==
+**E**t. :)
 
 ## Introduction
 
@@ -132,7 +132,6 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- add a list command to list Tests
 - support regex's of ID key/value pairs in run, report and list commands
 - improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file

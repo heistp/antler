@@ -6,7 +6,7 @@ package antler
 // TestRun contains the information needed to orchestrate the execution of Tests
 // and Reports. A TestRun may have a Test, or nested TestRun's listed in the
 // Serial or Parallel fields, which are executed sequentially or concurrently,
-// respectively. TestRun's may thus be arranged in a tree to coordinate the
+// respectively. TestRun's may thus be arranged in a hierarchy to coordinate the
 // serial and parallel execution of Tests.
 type TestRun struct {
 	// Test is the Test to run (non-nil on leaf TestRun's).
@@ -23,10 +23,10 @@ type TestRun struct {
 	Parallel Parallel
 }
 
-// visitTests calls visitor for each Test in the TestRun, recursively. The
-// visitor may return false to discontinue visiting, in which case visitTests
-// will return false.
-func (t *TestRun) visitTests(visitor func(*Test) bool) bool {
+// VisitTests calls the given visitor func for each Test in the TestRun
+// hierarchy. The visitor may return false to stop visiting, in which case
+// VisitTests will also return false.
+func (t *TestRun) VisitTests(visitor func(*Test) bool) bool {
 	var rr []TestRun
 	switch {
 	case len(t.Serial) > 0:
@@ -37,7 +37,7 @@ func (t *TestRun) visitTests(visitor func(*Test) bool) bool {
 		return visitor(t.Test)
 	}
 	for _, r := range rr {
-		if !r.visitTests(visitor) {
+		if !r.VisitTests(visitor) {
 			return false
 		}
 	}

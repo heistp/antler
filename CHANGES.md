@@ -28,6 +28,7 @@ and this project adheres to
 - Fix hang and improve errors on Go runtime failure (e.g. GOMEMLIMIT=bogus)
 - Add sleeps to examples to make it more likely all packets are captured
 - Add missing Schedule field when building node.Tree
+- Return errors immediately on failed sets of sockopts
 
 ### Changed
 

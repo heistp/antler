@@ -138,7 +138,6 @@ formats, and supporting platforms other than Linux.
 
 #### Bugs
 
-- return errors immediately on failed sets of CCA / sockopts
 - improve poor error messages from CUE for syntax errors under disjunctions
   (e.g. when Env length > max- Run.Test: field not allowed)
 

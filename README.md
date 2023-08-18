@@ -51,16 +51,13 @@ cd examples/tcpstream
 sudo antler run
 ```
 
-Root access is required to create network namespaces. Examples that do not need
-namespaces, like the id or env examples, do not need root.
+All configuration is in the .cue or .cue.tmpl files. Root access is required for
+any examples that need to create network namespaces.
 
 The antler binary must be in your PATH, or the full path must be specified.
 Typically, you add ~/go/bin to your PATH so you can run binaries installed by
 Go. *Note:* if using sudo and the `secure_path` option is set in /etc/sudoers,
 either this must be added to that path, or additional configuration is required.
-
-All configuration is in the .cue file. After running the examples, you'll have
-output depending on the example, like gob files, logs, pcaps or HTML plots.
 
 ## Installation
 
@@ -90,7 +87,7 @@ examples.
 
 ## Status
 
-As of version 0.3.0-beta, the node is working, along with some basic tests and
+As of version 0.3.0, the node is working, along with some basic tests and
 visualizations. The [Roadmap](#roadmap) shows future plans. Overall, more work
 is needed on the tests and visualizations, stabilizing the config and data
 formats, and supporting platforms other than Linux.
@@ -128,14 +125,6 @@ formats, and supporting platforms other than Linux.
 - move SCE examples into sce-tests repo
 - build examples to a public server and remove from README
 
-### Version 0.3.0
-
-#### Features
-
-- improve semantics for System.Stdout and Stderr
-- add ability to save System Stdout directly to local file
-- add ability to buffer System Stdout to a tmp file before sending as FileData
-
 #### Bugs
 
 - improve poor error messages from CUE for syntax errors under disjunctions
@@ -145,6 +134,9 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
+- improve semantics for System.Stdout and Stderr
+- add ability to save System Stdout directly to local file
+- add ability to buffer System Stdout to a tmp file before sending as FileData
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
 - show bandwidth for FCT distribution
@@ -154,12 +146,6 @@ formats, and supporting platforms other than Linux.
 - add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
 - support MacOS
 - support FreeBSD
-
-#### Bugs
-
-#### Questions
-
-- should ambiguous node IDs be allowed across Tests in a package?
 
 ## Thanks
 

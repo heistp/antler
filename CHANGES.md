@@ -7,15 +7,17 @@ and this project adheres to
 
 ## Unreleased
 
+## 0.3.0 - 2023-08-18
+
 ### Added
 
 - Add Test ID regex filter support for the `list`, `run` and `report` commands
-- Make Test ID a map of key/value pairs and validate they are unique
+- Make Test ID a map of key/value pairs, and add "id" example to demonstrate
 - Validate that Node IDs identify Nodes unambiguously
 - Make output filenames configurable with a Go template (Test.OutputPrefix)
 - Add `list` command to list tests
 - Add `vet` command for checking CUE config
-- Add support for setting node environment variables via Env CUE field
+- Add support for setting node environment variables, and add "env" example
 - Add support for setting DataFile in Test
 - Add HTB quantums for all examples
 - Add Report field to Test and default with EmitLog and SaveFiles
@@ -34,7 +36,7 @@ and this project adheres to
 
 - Require Go 1.21 in go.mod
 - In System Runner, use new Command.Cancel func instead of interrupt goroutine
-- Add 0-9 to allowable characters in flow IDs (`#Flow`)
+- Add `[0-9]` to allowable characters in flow IDs (`#Flow`)
 - Limit flow IDs (`#Flow`) to 16 characters to reduce size of results
 - Rename CUE template extension from `.ant` to `.cue.tmpl`
 

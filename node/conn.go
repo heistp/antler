@@ -125,6 +125,7 @@ func (c *conn) doClose() (err error) {
 	}
 	c.failRPC()
 	c.canceled = true
+	close(c.tq)
 	err = c.tr.Close()
 	c.closed = true
 	return

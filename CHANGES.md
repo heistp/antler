@@ -25,6 +25,7 @@ and this project adheres to
 
 - Fix System Runner not always waiting for IO to complete (e.g. short pcaps)
 - Fix System Runner not always exiting until second interrupt
+- Fix hang and improve errors on Go runtime failure (e.g. GOMEMLIMIT=bogus)
 - Add sleeps to examples to make it more likely all packets are captured
 - Add missing Schedule field when building node.Tree
 

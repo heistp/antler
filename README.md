@@ -134,11 +134,10 @@ formats, and supporting platforms other than Linux.
 
 - improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
+- add ability to buffer System Stdout to a tmp file before sending as FileData
 
 #### Bugs
 
-- return error when trying to write FileData to absolute paths
-- improve error handling with bad Go runtime settings (e.g. GOMEMLIMIT=bad)
 - return errors immediately on failed sets of CCA / sockopts
 - improve poor error messages from CUE for syntax errors under disjunctions
   (e.g. when Env length > max- Run.Test: field not allowed)
@@ -150,7 +149,6 @@ formats, and supporting platforms other than Linux.
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
 - show bandwidth for FCT distribution
-- add ability to buffer System Stdout to /tmp before sending as FileData
 - find a better way than unions to create interface implementations from CUE
 - allow Go template syntax right in .cue files, instead of using .cue.tmpl files
 - support multiple nodes in the same namespace

@@ -317,7 +317,7 @@ func (e errorEvent) handle(node *node) {
 		node.err = e.err
 	}
 	if e.io {
-		fmt.Fprintf(os.Stderr, "%s\n", e.err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", node.rec.nodeID, e.err)
 		return
 	}
 	ee := node.rec.NewErrore(e.err)

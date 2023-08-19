@@ -39,7 +39,7 @@ type run struct {
 	ID       runID
 	Run      *Run
 	Feedback Feedback
-	conn     *conn
+	to       Node
 	ran      chan ran
 }
 
@@ -72,7 +72,7 @@ type ran struct {
 	ID       runID
 	Feedback Feedback
 	OK       bool
-	conn     *conn
+	from     Node
 }
 
 // init registers ran with the gob encoder
@@ -134,7 +134,7 @@ func (s setup) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) {
 		select {
 		case a := <-rc:
 			if !a.OK {
-				err = r.NewErrorf("setup on child node %s failed", a.conn.to)
+				err = r.NewErrorf("setup on child node %s failed", a.from)
 				return
 			}
 		case <-ctx.Done():

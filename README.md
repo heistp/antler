@@ -137,6 +137,7 @@ formats, and supporting platforms other than Linux.
 - improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
 - add ability to buffer System Stdout to a tmp file before sending as FileData
+- enhance stream server protocol to ensure streams have completed
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
 - show bandwidth for FCT distribution
@@ -146,6 +147,11 @@ formats, and supporting platforms other than Linux.
 - add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
 - support MacOS
 - support FreeBSD
+
+#### Refactoring
+
+- replace type switch in node.Do
+- replace uses of chan interface{}
 
 ## Thanks
 

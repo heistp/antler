@@ -134,8 +134,7 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 	go n.run()
 	// setup and run
 	rc := make(chan ran, 1)
-	s := &setup{0, t, x}
-	c.Run(&Run{Runners: Runners{Setup: s}}, Feedback{}, rc)
+	c.Run(&Run{Runners: Runners{Setup: &setup{0, t, x}}}, Feedback{}, rc)
 	r := <-rc
 	if !r.OK {
 		return
@@ -148,27 +147,44 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
 	return
 }
 
-// run runs the node by handling node events, and returns the first error that
-// occurred.
+// run runs the node by handling node events.
 func (n *node) run() {
 	n.parent.start(n.ev)
 	go n.runs()
 	for e := range n.ev {
 		e.handle(n)
-		if d := n.advance(); d {
+		if !n.advance() {
 			break
 		}
 	}
 }
 
-// advance checks the current state to see if it's done. If so, it takes the
-// necessary action to increment the state, repeating this until a state is
-// found that's not done. advance returns true when stateDone has been reached.
+// advance checks the current state to see if it's done. If so, it enters the
+// next state, repeating this until a state is found that's not done. advance
+// returns false when stateDone has been reached.
 func (n *node) advance() bool {
-	if n.state >= stateDone {
-		panic(fmt.Sprintf("can't advance past state '%s'", n.state))
-	}
-	for n.state.done(n) {
+	for {
+		// check if current state is done
+		var d bool
+		switch n.state {
+		case stateRun:
+			d = n.cancel
+		case stateCancel:
+			d = n.runsDone && n.child.Count() == 0
+		case stateCanceled:
+			d = n.parentDone
+		case stateDone:
+			return false
+		default:
+			panic(fmt.Sprintf("invalid check state: %d", n.state))
+		}
+
+		// if not done, return true
+		if !d {
+			return true
+		}
+
+		// enter next state
 		n.state++
 		switch n.state {
 		case stateCancel:
@@ -177,10 +193,11 @@ func (n *node) advance() bool {
 		case stateCanceled:
 			n.parent.Canceled()
 		case stateDone:
-			return true
+			return false
+		default:
+			panic(fmt.Sprintf("invalid enter state: %d", n.state))
 		}
 	}
-	return false
 }
 
 // runs reads and runs Runs from the runc channel, then cancels the cancelers.
@@ -215,7 +232,7 @@ func (n *node) runs() {
 				if f == nil {
 					f = Feedback{}
 				}
-				n.parent.Send(ran{r.ID, f, ok, r.conn})
+				n.parent.Send(ran{r.ID, f, ok, r.to})
 			}()
 			f, ok = r.Run.run(ctx, runArg{n.child, r.Feedback, n.rec, c}, n.ev)
 		}()
@@ -230,7 +247,7 @@ func (n *node) canceler() (cxl chan canceler, done chan struct{}) {
 	done = make(chan struct{})
 	go func() {
 		defer close(done)
-		a := make([]canceler, 0, 256)
+		var a []canceler
 		for c := range cxl {
 			a = append(a, c)
 		}
@@ -258,22 +275,6 @@ const (
 	stateCanceled
 	stateDone
 )
-
-// done returns true when the node may proceed to the next state.
-func (s state) done(n *node) bool {
-	switch s {
-	case stateRun:
-		return n.cancel
-	case stateCancel:
-		return n.runsDone && n.child.Count() == 0
-	case stateCanceled:
-		return n.parentDone
-	case stateDone:
-		return false
-	default:
-		panic(fmt.Sprintf("invalid state value %d", s))
-	}
-}
 
 func (s state) String() string {
 	switch s {

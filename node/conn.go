@@ -17,15 +17,15 @@ import (
 // will be sent on the event channel.
 type conn struct {
 	mtx      sync.Mutex
-	tr       transport
-	to       Node
-	tq       chan interface{}
-	tx       chan message
-	io       int
-	rpc      map[runID]run
-	id       runID
-	canceled bool
-	closed   bool
+	tr       transport        // underlying transport
+	to       Node             // peer node
+	tq       chan interface{} // send queue
+	tx       chan message     // send goroutine channel
+	io       int              // I/O goroutine count
+	rpc      map[runID]run    // active RPC calls
+	id       runID            // ID for next Run call
+	canceled bool             // true if conn is canceled
+	closed   bool             // true if conn is closed
 }
 
 // newConn returns a new conn for the given underlying conn.
@@ -54,10 +54,10 @@ func (c *conn) Run(r *Run, ifb Feedback, ranc chan ran) {
 		c.mtx.Unlock()
 	}()
 	if c.canceled {
-		ranc <- ran{c.id, Feedback{}, false, c}
+		ranc <- ran{c.id, Feedback{}, false, c.to}
 		return
 	}
-	u := run{c.id, r, ifb, c, ranc}
+	u := run{c.id, r, ifb, c.to, ranc}
 	c.rpc[c.id] = u
 	c.tq <- u
 }
@@ -97,9 +97,9 @@ func (c *conn) Canceled() {
 	c.tq <- canceled{}
 }
 
-// Stream selects which messages will be sent immediately. These messages, and
-// those with flagPush set, will be streamed. All other messages will be
-// buffered. If the conn was canceled or closed, this call does nothing.
+// Stream uses the given ResultStream to select which messages will be sent
+// immediately (streamed) or buffered. If the call was canceled or closed, this
+// call does nothing.
 func (c *conn) Stream(s *ResultStream) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -125,9 +125,9 @@ func (c *conn) doClose() (err error) {
 	}
 	c.failRPC()
 	c.canceled = true
+	c.closed = true
 	close(c.tq)
 	err = c.tr.Close()
-	c.closed = true
 	return
 }
 
@@ -135,13 +135,13 @@ func (c *conn) doClose() (err error) {
 // and must be called with c.mtx locked.
 func (c *conn) failRPC() {
 	for i, r := range c.rpc {
-		r.ran <- ran{r.ID, Feedback{}, false, c}
+		r.ran <- ran{r.ID, Feedback{}, false, c.to}
 		delete(c.rpc, i)
 	}
 }
 
-// start starts the send and receive goroutines. The caller must read from the
-// event channel until connDone is received.
+// start starts the I/O goroutines. The caller must read from the event channel
+// until connDone is received.
 func (c *conn) start(ev chan<- event) {
 	go c.buffer()
 	c.io += 2
@@ -149,10 +149,9 @@ func (c *conn) start(ev chan<- event) {
 	go c.receive(ev)
 }
 
-// buffer receives messages and stream filters from the tq channel until closed
+// buffer receives messages and stream filters from the tq channel until closed,
 // or a final message is received, buffering messages as necessary and writing
-// them to the tx channel. After all messages have been sent, the tx channel is
-// closed.
+// them to the tx channel. After all messages have been sent, tx is closed.
 func (c *conn) buffer() {
 	defer close(c.tx)
 	var s *ResultStream
@@ -260,20 +259,19 @@ func (c *conn) receive(ev chan<- event) {
 	}
 }
 
-// received is called by the receive goroutine when a message is received, to
-// handle message and send events.
+// received is called by the receive goroutine to handle received messages.
 func (c *conn) received(m message, ev chan<- event) (err error) {
 	switch v := m.(type) {
 	case ran:
 		c.mtx.Lock()
 		defer c.mtx.Unlock()
 		if r, ok := c.rpc[v.ID]; ok {
-			v.conn = c
+			v.from = c.to
 			r.ran <- v
 			delete(c.rpc, v.ID)
 		}
 	case run:
-		v.conn = c
+		v.to = c.to
 		ev <- v
 	case event:
 		ev <- v

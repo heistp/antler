@@ -291,14 +291,14 @@ func (r *Runners) do(ctx context.Context, arg runArg, ev chan event) (
 		ev <- errorEvent{e, false}
 		return
 	}
-	rr := arg.rec.WithTag(typeBaseName(u))
+	arg.rec = arg.rec.WithTag(typeBaseName(u))
 	var err error
 	ofb, err = u.Run(ctx, arg)
 	if ofb == nil {
 		ofb = Feedback{}
 	}
 	if err != nil {
-		ev <- errorEvent{rr.NewErrore(err), false}
+		ev <- errorEvent{arg.rec.NewErrore(err), false}
 		return
 	}
 	ok = true
@@ -334,7 +334,15 @@ type runArg struct {
 // canceler's are called sequentially, in reverse order from the order in which
 // their corresponding runners were called.
 type canceler interface {
-	Cancel(*recorder) error
+	Cancel() error
+}
+
+// cancelFunc is a function that implements canceler.
+type cancelFunc func() error
+
+// Cancel implements canceler
+func (c cancelFunc) Cancel() error {
+	return c()
 }
 
 // Feedback contains key/value pairs, which are returned by runners for use by

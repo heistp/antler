@@ -151,7 +151,7 @@ func (s *PacketServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 }
 
 // Cancel implements canceler
-func (s *PacketServer) Cancel(rec *recorder) error {
+func (s *PacketServer) Cancel() error {
 	return <-s.errc
 }
 

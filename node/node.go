@@ -253,9 +253,8 @@ func (n *node) canceler() (cxl chan canceler, done chan struct{}) {
 		}
 		for i := len(a) - 1; i >= 0; i-- {
 			c := a[i]
-			r := n.rec.WithTag(typeBaseName(c))
-			if e := c.Cancel(r); e != nil {
-				n.ev <- errorEvent{r.NewErrore(e), false}
+			if e := c.Cancel(); e != nil {
+				n.ev <- errorEvent{n.rec.NewErrore(e), false}
 			}
 		}
 	}()

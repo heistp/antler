@@ -34,8 +34,8 @@ type System struct {
 	// or foreground (false). If true, Run will return as soon as the command is
 	// started, and with an error if it could not be started and IgnoreErrors is
 	// false. The Context will be cancelled after the rest of the Run tree is
-	// complete, at which time the process will be killed, and the node will
-	// wait for it to complete.
+	// complete, at which time the process will be interrupted or killed
+	// (according to Kill), and the node will wait for it to complete.
 	Background bool
 
 	// IgnoreErrors indicates whether to discard any errors (true) or not
@@ -57,10 +57,9 @@ type System struct {
 	// signal it with an interrupt (false).
 	Kill bool
 
-	cmd     *exec.Cmd
 	io      sync.WaitGroup
-	gatherc chan string
-	gathern int
+	gatherC chan string
+	gatherN int
 }
 
 // Run implements runner
@@ -88,30 +87,28 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 	if err = s.handleOutput(s.Stderr, c.StderrPipe, arg.rec); err != nil {
 		return
 	}
-	if s.gathern > 0 {
+	if s.gatherN > 0 {
 		s.gatherLog(arg.rec)
 	}
 	if err = c.Start(); err != nil {
 		return
 	}
+	var x cancelFunc = func() error {
+		s.io.Wait()
+		e := c.Wait()
+		if e != nil {
+			arg.rec.Logf("%s (%s)", e, c)
+		}
+		if s.Background {
+			return nil
+		}
+		return e
+	}
 	if s.Background {
-		s.cmd = c
-		arg.cxl <- s
+		arg.cxl <- x
 		return
 	}
-	s.io.Wait()
-	if err = c.Wait(); err != nil {
-		arg.rec.Logf("%s", err)
-	}
-	return
-}
-
-// Cancel implements canceler, which is only used when Background is true.
-func (s *System) Cancel(rec *recorder) (err error) {
-	s.io.Wait()
-	if e := s.cmd.Wait(); e != nil {
-		rec.Logf("%s (%s)", e, s.cmd)
-	}
+	err = x()
 	return
 }
 
@@ -144,37 +141,37 @@ type pipeFunc func() (io.ReadCloser, error)
 // gatherDone is a magic string indicating a gather goroutine is done.
 const gatherDone = "cf799836-40d7-488d-9a87-a8bf5c92691b"
 
-// gather contains a goroutine to read lines from rcl and send them to gatherc.
+// gather contains a goroutine to read lines from rcl and send them to gatherC.
 func (s *System) gather(rcl io.ReadCloser, rec *recorder) {
-	s.gathern++
-	if s.gatherc == nil {
-		s.gatherc = make(chan string)
+	s.gatherN++
+	if s.gatherC == nil {
+		s.gatherC = make(chan string)
 	}
 	go func() {
 		defer func() {
-			s.gatherc <- gatherDone
+			s.gatherC <- gatherDone
 		}()
 		a := bufio.NewScanner(rcl)
 		for a.Scan() {
-			s.gatherc <- a.Text()
+			s.gatherC <- a.Text()
 		}
 	}()
 }
 
-// gatherLog contains a goroutine to read lines from gatherc, and log them with
-// one call when once gathern reaches zero.
+// gatherLog contains a goroutine to read lines from gatherC, and log them with
+// one call when once gatherN reaches zero.
 func (s *System) gatherLog(rec *recorder) {
 	s.io.Add(1)
 	go func() {
 		defer s.io.Done()
 		var b bytes.Buffer
-		for l := range s.gatherc {
+		for l := range s.gatherC {
 			if l == "" {
 				continue
 			}
 			if l == gatherDone {
-				s.gathern--
-				if s.gathern == 0 {
+				s.gatherN--
+				if s.gatherN == 0 {
 					break
 				}
 				continue

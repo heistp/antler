@@ -51,7 +51,7 @@ func (s *StreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 }
 
 // Cancel implements canceler
-func (s *StreamServer) Cancel(rec *recorder) error {
+func (s *StreamServer) Cancel() error {
 	return <-s.errc
 }
 

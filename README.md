@@ -150,8 +150,9 @@ formats, and supporting platforms other than Linux.
 
 #### Refactoring
 
+- consistently document config in either config.cue or config structs
+- replace uses of chan interface{} in conn and node.Do
 - replace type switch in node.Do
-- replace uses of chan interface{}
 
 ## Thanks
 

@@ -39,7 +39,7 @@ func (r *recorder) WithTag(tag string) *recorder {
 }
 
 // Logf sends a LogEntry using printf style args.
-func (r *recorder) Logf(format string, a ...interface{}) {
+func (r *recorder) Logf(format string, a ...any) {
 	t := time.Now()
 	m := fmt.Sprintf(format, a...)
 	r.Send(LogEntry{t, r.nodeID, r.tag, m})
@@ -72,7 +72,7 @@ func (r *recorder) SendErrore(err error) {
 }
 
 // SendErrorf sends an error created by NewErrorf.
-func (r *recorder) SendErrorf(format string, a ...interface{}) {
+func (r *recorder) SendErrorf(format string, a ...any) {
 	r.Send(r.NewErrorf(format, a...))
 }
 
@@ -82,4 +82,4 @@ func (r *recorder) Send(msg message) {
 }
 
 // logFunc is called to log a message with the given format and text.
-type logFunc func(format string, a ...interface{})
+type logFunc func(format string, a ...any)

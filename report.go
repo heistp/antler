@@ -41,7 +41,7 @@ type reporter interface {
 // The embedded writerer provides an Open method for writing result data.
 type reportIn struct {
 	writerer
-	data chan interface{}
+	data chan any
 	errc chan error
 }
 
@@ -129,12 +129,12 @@ func (s *reporterStack) size() (sz int) {
 // tee receives data from the given channel, and sends it to each reporter in
 // the stack. On the first error, the node is canceled if the Control is not
 // nil. After data is read in full, the first error, if any, is returned.
-func (s *reporterStack) tee(data chan interface{}, wr writerer,
-	ctrl *node.Control) (err error) {
+func (s *reporterStack) tee(data chan any, wr writerer, ctrl *node.Control) (
+	err error) {
 	ec := make(chan error)
-	var cc []chan interface{}
+	var cc []chan any
 	for _, r := range s.list() {
-		c := make(chan interface{}, dataChanBufSize)
+		c := make(chan any, dataChanBufSize)
 		cc = append(cc, c)
 		r.report(reportIn{wr, c, ec})
 	}

@@ -88,7 +88,7 @@ const RootNodeID = "-"
 // StreamIO, PacketInfo, PacketIO, FileData, LogEntry and Error.
 //
 // Do is used by the antler package and executable.
-func Do(rn *Run, src ExeSource, ctrl Control, data chan interface{}) {
+func Do(rn *Run, src ExeSource, ctrl Control, data chan any) {
 	defer close(data)
 	f := ErrorFactory{RootNodeID, "do"}
 	var err error

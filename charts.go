@@ -27,7 +27,7 @@ var chartsTemplate string
 type chartsTemplateData struct {
 	Class   template.JS
 	Data    chartsData
-	Options map[string]interface{}
+	Options map[string]any
 }
 
 // ChartsTimeSeries is a reporter that makes time series plots using Google
@@ -43,7 +43,7 @@ type ChartsTimeSeries struct {
 	// Options is an arbitrary structure of Charts options, with defaults
 	// defined in config.cue.
 	// https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
-	Options map[string]interface{}
+	Options map[string]any
 }
 
 // report implements reporter
@@ -167,7 +167,7 @@ type ChartsFCT struct {
 	// Options is an arbitrary structure of Charts options, with defaults
 	// defined in config.cue.
 	// https://developers.google.com/chart/interactive/docs/gallery/scatterchart#configuration-options
-	Options map[string]interface{}
+	Options map[string]any
 }
 
 // report implements reporter
@@ -270,7 +270,7 @@ func (s *FlowSeries) Match(flow node.Flow) (matches bool) {
 }
 
 // chartsData represents tabular data for use in Google Charts.
-type chartsData [][]interface{}
+type chartsData [][]any
 
 // addRow adds a row to the data.
 func (c *chartsData) addRow(row chartsRow) {
@@ -278,10 +278,10 @@ func (c *chartsData) addRow(row chartsRow) {
 }
 
 // chartsRow represents the data for a single row.
-type chartsRow []interface{}
+type chartsRow []any
 
 // addColumn adds a column to the row.
-func (r *chartsRow) addColumn(v interface{}) {
+func (r *chartsRow) addColumn(v any) {
 	*r = append(*r, v)
 }
 

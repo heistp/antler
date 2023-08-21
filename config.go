@@ -264,7 +264,7 @@ func (f configFunc) lognRandBytes(n int, p5, p95 metric.Bytes) (
 }
 
 // jsonString marshals 'a' as JSON into a string.
-func (configFunc) jsonString(a interface{}) (jsn string, err error) {
+func (configFunc) jsonString(a any) (jsn string, err error) {
 	var b []byte
 	if b, err = json.Marshal(a); err != nil {
 		return

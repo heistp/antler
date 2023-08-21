@@ -23,7 +23,7 @@ func newAnalysis() analysis {
 }
 
 // add adds a data item from the result stream.
-func (y *analysis) add(a interface{}) {
+func (y *analysis) add(a any) {
 	switch v := a.(type) {
 	case node.StreamInfo:
 		s := y.streams.analysis(v.Flow)

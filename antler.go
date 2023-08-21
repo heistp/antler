@@ -82,7 +82,7 @@ func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
 	if w != nil {
 		rst.push([]reporter{saveData{w}})
 	}
-	d := make(chan interface{}, dataChanBufSize)
+	d := make(chan any, dataChanBufSize)
 	defer rst.pop()
 	go node.Do(&test.Run, &exeSource{}, c.Control, d)
 	err = rst.tee(d, test, &c.Control)
@@ -143,7 +143,7 @@ func (c *ReportCommand) do(test *Test, rst reporterStack) (err error) {
 		return
 	}
 	defer r.Close()
-	d := make(chan interface{}, dataChanBufSize)
+	d := make(chan any, dataChanBufSize)
 	go func() {
 		var e error
 		defer func() {
@@ -153,7 +153,7 @@ func (c *ReportCommand) do(test *Test, rst reporterStack) (err error) {
 			defer close(d)
 		}()
 		dc := gob.NewDecoder(r)
-		var a interface{}
+		var a any
 		for {
 			if e = dc.Decode(&a); e != nil {
 				return

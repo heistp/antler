@@ -8,6 +8,9 @@ import (
 	"sync"
 )
 
+// txBufLen is the length of the send goroutine's buffered channel.
+const txBufLen = 16
+
 // conn is a connection to another node. conn must be created with newConn, and
 // is safe for concurrent use. All methods except Close are asynchronous, with
 // errors sent to the event channel passed to the start method.
@@ -17,30 +20,30 @@ import (
 // will be sent on the event channel.
 type conn struct {
 	mtx      sync.Mutex
-	tr       transport        // underlying transport
-	to       Node             // peer node
-	tq       chan interface{} // send queue
-	tx       chan message     // send goroutine channel
-	io       int              // I/O goroutine count
-	rpc      map[runID]run    // active RPC calls
-	id       runID            // ID for next Run call
-	canceled bool             // true if conn is canceled
-	closed   bool             // true if conn is closed
+	tr       transport     // underlying transport
+	to       Node          // peer node
+	tq       chan any      // send queue
+	tx       chan message  // send goroutine channel
+	io       int           // I/O goroutine count
+	rpc      map[runID]run // active RPC calls
+	id       runID         // ID for next Run call
+	canceled bool          // true if conn is canceled
+	closed   bool          // true if conn is closed
 }
 
 // newConn returns a new conn for the given underlying conn.
 func newConn(tr transport, to Node) *conn {
 	return &conn{
-		sync.Mutex{},           // mtx
-		tr,                     // tr
-		to,                     // to
-		make(chan interface{}), // tq
-		make(chan message, 16), // tx
-		0,                      // io
-		make(map[runID]run),    // run
-		0,                      // id
-		false,                  // canceled
-		false,                  // closed
+		sync.Mutex{},                 // mtx
+		tr,                           // tr
+		to,                           // to
+		make(chan any),               // tq
+		make(chan message, txBufLen), // tx
+		0,                            // io
+		make(map[runID]run),          // run
+		0,                            // id
+		false,                        // canceled
+		false,                        // closed
 	}
 }
 

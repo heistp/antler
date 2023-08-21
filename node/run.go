@@ -348,7 +348,7 @@ func (c cancelFunc) Cancel() error {
 // Feedback contains key/value pairs, which are returned by runners for use by
 // subsequent runners, and are stored in the result Data. Values must be
 // supported by gob.
-type Feedback map[string]interface{}
+type Feedback map[string]any
 
 // merge merges the given Feedback f2 into this Feedback. An error is returned
 // if any of f2's keys already exist in f.

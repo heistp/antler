@@ -64,7 +64,7 @@ func (f ErrorFactory) NewErrore(err error) Error {
 }
 
 // NewErrorf returns an Error with its Message formatted with prinf style args.
-func (f ErrorFactory) NewErrorf(format string, a ...interface{}) Error {
+func (f ErrorFactory) NewErrorf(format string, a ...any) Error {
 	t := time.Now()
 	return Error{t, f.nodeID, f.tag, fmt.Sprintf(format, a...)}
 }

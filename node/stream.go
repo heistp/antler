@@ -448,13 +448,14 @@ func (x Transfer) send(ctx context.Context, conn net.Conn, arg runArg) (
 				ts = t
 			}
 		}
-		select {
-		case <-ctx.Done():
-			err = fmt.Errorf("transfer was canceled")
-		default:
-		}
 		if err != nil {
 			return
+		}
+		select {
+		case <-ctx.Done():
+			err = context.Cause(ctx)
+			return
+		default:
 		}
 	}
 	if n, err = conn.Read(b); err != nil {
@@ -494,6 +495,12 @@ func (x Transfer) receive(ctx context.Context, conn io.ReadWriter, arg runArg) (
 		}
 		if err != nil {
 			return
+		}
+		select {
+		case <-ctx.Done():
+			err = context.Cause(ctx)
+			return
+		default:
 		}
 	}
 	b[0] = transferACK

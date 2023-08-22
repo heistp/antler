@@ -307,7 +307,8 @@ func (s state) String() string {
 // event interface and related types
 //
 
-// An event can be handled by the node upon receipt on its event channel.
+// An event can be handled by the node upon receipt on its event channel. Events
+// must not send another event to the event channel, or a deadlock will occur.
 type event interface {
 	handle(*node)
 }

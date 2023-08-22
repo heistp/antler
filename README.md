@@ -121,6 +121,7 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
+- allow reports to run either during or after tests (or both)
 - refactor examples to share common setup
 - move SCE examples into sce-tests repo
 - build examples to a public server and remove from README

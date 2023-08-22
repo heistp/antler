@@ -18,6 +18,7 @@ and this project adheres to
 - Fix hang after Go runtime panic in node
 - Propagate parent context to node.runs goroutine
 - Fix panic in FCT analysis when no data points are available
+- Fix one second cancellation delay for Stream tests (check Context in receive)
 
 ## 0.3.0 - 2023-08-18
 

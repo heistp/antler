@@ -51,7 +51,7 @@ func init() {
 // handle implements event
 func (r run) handle(n *node) {
 	if n.state > stateRun {
-		//n.rec.Logf("dropping run in state %s: %s", n.state, r)
+		n.rec.Logf("dropping run in state %s: %s", n.state, r)
 		return
 	}
 	n.runc <- r

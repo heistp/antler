@@ -11,6 +11,12 @@ and this project adheres to
 
 - Replace node.Control with context.WithCancelCause from Go 1.20
 - Change usages of interface{} to the `any` alias from Go 1.18
+- Remove conn.Close and simply connection closure
+
+### Fixed
+
+- Fix hang after Go runtime panic in node
+- Propagate parent context to node.runs goroutine
 
 ## 0.3.0 - 2023-08-18
 

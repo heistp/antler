@@ -150,7 +150,7 @@ func (n *node) run(ctx context.Context) {
 	ctx, x := context.WithCancelCause(ctx)
 	n.parent.start(n.ev)
 	go n.waitContext(ctx)
-	go n.runs()
+	go n.runs(ctx)
 	for e := range n.ev {
 		e.handle(n)
 		if !n.advance(x) {
@@ -208,7 +208,7 @@ func (n *node) waitContext(ctx context.Context) {
 }
 
 // runs reads and runs Runs from the runc channel, then cancels the cancelers.
-func (n *node) runs() {
+func (n *node) runs(ctx context.Context) {
 	defer func() {
 		n.ev <- runsDone{}
 	}()
@@ -217,11 +217,8 @@ func (n *node) runs() {
 		close(c)
 		<-d
 	}()
-	// TODO runs should use derived Context?
-	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	defer func() {
-		cancel()
 		wg.Wait()
 	}()
 	for r := range n.runc {

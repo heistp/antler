@@ -28,7 +28,6 @@ type conn struct {
 	rpc      map[runID]run // active RPC calls
 	id       runID         // ID for next Run call
 	canceled bool          // true if conn is canceled
-	closed   bool          // true if conn is closed
 }
 
 // newConn returns a new conn for the given underlying conn.
@@ -43,7 +42,6 @@ func newConn(tr transport, to Node) *conn {
 		make(map[runID]run),          // run
 		0,                            // id
 		false,                        // canceled
-		false,                        // closed
 	}
 }
 
@@ -110,28 +108,6 @@ func (c *conn) Stream(s *ResultStream) {
 		return
 	}
 	c.tq <- s
-}
-
-// Close closes the transport, if it wasn't already, cancels the conn and fails
-// any active RPCs.
-func (c *conn) Close() error {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.doClose()
-}
-
-// doClose closes the transport, cancels the conn and fails any active RPCs.
-// This method is for internal use, and must be called with c.mtx locked.
-func (c *conn) doClose() (err error) {
-	if c.closed {
-		return
-	}
-	c.failRPC()
-	c.canceled = true
-	c.closed = true
-	close(c.tq)
-	err = c.tr.Close()
-	return
 }
 
 // failRPC causes all RPCs to return a failure. This method is for internal use,
@@ -296,7 +272,9 @@ func (c *conn) ioDone(ev chan<- event) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	if c.io--; c.io == 0 {
-		c.doClose()
+		c.failRPC()
+		close(c.tq)
+		c.tr.Close()
 		ev <- connDone{c.to}
 	}
 }
@@ -306,7 +284,6 @@ func (c *conn) ioError(err error, ev chan<- event) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	ev <- errorEvent{err, true}
-	c.doClose()
 }
 
 // connDone is sent after a conn's goroutines are done and the underlying

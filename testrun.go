@@ -3,6 +3,8 @@
 
 package antler
 
+import "context"
+
 // TestRun contains the information needed to orchestrate the execution of Tests
 // and Reports. A TestRun may have a Test, or nested TestRun's listed in the
 // Serial or Parallel fields, which are executed sequentially or concurrently,
@@ -45,32 +47,33 @@ func (t *TestRun) VisitTests(visitor func(*Test) bool) bool {
 }
 
 // do runs a doer, observing the Serial and Parallel structure of the TestRun.
-func (t *TestRun) do(d doer, rst reporterStack) (err error) {
+func (t *TestRun) do(ctx context.Context, d doer, rst reporterStack) (
+	err error) {
 	rst.push(t.Report.reporters())
 	defer rst.pop()
 	switch {
 	case len(t.Serial) > 0:
-		err = t.Serial.do(d, rst)
+		err = t.Serial.do(ctx, d, rst)
 	case len(t.Parallel) > 0:
-		err = t.Parallel.do(d, rst)
+		err = t.Parallel.do(ctx, d, rst)
 	default:
-		err = t.Test.do(d, rst)
+		err = t.Test.do(ctx, d, rst)
 	}
 	return
 }
 
 // A doer takes action on a Test, visited in a TestRun tree.
 type doer interface {
-	do(*Test, reporterStack) error
+	do(context.Context, *Test, reporterStack) error
 }
 
 // Serial is a list of TestRun's executed sequentially.
 type Serial []TestRun
 
 // do executes the TestRun's sequentially.
-func (s Serial) do(d doer, rst reporterStack) (err error) {
+func (s Serial) do(ctx context.Context, d doer, rst reporterStack) (err error) {
 	for _, r := range s {
-		if err = r.do(d, rst); err != nil {
+		if err = r.do(ctx, d, rst); err != nil {
 			return
 		}
 	}
@@ -81,7 +84,8 @@ func (s Serial) do(d doer, rst reporterStack) (err error) {
 type Parallel []TestRun
 
 // do executes the TestRun's concurrently.
-func (p Parallel) do(d doer, rst reporterStack) (err error) {
+func (p Parallel) do(ctx context.Context, d doer, rst reporterStack) (
+	err error) {
 	c := make(chan error)
 	for _, r := range p {
 		r := r
@@ -90,7 +94,7 @@ func (p Parallel) do(d doer, rst reporterStack) (err error) {
 			defer func() {
 				c <- e
 			}()
-			e = r.do(d, rst)
+			e = r.do(ctx, d, rst)
 		}()
 	}
 	for i := 0; i < len(p); i++ {

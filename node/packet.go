@@ -103,8 +103,8 @@ func (p *PacketHeader) Read(b []byte) (n int, err error) {
 		err = fmt.Errorf("buf len %d < packet header len %d", len(b), p.Len())
 		return
 	}
-	if len(p.Flow) > 255 {
-		err = fmt.Errorf("flow name %s > 255 characters", len(p.Flow))
+	if len(p.Flow) > 16 {
+		err = fmt.Errorf("flow name %s > 16 characters", p.Flow)
 		return
 	}
 	copy(b, packetMagic)
@@ -583,6 +583,6 @@ func (p PacketIO) handle(node *node) {
 }
 
 func (p PacketIO) String() string {
-	return fmt.Sprintf("PacketIO[Packet:%s T:%s Sent:%t]",
+	return fmt.Sprintf("PacketIO[Packet:%v T:%s Sent:%t]",
 		p.Packet, p.T, p.Sent)
 }

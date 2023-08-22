@@ -4,6 +4,7 @@
 package antler
 
 import (
+	"context"
 	"encoding/gob"
 	"errors"
 	"fmt"
@@ -127,10 +128,10 @@ func (s *reporterStack) size() (sz int) {
 }
 
 // tee receives data from the given channel, and sends it to each reporter in
-// the stack. On the first error, the node is canceled if the Control is not
-// nil. After data is read in full, the first error, if any, is returned.
-func (s *reporterStack) tee(data chan any, wr writerer, ctrl *node.Control) (
-	err error) {
+// the stack. On the first error, the context is canceled. After data is read
+// in full, the first error, if any, is returned.
+func (s *reporterStack) tee(cancel context.CancelCauseFunc, data chan any,
+	wr writerer) (err error) {
 	ec := make(chan error)
 	var cc []chan any
 	for _, r := range s.list() {
@@ -150,9 +151,7 @@ func (s *reporterStack) tee(data chan any, wr writerer, ctrl *node.Control) (
 			}
 			if err == nil {
 				err = e
-				if ctrl != nil {
-					ctrl.Cancel(e.Error())
-				}
+				cancel(e)
 			}
 		case d, ok := <-dc:
 			if !ok {

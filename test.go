@@ -4,6 +4,7 @@
 package antler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -69,10 +70,10 @@ func (i TestID) String() string {
 }
 
 // do pushes the Test Reports to the stack, and calls the given doer.
-func (t *Test) do(d doer, rst reporterStack) (err error) {
+func (t *Test) do(ctx context.Context, d doer, rst reporterStack) (err error) {
 	rst.push(t.Report.reporters())
 	defer rst.pop()
-	return d.do(t, rst)
+	return d.do(ctx, t, rst)
 }
 
 // DataWriter returns a WriteCloser for writing result data.

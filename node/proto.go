@@ -174,9 +174,10 @@ func (c cancel) handle(node *node) {
 	switch node.state {
 	case stateRun:
 		if c.Reason != "" {
-			node.rec.Logf("canceled for reason: %s", c.Reason)
+			node.setError(fmt.Errorf("parent: %s", c.Reason))
+		} else {
+			node.setError(context.Canceled)
 		}
-		node.cancel = true
 	default:
 		if c.Reason != "" {
 			node.rec.Logf("ignoring cancel request for reason '%s' (state: %s)",

@@ -7,6 +7,11 @@ and this project adheres to
 
 ## Unreleased
 
+### Changed
+
+- Replace node.Control with context.WithCancelCause from Go 1.20
+- Change usages of interface{} to the `any` alias from Go 1.18
+
 ## 0.3.0 - 2023-08-18
 
 ### Added

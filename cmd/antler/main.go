@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler"
-	"github.com/heistp/antler/node"
 	"github.com/spf13/cobra"
 )
 
@@ -75,9 +75,8 @@ func list() (cmd *cobra.Command) {
 
 // run returns the run cobra command.
 func run() (cmd *cobra.Command) {
-	c := node.NewControl()
+	c, x := context.WithCancelCause(context.Background())
 	r := &antler.RunCommand{
-		c,
 		false,
 		nil,
 		func(test *antler.Test) {
@@ -96,22 +95,22 @@ func run() (cmd *cobra.Command) {
 {{template "filter" "run"}}
 `),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			defer x(nil)
 			if r.Filter, err = newRegexFilter(args); err != nil {
 				return
 			}
-			defer c.Stop()
 			sc := make(chan os.Signal, 1)
 			signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
 			go func() {
 				s := <-sc
 				fmt.Fprintf(os.Stderr,
 					"%s, canceling (one more to terminate)\n", s)
-				c.Cancel(s.String())
+				x(errors.New(s.String()))
 				s = <-sc
 				fmt.Fprintf(os.Stderr, "%s, exiting forcibly\n", s)
 				os.Exit(-1)
 			}()
-			err = antler.Run(r)
+			err = antler.Run(c, r)
 			return
 		},
 	}
@@ -122,6 +121,7 @@ func run() (cmd *cobra.Command) {
 
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
+	c, x := context.WithCancelCause(context.Background())
 	r := &antler.ReportCommand{
 		nil,
 		func(test *antler.Test) {
@@ -142,10 +142,11 @@ func report() (cmd *cobra.Command) {
 {{template "filter" "report"}}
 `),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			defer x(nil)
 			if r.Filter, err = newRegexFilter(args); err != nil {
 				return
 			}
-			err = antler.Run(r)
+			err = antler.Run(c, r)
 			return
 		},
 	}
@@ -153,12 +154,13 @@ func report() (cmd *cobra.Command) {
 
 // vet returns the vet cobra command.
 func vet() (cmd *cobra.Command) {
+	c := context.Background()
 	v := &antler.VetCommand{}
 	return &cobra.Command{
 		Use:   "vet",
 		Short: "Checks the CUE configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return antler.Run(v)
+			return antler.Run(c, v)
 		},
 	}
 }

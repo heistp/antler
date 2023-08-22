@@ -497,8 +497,8 @@ func (x Transfer) receive(ctx context.Context, conn io.ReadWriter, arg runArg) (
 		}
 	}
 	b[0] = transferACK
-	if n, err = conn.Write(b[:1]); n != 1 {
-		fmt.Errorf("unexpected ack write len: %d", n)
+	if n, err = conn.Write(b[:1]); n != 1 && err == nil {
+		err = fmt.Errorf("unexpected ack write len: %d", n)
 	}
 	return
 }

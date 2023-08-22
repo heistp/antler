@@ -6,6 +6,7 @@
 package antler
 
 import (
+	"context"
 	"encoding/gob"
 	"errors"
 	"io"
@@ -19,20 +20,17 @@ import (
 const dataChanBufSize = 64
 
 // Run runs an Antler Command.
-func Run(cmd Command) error {
-	return cmd.run()
+func Run(ctx context.Context, cmd Command) error {
+	return cmd.run(ctx)
 }
 
 // A Command is an Antler command.
 type Command interface {
-	run() error
+	run(context.Context) error
 }
 
 // RunCommand runs tests and reports.
 type RunCommand struct {
-	// Control is used to send node control signals.
-	Control node.Control
-
 	// Force re-runs the test and overwrites any existing data.
 	Force bool
 
@@ -49,17 +47,19 @@ type RunCommand struct {
 }
 
 // run implements command
-func (r *RunCommand) run() (err error) {
+func (r *RunCommand) run(ctx context.Context) (err error) {
 	var c *Config
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = c.Run.do(r, reporterStack{})
+	err = c.Run.do(ctx, r, reporterStack{})
 	return
 }
 
 // do implements doer
-func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
+func (c *RunCommand) do(ctx context.Context, test *Test, rst reporterStack) (
+	err error) {
+	ctx, x := context.WithCancelCause(ctx)
 	if c.Filter != nil && !c.Filter.Accept(test) {
 		c.SkippedFiltered(test)
 		return
@@ -84,8 +84,8 @@ func (c *RunCommand) do(test *Test, rst reporterStack) (err error) {
 	}
 	d := make(chan any, dataChanBufSize)
 	defer rst.pop()
-	go node.Do(&test.Run, &exeSource{}, c.Control, d)
-	err = rst.tee(d, test, &c.Control)
+	go node.Do(ctx, &test.Run, &exeSource{}, d)
+	err = rst.tee(x, d, test)
 	return
 }
 
@@ -108,17 +108,19 @@ type ReportCommand struct {
 }
 
 // run implements command
-func (r *ReportCommand) run() (err error) {
+func (r *ReportCommand) run(ctx context.Context) (err error) {
 	var c *Config
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = c.Run.do(r, reporterStack{})
+	err = c.Run.do(ctx, r, reporterStack{})
 	return
 }
 
 // do implements doer
-func (c *ReportCommand) do(test *Test, rst reporterStack) (err error) {
+func (c *ReportCommand) do(ctx context.Context, test *Test, rst reporterStack) (
+	err error) {
+	ctx, x := context.WithCancelCause(ctx)
 	if c.Filter != nil && !c.Filter.Accept(test) {
 		c.SkippedFiltered(test)
 		return
@@ -161,7 +163,7 @@ func (c *ReportCommand) do(test *Test, rst reporterStack) (err error) {
 			d <- a
 		}
 	}()
-	err = rst.tee(d, test, nil)
+	err = rst.tee(x, d, test)
 	return
 }
 
@@ -170,7 +172,7 @@ type VetCommand struct {
 }
 
 // run implements command
-func (*VetCommand) run() (err error) {
+func (*VetCommand) run(context.Context) (err error) {
 	_, err = LoadConfig(&load.Config{})
 	return
 }

@@ -43,11 +43,11 @@ type node struct {
 	child  *child
 
 	// mutable state for run/events
-	state      state
-	cancel     bool  // true after error or cancel, starts cancellation
-	runsDone   bool  // true after runs goroutine is done
-	parentDone bool  // true after parent conn is done
-	err        error // first error, returned from Serve()
+	state       state
+	contextDone bool  // true after context is done
+	runsDone    bool  // true after runs goroutine is done
+	parentDone  bool  // true after parent conn is done
+	err         error // first error, returned from Serve()
 }
 
 // newNode returns a new node.
@@ -61,7 +61,7 @@ func newNode(nodeID string, parent transport) *node {
 		newRecorder(nodeID, "node", p), // rec
 		newChild(ev),                   // child
 		stateRun,                       // state
-		false,                          // cancel
+		false,                          // contextDone
 		false,                          // runsDone
 		false,                          // parentDone
 		nil,                            // err
@@ -73,10 +73,9 @@ func newNode(nodeID string, parent transport) *node {
 //
 // An error is returned if there was a failure when serving the connection, or
 // the node was explicitly canceled. Serve closes the conn when complete.
-func Serve(nodeID string, ctrl Control, conn io.ReadWriteCloser) error {
+func Serve(ctx context.Context, nodeID string, conn io.ReadWriteCloser) error {
 	n := newNode(nodeID, newGobTransport(conn))
-	ctrl.attach(n.ev)
-	n.run()
+	n.run(ctx)
 	return n.err
 }
 
@@ -88,7 +87,7 @@ const RootNodeID = "-"
 // StreamIO, PacketInfo, PacketIO, FileData, LogEntry and Error.
 //
 // Do is used by the antler package and executable.
-func Do(rn *Run, src ExeSource, ctrl Control, data chan any) {
+func Do(ctx context.Context, rn *Run, src ExeSource, data chan any) {
 	defer close(data)
 	f := ErrorFactory{RootNodeID, "do"}
 	var err error
@@ -130,8 +129,7 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan any) {
 	}()
 	// root node
 	n := newNode(RootNodeID, tr.peer())
-	ctrl.attach(n.ev)
-	go n.run()
+	go n.run(ctx)
 	// setup and run
 	rc := make(chan ran, 1)
 	c.Run(&Run{Runners: Runners{Setup: &setup{0, t, x}}}, Feedback{}, rc)
@@ -148,29 +146,31 @@ func Do(rn *Run, src ExeSource, ctrl Control, data chan any) {
 }
 
 // run runs the node by handling node events.
-func (n *node) run() {
+func (n *node) run(ctx context.Context) {
+	ctx, x := context.WithCancelCause(ctx)
 	n.parent.start(n.ev)
+	go n.waitContext(ctx)
 	go n.runs()
 	for e := range n.ev {
 		e.handle(n)
-		if !n.advance() {
+		if !n.advance(x) {
 			break
 		}
 	}
 }
 
 // advance checks the current state to see if it's done. If so, it enters the
-// next state, repeating this until a state is found that's not done. advance
-// returns false when stateDone has been reached.
-func (n *node) advance() bool {
+// next state, repeating this until a state is found that's not done. False is
+// returned when stateDone is reached.
+func (n *node) advance(cxl context.CancelCauseFunc) bool {
 	for {
 		// check if current state is done
 		var d bool
 		switch n.state {
 		case stateRun:
-			d = n.cancel
+			d = n.err != nil
 		case stateCancel:
-			d = n.runsDone && n.child.Count() == 0
+			d = n.runsDone && n.child.Count() == 0 && n.contextDone
 		case stateCanceled:
 			d = n.parentDone
 		case stateDone:
@@ -188,6 +188,7 @@ func (n *node) advance() bool {
 		n.state++
 		switch n.state {
 		case stateCancel:
+			cxl(n.err)
 			close(n.runc)
 			n.child.Cancel()
 		case stateCanceled:
@@ -200,6 +201,12 @@ func (n *node) advance() bool {
 	}
 }
 
+// waitContext sends a contextDone event when ctx.Done() is closed.
+func (n *node) waitContext(ctx context.Context) {
+	<-ctx.Done()
+	n.ev <- contextDone{context.Cause(ctx)}
+}
+
 // runs reads and runs Runs from the runc channel, then cancels the cancelers.
 func (n *node) runs() {
 	defer func() {
@@ -210,6 +217,7 @@ func (n *node) runs() {
 		close(c)
 		<-d
 	}()
+	// TODO runs should use derived Context?
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	defer func() {
@@ -261,6 +269,14 @@ func (n *node) canceler() (cxl chan canceler, done chan struct{}) {
 	return
 }
 
+// setError sets the node.err field, on the first error only.
+func (n *node) setError(err error) {
+	if n.err != nil {
+		return
+	}
+	n.err = err
+}
+
 //
 // node states
 //
@@ -299,7 +315,21 @@ type event interface {
 	handle(*node)
 }
 
-// errorEvent is sent when an error occurs.
+// contextDone is an event sent when the node's Context is done.
+type contextDone struct {
+	Err error
+}
+
+// handle implements event
+func (d contextDone) handle(node *node) {
+	node.setError(d.Err)
+	node.contextDone = true
+	if d.Err != context.Canceled {
+		node.rec.Logf("context canceled for reason: %s", d.Err)
+	}
+}
+
+// errorEvent is an event sent when an error occurs.
 type errorEvent struct {
 	err error
 	io  bool
@@ -307,10 +337,7 @@ type errorEvent struct {
 
 // handle implements event
 func (e errorEvent) handle(node *node) {
-	node.cancel = true
-	if node.err == nil {
-		node.err = e.err
-	}
+	node.setError(e.err)
 	if e.io {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", node.rec.nodeID, e.err)
 		return

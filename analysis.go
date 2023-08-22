@@ -169,8 +169,12 @@ func (m *streams) analyze() {
 			s.Goodput = append(s.Goodput, goodput{r.T, g})
 			pr = r
 		}
-		s.FCT = metric.Duration(s.Rcvd[len(s.Rcvd)-1].T - s.Sent[0].T)
-		s.Length = s.Rcvd[len(s.Rcvd)-1].Total
+		if len(s.Rcvd) > 0 {
+			s.Length = s.Rcvd[len(s.Rcvd)-1].Total
+			if len(s.Sent) > 0 {
+				s.FCT = metric.Duration(s.Rcvd[len(s.Rcvd)-1].T - s.Sent[0].T)
+			}
+		}
 	}
 }
 

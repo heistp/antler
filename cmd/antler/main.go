@@ -75,7 +75,6 @@ func list() (cmd *cobra.Command) {
 
 // run returns the run cobra command.
 func run() (cmd *cobra.Command) {
-	c, x := context.WithCancelCause(context.Background())
 	r := &antler.RunCommand{
 		false,
 		nil,
@@ -95,6 +94,7 @@ func run() (cmd *cobra.Command) {
 {{template "filter" "run"}}
 `),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			c, x := context.WithCancelCause(context.Background())
 			defer x(nil)
 			if r.Filter, err = newRegexFilter(args); err != nil {
 				return
@@ -121,7 +121,6 @@ func run() (cmd *cobra.Command) {
 
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
-	c, x := context.WithCancelCause(context.Background())
 	r := &antler.ReportCommand{
 		nil,
 		func(test *antler.Test) {
@@ -142,6 +141,7 @@ func report() (cmd *cobra.Command) {
 {{template "filter" "report"}}
 `),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			c, x := context.WithCancelCause(context.Background())
 			defer x(nil)
 			if r.Filter, err = newRegexFilter(args); err != nil {
 				return

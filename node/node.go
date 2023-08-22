@@ -148,6 +148,7 @@ func Do(ctx context.Context, rn *Run, src ExeSource, data chan any) {
 // run runs the node by handling node events.
 func (n *node) run(ctx context.Context) {
 	ctx, x := context.WithCancelCause(ctx)
+	defer x(nil)
 	n.parent.start(n.ev)
 	go n.waitContext(ctx)
 	go n.runs(ctx)

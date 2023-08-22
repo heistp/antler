@@ -17,8 +17,8 @@ import (
 // A reporter can process data items from the node and take some action, such as
 // saving results, generating plots, or emitting logs.
 //
-// When report is called, the implementation must handle the input according to
-// the documentation for reportIn, asynchronously.
+// When report is called, the implementation must handle the input
+// asynchronously, according to the documentation for reportIn.
 //
 // The report method may be called during TestRun execution multiple times,
 // possibly concurrently, so it must be safe for concurrent use.

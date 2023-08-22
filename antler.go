@@ -59,7 +59,6 @@ func (r *RunCommand) run(ctx context.Context) (err error) {
 // do implements doer
 func (c *RunCommand) do(ctx context.Context, test *Test, rst reporterStack) (
 	err error) {
-	ctx, x := context.WithCancelCause(ctx)
 	if c.Filter != nil && !c.Filter.Accept(test) {
 		c.SkippedFiltered(test)
 		return
@@ -84,6 +83,8 @@ func (c *RunCommand) do(ctx context.Context, test *Test, rst reporterStack) (
 	}
 	d := make(chan any, dataChanBufSize)
 	defer rst.pop()
+	ctx, x := context.WithCancelCause(ctx)
+	defer x(nil)
 	go node.Do(ctx, &test.Run, &exeSource{}, d)
 	err = rst.tee(x, d, test)
 	return
@@ -120,7 +121,6 @@ func (r *ReportCommand) run(ctx context.Context) (err error) {
 // do implements doer
 func (c *ReportCommand) do(ctx context.Context, test *Test, rst reporterStack) (
 	err error) {
-	ctx, x := context.WithCancelCause(ctx)
 	if c.Filter != nil && !c.Filter.Accept(test) {
 		c.SkippedFiltered(test)
 		return
@@ -163,6 +163,8 @@ func (c *ReportCommand) do(ctx context.Context, test *Test, rst reporterStack) (
 			d <- a
 		}
 	}()
+	ctx, x := context.WithCancelCause(ctx)
+	defer x(nil)
 	err = rst.tee(x, d, test)
 	return
 }

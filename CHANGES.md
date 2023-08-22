@@ -11,7 +11,7 @@ and this project adheres to
 
 - Replace node.Control with context.WithCancelCause from Go 1.20
 - Change usages of interface{} to the `any` alias from Go 1.18
-- Remove conn.Close and simply connection closure
+- Remove conn.Close and simplify connection closure
 
 ### Fixed
 
@@ -19,6 +19,7 @@ and this project adheres to
 - Propagate parent context to node.runs goroutine
 - Fix panic in FCT analysis when no data points are available
 - Fix one second cancellation delay for Stream tests (check Context in receive)
+- Consistently cancel Contexts in defer after calling WithCancel/Cause
 
 ## 0.3.0 - 2023-08-18
 

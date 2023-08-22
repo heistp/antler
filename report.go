@@ -273,28 +273,23 @@ type saveData struct {
 
 // report implements reporter
 func (s saveData) report(in reportIn) {
-	go func() {
-		var e error
-		defer func() {
-			if e != nil {
-				in.errc <- e
-			}
-			for range in.data {
-			}
-			in.errc <- reportDone
-		}()
-		defer s.Close()
-		c := gob.NewEncoder(s)
-		for d := range in.data {
-			switch d.(type) {
-			case node.FileData, analysis:
-				continue
-			}
-			if e = c.Encode(&d); e != nil {
-				return
-			}
+	var f simpleReportFunc = s.reportOne
+	f.report(in)
+}
+
+// report implements reporter
+func (s saveData) reportOne(in reportIn) (err error) {
+	defer s.Close()
+	c := gob.NewEncoder(s)
+	for d := range in.data {
+		switch d.(type) {
+		case node.FileData, analysis:
+			continue
 		}
-	}()
+		if err = c.Encode(&d); err != nil {
+			return
+		}
+	}
 	return
 }
 

@@ -4,6 +4,7 @@
 package antler
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"regexp"
@@ -13,7 +14,6 @@ import (
 
 	"html/template"
 	"io"
-	"os"
 
 	"github.com/heistp/antler/node"
 )
@@ -47,16 +47,11 @@ type ChartsTimeSeries struct {
 }
 
 // report implements reporter
-func (g *ChartsTimeSeries) report(in reportIn) {
-	var f simpleReportFunc = g.reportOne
-	f.report(in)
-}
-
-// report runs one time series report.
-func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
+func (g *ChartsTimeSeries) report(ctx context.Context, in <-chan any,
+	out chan<- any, rw rwer) (err error) {
 	var w io.WriteCloser
 	defer func() {
-		if w != nil && w != os.Stdout {
+		if w != nil {
 			w.Close()
 		}
 	}()
@@ -73,10 +68,11 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	if t, err = t.Parse(chartsTemplate); err != nil {
 		return
 	}
-	var a analysis
-	for d := range in.data {
+	var a Analyze
+	for d := range in {
+		out <- d
 		switch v := d.(type) {
-		case analysis:
+		case Analyze:
 			a = v
 		}
 	}
@@ -87,9 +83,7 @@ func (g *ChartsTimeSeries) reportOne(in reportIn) (err error) {
 	}
 	var ww []io.Writer
 	for _, to := range g.To {
-		if to == "-" {
-			w = os.Stdout
-		} else if w, err = in.Writer(to, true); err != nil {
+		if w, err = rw.Writer(to, true); err != nil {
 			return
 		}
 		ww = append(ww, w)
@@ -171,16 +165,11 @@ type ChartsFCT struct {
 }
 
 // report implements reporter
-func (g *ChartsFCT) report(in reportIn) {
-	var f simpleReportFunc = g.reportOne
-	f.report(in)
-}
-
-// report runs one FCT report.
-func (g *ChartsFCT) reportOne(in reportIn) (err error) {
+func (g *ChartsFCT) report(ctx context.Context, in <-chan any, out chan<- any,
+	rw rwer) (err error) {
 	var w io.WriteCloser
 	defer func() {
-		if w != nil && w != os.Stdout {
+		if w != nil {
 			w.Close()
 		}
 	}()
@@ -189,10 +178,11 @@ func (g *ChartsFCT) reportOne(in reportIn) (err error) {
 	if t, err = t.Parse(chartsTemplate); err != nil {
 		return
 	}
-	var a analysis
-	for d := range in.data {
+	var a Analyze
+	for d := range in {
+		out <- d
 		switch v := d.(type) {
-		case analysis:
+		case Analyze:
 			a = v
 		}
 	}
@@ -217,9 +207,7 @@ func (g *ChartsFCT) reportOne(in reportIn) (err error) {
 	}
 	var ww []io.Writer
 	for _, to := range g.To {
-		if to == "-" {
-			w = os.Stdout
-		} else if w, err = in.Writer(to, true); err != nil {
+		if w, err = rw.Writer(to, true); err != nil {
 			return
 		}
 		ww = append(ww, w)

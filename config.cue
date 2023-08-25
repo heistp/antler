@@ -17,14 +17,16 @@ Run: #TestRun
 //
 
 // antler.TestRun is used to orchestrate the execution of Tests. Each TestRun
-// can have one of Test, Serial or Parallel set, and may have a Report.
+// can have one of Test, Serial or Parallel set, and may have Reports.
 //
 // Serial lists Tests to be executed sequentially, and Parallel lists Tests to
 // be executed concurrently. It's up to the author to ensure that Parallel
 // tests can be executed safely, for example by assigning separate namespaces
 // to those Tests which may execute at the same time.
 //
-// The reports listed in DefaultReport are always appended to the Report field.
+// Report is a pipeline of #Reports run after the Test completes, and by the
+// report command, in parallel with the pipeline in Test.Report. See also the
+// During and Report fields in Test.
 #TestRun: {
 	{} | {
 		Test?: #Test
@@ -48,25 +50,31 @@ Run: #TestRun
 // by the template will result in the creation of directories.
 //
 // DataFile sets the name suffix of the gob output file used to save the raw
-// result data. If empty, it will not be saved. In that case, the runtime
-// overhead for saving the raw data is avoided (a minimal gain), but the Test
-// must always be re-run, and the report command to re-generate reports from
-// existing results will not work.
+// result data (by default, "data.gob"). If empty, it will not be saved. In
+// that case, the runtime overhead for saving the raw data is avoided (a
+// minimal gain), but the Test must always be re-run to generate reports, and
+// the report command will not work.
 //
 // Run defines the Run hierarchy, and is documented in more detail in #Run.
 //
-// Report lists Reports to run for the Test. These are run in addition to the
-// Reports listed in the TestRun that runs the Test, so that Tests have some
-// sensible Reports defined by default, which may be overridden if needed.
+// During is a pipeline of Reports that runs during the Test. If the antler
+// nodes are running on the same machine as antler, then this pipeline should
+// not be resource intensive, so as not to perturb the test.
+//
+// Report is a pipeline of Reports that is run after the Test, and by the
+// report command, in parallel with the pipeline in TestRun.Report.
 #Test: {
 	_IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	ID: [string & =~_IDregex]: string & =~_IDregex
 	OutputPrefix: string & !="" | *"{{range $v := .}}{{$v}}_{{end}}"
 	DataFile:     string | *"data.gob"
 	#Run
+	During: [...#Report] | *[
+		{SaveFiles: {Consume: true}},
+		{EmitLog: {To: ["-"]}},
+	]
 	Report: [...#Report] | *[
-		{EmitLog: To: ["node.log", "-"]},
-		{SaveFiles: {}},
+		{EmitLog: {To: ["node.log"], Sort: true}},
 	]
 }
 
@@ -74,6 +82,8 @@ Run: #TestRun
 // documented in more detail in their individual types.
 #Report: {
 	{} | {
+		Analyze?: #Analyze
+	} | {
 		EmitLog?: #EmitLog
 	} | {
 		ChartsTimeSeries?: #ChartsTimeSeries
@@ -84,10 +94,19 @@ Run: #TestRun
 	}
 }
 
-// antler.EmitLog is a report that emits and writes logs. Multiple destinations
-// may be listed in To, either filenames, or the '-' character for stdout.
+// antler.Analyze is a report that analyzes data used by other reports. This
+// must be in the Report pipeline *before* reporters that require it.
+#Analyze: {
+}
+
+// antler.EmitLog is a report that emits logs. Multiple destinations may be
+// listed in To, either filenames, or the '-' character for stdout.
+//
+// If Sort is true, logs are first gathered, then emitted sorted by time when
+// the pipeline stage EmitLog runs in completes.
 #EmitLog: {
 	To?: [string & !="", ...]
+	Sort?: bool
 }
 
 // antler.ChartsTimeSeries runs a Go template to create a time series plot
@@ -261,10 +280,11 @@ Run: #TestRun
 	Name:    string & !=""
 }
 
-// antler.SaveFiles is a parameterless Report that saves any FileData from the
-// node, such as that created by the System Runner's Stdout and Stderr fields.
-// If SaveFiles is not included, FileData is discarded.
+// antler.SaveFiles is a Report that saves any FileData from the node, such as
+// that created by the System Runner's Stdout and Stderr fields. If Consume is
+// true, FileData items are not forwarded to the next stage in the pipeline.
 #SaveFiles: {
+	Consume: bool | *true
 }
 
 //

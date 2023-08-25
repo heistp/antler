@@ -14,15 +14,15 @@ type TestRun struct {
 	// Test is the Test to run (non-nil on leaf TestRun's).
 	Test *Test
 
-	// Report lists Reports to be run on this TestRun and any below it in the
-	// TestRun tree.
-	Report reports
-
 	// Serial lists TestRun's to be executed sequentially.
 	Serial Serial
 
 	// Parallel lists TestRun's to be executed concurrently.
 	Parallel Parallel
+
+	// Report contains Reports to be run on this TestRun, and any below it in
+	// the TestRun tree.
+	Report Report
 }
 
 // VisitTests calls the given visitor func for each Test in the TestRun
@@ -47,9 +47,9 @@ func (t *TestRun) VisitTests(visitor func(*Test) bool) bool {
 }
 
 // do runs a doer, observing the Serial and Parallel structure of the TestRun.
-func (t *TestRun) do(ctx context.Context, d doer, rst reporterStack) (
+func (t *TestRun) do(ctx context.Context, d doer, rst reportStack) (
 	err error) {
-	rst.push(t.Report.reporters())
+	rst.push(t.Report.report())
 	defer rst.pop()
 	switch {
 	case len(t.Serial) > 0:
@@ -64,14 +64,14 @@ func (t *TestRun) do(ctx context.Context, d doer, rst reporterStack) (
 
 // A doer takes action on a Test, visited in a TestRun tree.
 type doer interface {
-	do(context.Context, *Test, reporterStack) error
+	do(context.Context, *Test, reportStack) error
 }
 
 // Serial is a list of TestRun's executed sequentially.
 type Serial []TestRun
 
 // do executes the TestRun's sequentially.
-func (s Serial) do(ctx context.Context, d doer, rst reporterStack) (err error) {
+func (s Serial) do(ctx context.Context, d doer, rst reportStack) (err error) {
 	for _, r := range s {
 		if err = r.do(ctx, d, rst); err != nil {
 			return
@@ -84,7 +84,7 @@ func (s Serial) do(ctx context.Context, d doer, rst reporterStack) (err error) {
 type Parallel []TestRun
 
 // do executes the TestRun's concurrently.
-func (p Parallel) do(ctx context.Context, d doer, rst reporterStack) (
+func (p Parallel) do(ctx context.Context, d doer, rst reportStack) (
 	err error) {
 	c := make(chan error)
 	for _, r := range p {

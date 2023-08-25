@@ -7,17 +7,18 @@ package antler
 
 import (
 	"context"
-	"encoding/gob"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
+	"os"
 
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
 )
 
-// dataChanBufSize is used as the buffer size for data channels.
-const dataChanBufSize = 64
+// dataChanBufLen is used as the buffer length for data channels.
+const dataChanBufLen = 64
 
 // Run runs an Antler Command.
 func Run(ctx context.Context, cmd Command) error {
@@ -52,12 +53,12 @@ func (r *RunCommand) run(ctx context.Context) (err error) {
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = c.Run.do(ctx, r, reporterStack{})
+	err = c.Run.do(ctx, r, reportStack{})
 	return
 }
 
 // do implements doer
-func (c *RunCommand) do(ctx context.Context, test *Test, rst reporterStack) (
+func (c *RunCommand) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
 	if c.Filter != nil && !c.Filter.Accept(test) {
 		c.SkippedFiltered(test)
@@ -78,25 +79,65 @@ func (c *RunCommand) do(ctx context.Context, test *Test, rst reporterStack) (
 			return
 		}
 	}
+	var a appendData
+	p := test.During.report()
 	if w != nil {
-		rst.push([]reporter{saveData{w}})
+		p = append(p, writeData{w})
+	} else {
+		p = append(p, &a)
 	}
-	d := make(chan any, dataChanBufSize)
-	defer rst.pop()
+	d := make(chan any, dataChanBufLen)
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)
 	go node.Do(ctx, &test.Run, &exeSource{}, d)
-	err = rst.tee(x, d, test)
+	for e := range p.pipeline(ctx, d, nil, test) {
+		x(e)
+		if err == nil {
+			err = e
+		}
+	}
+	if err != nil {
+		return
+	}
+	var s reporter
+	if w != nil {
+		var r io.ReadCloser
+		if r, err = test.DataReader(); err != nil {
+			return
+		}
+		s = readData{r}
+	} else {
+		fmt.Fprintf(os.Stderr, "len(a) = %d\n", len(a))
+		s = rangeData(a)
+	}
+	err = doReport(ctx, s, test, rst)
 	return
 }
 
-// ReportCommand runs reports.
+// doReport runs the Test.Report and reportStack pipelines concurrently,
+// using src to supply the data.
+func doReport(ctx context.Context, src reporter, test *Test, rst reportStack) (
+	err error) {
+	var r []report
+	r = append(r, test.Report.report())
+	r = append(r, rst.report())
+	ctx, x := context.WithCancelCause(ctx)
+	for e := range report([]reporter{src}).tee(ctx, test, nil, r...) {
+		x(e)
+		if err == nil {
+			err = e
+		}
+	}
+	return
+}
+
+// ReportCommand runs the After reports using the data files as the source.
 type ReportCommand struct {
 	// Filter selects which tests to run.
 	Filter TestFilter
 
-	// SkippedFiltered is called when a test was skipped because it was rejected
-	// by the Filter.
+	// SkippedFiltered is called when a report was skipped because it was
+	// rejected by the Filter.
 	SkippedFiltered func(test *Test)
 
 	// SkippedNoDataFile is called when a report was skipped because the Test's
@@ -114,12 +155,12 @@ func (r *ReportCommand) run(ctx context.Context) (err error) {
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = c.Run.do(ctx, r, reporterStack{})
+	err = c.Run.do(ctx, r, reportStack{})
 	return
 }
 
 // do implements doer
-func (c *ReportCommand) do(ctx context.Context, test *Test, rst reporterStack) (
+func (c *ReportCommand) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
 	if c.Filter != nil && !c.Filter.Accept(test) {
 		c.SkippedFiltered(test)
@@ -144,28 +185,7 @@ func (c *ReportCommand) do(ctx context.Context, test *Test, rst reporterStack) (
 		err = nil
 		return
 	}
-	defer r.Close()
-	d := make(chan any, dataChanBufSize)
-	go func() {
-		var e error
-		defer func() {
-			if e != nil && e != io.EOF {
-				d <- e
-			}
-			defer close(d)
-		}()
-		dc := gob.NewDecoder(r)
-		var a any
-		for {
-			if e = dc.Decode(&a); e != nil {
-				return
-			}
-			d <- a
-		}
-	}()
-	ctx, x := context.WithCancelCause(ctx)
-	defer x(nil)
-	err = rst.tee(x, d, test)
+	err = doReport(ctx, readData{r}, test, rst)
 	return
 }
 

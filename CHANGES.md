@@ -7,6 +7,11 @@ and this project adheres to
 
 ## Unreleased
 
+### Added
+
+- Implement pipelined reports (TestRun.Report, Test.During, Test.Report)
+- Turn Analyze into a report and add to examples that need it
+
 ### Changed
 
 - Replace node.Control with context.WithCancelCause from Go 1.20

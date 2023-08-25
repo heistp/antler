@@ -36,6 +36,7 @@ Run: {
 		Serial: [stream, setup, server, do]
 	}
 	Report: [
+		{Analyze: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {

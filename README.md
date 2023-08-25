@@ -121,15 +121,15 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- allow reports to run either during or after tests (or both)
+- move SCE examples into sce-tests repo and deploy to public server
 - refactor examples to share common setup
-- move SCE examples into sce-tests repo
 - build examples to a public server and remove from README
 
 #### Bugs
 
 - improve poor error messages from CUE for syntax errors under disjunctions
   (e.g. when Env length > max- Run.Test: field not allowed)
+- record error from node when it exits with status 1
 
 ### Inbox
 
@@ -138,6 +138,7 @@ formats, and supporting platforms other than Linux.
 - improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
 - add ability to buffer System Stdout to a tmp file before sending as FileData
+- add log command to emit LogEntry's to stdout
 - enhance stream server protocol to ensure streams have completed
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols

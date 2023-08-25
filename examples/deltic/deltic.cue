@@ -114,6 +114,7 @@ _qdiscTest: {
 
 	// Report defines reports for the qdisc test
 	Report: [
+		{Analyze: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {

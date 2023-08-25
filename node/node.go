@@ -44,6 +44,7 @@ type node struct {
 
 	// mutable state for run/events
 	state       state
+	cancel      bool  // true after normal cancel request
 	contextDone bool  // true after context is done
 	runsDone    bool  // true after runs goroutine is done
 	parentDone  bool  // true after parent conn is done
@@ -61,6 +62,7 @@ func newNode(nodeID string, parent transport) *node {
 		newRecorder(nodeID, "node", p), // rec
 		newChild(ev),                   // child
 		stateRun,                       // state
+		false,                          // cancel
 		false,                          // contextDone
 		false,                          // runsDone
 		false,                          // parentDone
@@ -169,7 +171,7 @@ func (n *node) advance(cxl context.CancelCauseFunc) bool {
 		var d bool
 		switch n.state {
 		case stateRun:
-			d = n.err != nil
+			d = n.err != nil || n.cancel || n.contextDone
 		case stateCancel:
 			d = n.runsDone && n.child.Count() == 0 && n.contextDone
 		case stateCanceled:
@@ -316,15 +318,15 @@ type event interface {
 
 // contextDone is an event sent when the node's Context is done.
 type contextDone struct {
-	Err error
+	err error
 }
 
 // handle implements event
 func (d contextDone) handle(node *node) {
-	node.setError(d.Err)
 	node.contextDone = true
-	if d.Err != context.Canceled {
-		node.rec.Logf("context canceled for reason: %s", d.Err)
+	if d.err != context.Canceled {
+		node.setError(d.err)
+		node.rec.Logf("context canceled for reason: %s", d.err)
 	}
 }
 

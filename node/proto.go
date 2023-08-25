@@ -176,7 +176,7 @@ func (c cancel) handle(node *node) {
 		if c.Reason != "" {
 			node.setError(fmt.Errorf("parent: %s", c.Reason))
 		} else {
-			node.setError(context.Canceled)
+			node.cancel = true
 		}
 	default:
 		if c.Reason != "" {

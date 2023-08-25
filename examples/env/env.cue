@@ -26,7 +26,7 @@ Run: {
 		// disable saving of gob data
 		DataFile: ""
 		// override default report to only emit to stdout
-		Report: [
+		During: [
 			{EmitLog: {To: ["-"]}},
 		]
 	}

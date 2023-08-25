@@ -4,6 +4,7 @@
 package antler
 
 import (
+	"context"
 	"sort"
 	"time"
 
@@ -11,19 +12,28 @@ import (
 	"github.com/heistp/antler/node/metric"
 )
 
-// analysis contains processed stream and packet data for reports.
-type analysis struct {
+// Analyze is a reporter that processes stream and packet data for reports.
+// This must be in the Report pipeline *before* reporters that require it.
+type Analyze struct {
 	streams streams
 	packets packets
 }
 
-// newAnalysis returns a new analysis.
-func newAnalysis() analysis {
-	return analysis{newStreams(), newPackets()}
+// report implements reporter
+func (y *Analyze) report(ctx context.Context, in <-chan any, out chan<- any,
+	rw rwer) (err error) {
+	y.streams = newStreams()
+	y.packets = newPackets()
+	for a := range in {
+		y.add(a)
+	}
+	y.analyze()
+	out <- *y
+	return
 }
 
 // add adds a data item from the result stream.
-func (y *analysis) add(a any) {
+func (y *Analyze) add(a any) {
 	switch v := a.(type) {
 	case node.StreamInfo:
 		s := y.streams.analysis(v.Flow)
@@ -57,7 +67,7 @@ func (y *analysis) add(a any) {
 }
 
 // analyze uses the collected data to calculate relevant metrics and stats.
-func (y *analysis) analyze() {
+func (y *Analyze) analyze() {
 	ss := y.streams.StartTime()
 	ps := y.packets.StartTime()
 	st := ss

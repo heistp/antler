@@ -33,19 +33,19 @@ var ParentNode = Node{}
 // remain a valid map key (see https://go.dev/blog/maps#key-types). A zero Node
 // value represents the parent node.
 type Node struct {
-	ID       NodeID    // identifies the Node
+	ID       ID        // identifies the Node
 	Platform string    // the Node's platform (e.g. linux-amd64)
 	Launcher launchers // union of available launchers
 	Netns    Netns     // parameters for Linux network namespaces
 	Env      Env       // process environment
 }
 
-// NodeID represents a node identifier. The empty string indicates the parent
+// ID represents a node identifier. The empty string indicates the parent
 // node.
-type NodeID string
+type ID string
 
 // String returns the node ID, or "parent" for the parent node.
-func (n NodeID) String() string {
+func (n ID) String() string {
 	if n == "" {
 		return "parent"
 	}

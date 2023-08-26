@@ -16,7 +16,7 @@ const logTimeFormat = "2006-01-02 15:04:05.000000"
 // LogEntry represents one log entry.
 type LogEntry struct {
 	Time   time.Time // the time the entry was logged, per the node's clock
-	NodeID NodeID    // the ID of the node that created the entry
+	NodeID ID        // the ID of the node that created the entry
 	Tag    string    // tags the entry for categorization
 	Text   string    // the entry's text
 }

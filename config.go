@@ -95,8 +95,8 @@ func (c *Config) validateNodeIDs() (err error) {
 		})
 		return true
 	})
-	ii := make(map[node.NodeID]struct{})
-	var aa []node.NodeID
+	ii := make(map[node.ID]struct{})
+	var aa []node.ID
 	for n := range nn {
 		if _, ok := ii[n.ID]; ok {
 			if !slices.Contains(aa, n.ID) {
@@ -114,7 +114,7 @@ func (c *Config) validateNodeIDs() (err error) {
 // AmbiguousNodeIDError is returned when multiple Nodes use the same ID but with
 // different field values.
 type AmbiguousNodeIDError struct {
-	ID []node.NodeID
+	ID []node.ID
 }
 
 func (a *AmbiguousNodeIDError) Error() string {

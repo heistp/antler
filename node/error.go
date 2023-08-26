@@ -36,7 +36,7 @@ func (e Error) Error() string {
 
 // ErrorFactory provides methods to create and return Errors.
 type ErrorFactory struct {
-	nodeID NodeID // the Error's NodeID
+	nodeID ID     // the Error's NodeID
 	tag    string // the Error's Tag
 }
 

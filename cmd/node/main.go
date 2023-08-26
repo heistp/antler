@@ -22,7 +22,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "usage: %s <node ID>\n", os.Args[0])
 		os.Exit(1)
 	}
-	n := node.NodeID(os.Args[1])
+	n := node.ID(os.Args[1])
 	c, x := context.WithCancelCause(context.Background())
 	defer x(nil)
 	i := make(chan os.Signal, 1)

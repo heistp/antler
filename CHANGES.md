@@ -18,6 +18,7 @@ and this project adheres to
 - Replace node.Control with context.WithCancelCause from Go 1.20
 - Change usages of interface{} to the `any` alias from Go 1.18
 - Remove conn.Close and simplify connection closure
+- Rename node.NodeID to node.ID to reduce stutter
 
 ### Fixed
 

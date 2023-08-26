@@ -110,7 +110,6 @@ formats, and supporting platforms other than Linux.
   - detect lost and late (out of order) packets
 - handle tests both with and without node-synchronized time
 - add support for setting arbitary sockopts
-- add sorting by time for saved log files
 - secure the servers for use on the Internet
 - add compression support for System runner FileData output
 - make UDP flood more efficient

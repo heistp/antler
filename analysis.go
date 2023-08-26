@@ -24,8 +24,9 @@ func (y *Analyze) report(ctx context.Context, in <-chan any, out chan<- any,
 	rw rwer) (err error) {
 	y.streams = newStreams()
 	y.packets = newPackets()
-	for a := range in {
-		y.add(a)
+	for d := range in {
+		out <- d
+		y.add(d)
 	}
 	y.analyze()
 	out <- *y

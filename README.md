@@ -135,6 +135,7 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
+- add runner duration for use in timeouts and test duration estimation
 - improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
 - add ability to buffer System Stdout to a tmp file before sending as FileData
@@ -153,7 +154,7 @@ formats, and supporting platforms other than Linux.
 #### Refactoring
 
 - consistently document config in either config.cue or config structs
-- replace uses of chan interface{} in conn and node.Do
+- replace use of chan any in conn
 - replace type switch in node.Do
 
 ## Thanks

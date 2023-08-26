@@ -16,8 +16,8 @@ import (
 )
 
 // node is a combined client and server that runs Run trees. The main antler
-// executable runs the Do function to run a Run in an embedded Node, and
-// standalone Node executables run the Serve function to run sub-trees of the
+// executable runs the Do function to run a Run in an embedded Node, and the
+// standalone node executable runs the Serve function to run sub-trees of the
 // Run in other processes, either locally or via ssh.
 //
 // The Node has four states: run, cancel, canceled, and done.
@@ -85,7 +85,7 @@ func Serve(ctx context.Context, nodeID string, conn io.ReadWriteCloser) error {
 const RootNodeID = "-"
 
 // Do runs a Run tree in an in-process "root" node, and sends data items back on
-// the given channel. The item types that may be sent include StreamInfo,
+// the given data channel. The item types that may be sent include StreamInfo,
 // StreamIO, PacketInfo, PacketIO, FileData, LogEntry and Error.
 //
 // Do is used by the antler package and executable.
@@ -147,13 +147,13 @@ func Do(ctx context.Context, rn *Run, src ExeSource, data chan any) {
 	return
 }
 
-// run runs the node by handling node events.
+// run runs the node by handling node events and advancing the state.
 func (n *node) run(ctx context.Context) {
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)
 	n.parent.start(n.ev)
 	go n.waitContext(ctx)
-	go n.runs(ctx)
+	go n.handleRuns(ctx)
 	for e := range n.ev {
 		e.handle(n)
 		if !n.advance(x) {
@@ -210,8 +210,9 @@ func (n *node) waitContext(ctx context.Context) {
 	n.ev <- contextDone{context.Cause(ctx)}
 }
 
-// runs reads and runs Runs from the runc channel, then cancels the cancelers.
-func (n *node) runs(ctx context.Context) {
+// handleRuns receives and handles Runs from the runc channel until it's closed,
+// then cancels the cancelers.
+func (n *node) handleRuns(ctx context.Context) {
 	defer func() {
 		n.ev <- runsDone{}
 	}()
@@ -310,8 +311,9 @@ func (s state) String() string {
 // event interface and related types
 //
 
-// An event can be handled by the node upon receipt on its event channel. Events
-// must not send another event to the event channel, or a deadlock will occur.
+// An event can be handled by the node upon receipt on its event channel. Event
+// handlers need not be safe for concurrent use, but must not send another event
+// to the event channel, or a deadlock will occur.
 type event interface {
 	handle(*node)
 }

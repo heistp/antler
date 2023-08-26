@@ -224,59 +224,13 @@ func (s *reportStack) report() (rr report) {
 	return
 }
 
-// nopReport is a reporter that does nothing.
+// nopReport is a reporter for internal use that does nothing.
 type nopReport struct {
 }
 
 // report implements reporter
 func (nopReport) report(ctx context.Context, in <-chan any, out chan<- any,
 	rw rwer) (err error) {
-	return
-}
-
-// EmitLog is a reporter that emits LogEntry's to files and/or stdout.
-//
-// TODO implement log sorting
-type EmitLog struct {
-	// To lists the destinations to send output to. "-" sends output to stdout,
-	// and everything else sends output to the named file. If To is empty,
-	// output is emitted to stdout.
-	To []string
-
-	// Sort, if true, indicates to gather and sort the logs.
-	Sort bool
-}
-
-// report implements reporter
-func (l *EmitLog) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
-	ww := []io.WriteCloser{stdoutWriter{}}
-	defer func() {
-		for _, w := range ww {
-			w.Close()
-		}
-	}()
-	if len(l.To) > 0 {
-		ww = ww[:0]
-		for _, s := range l.To {
-			var w io.WriteCloser
-			if w, err = rw.Writer(s, true); err != nil {
-				return
-			}
-			ww = append(ww, w)
-		}
-	}
-	for d := range in {
-		out <- d
-		switch v := d.(type) {
-		case node.LogEntry, node.Error:
-			for _, w := range ww {
-				if _, err = fmt.Fprintln(w, v); err != nil {
-					return
-				}
-			}
-		}
-	}
 	return
 }
 

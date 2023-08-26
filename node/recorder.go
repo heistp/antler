@@ -12,14 +12,14 @@ import (
 // Error's. recorder must be created using newRecorder, and is safe for
 // concurrent use.
 type recorder struct {
-	nodeID string
+	nodeID NodeID
 	tag    string
 	parent *conn
 	ErrorFactory
 }
 
 // newRecorder returns a new recorder.
-func newRecorder(nodeID, tag string, parent *conn) *recorder {
+func newRecorder(nodeID NodeID, tag string, parent *conn) *recorder {
 	return &recorder{
 		nodeID,
 		tag,

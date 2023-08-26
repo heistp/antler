@@ -11,6 +11,7 @@ and this project adheres to
 
 - Implement pipelined reports (TestRun.Report, Test.During, Test.Report)
 - Turn Analyze into a report and add to examples that need it
+- Implement log sorting
 
 ### Changed
 

@@ -41,9 +41,7 @@ Run: {
 	Test: {
 		// disable saving of gob data
 		DataFile: ""
-		// override default report to only emit to stdout
-		Report: [
-			{EmitLog: {To: ["-"]}},
-		]
+		// remove default reporter that writes node.log
+		Report: []
 	}
 }

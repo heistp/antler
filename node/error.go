@@ -10,16 +10,14 @@ import (
 	"time"
 )
 
-// errDone is an internal error sent on error channels to indicate the
-// completion of a goroutine.
-var errDone = errors.New("done")
-
 // Error represents an unrecoverable error that occurred on a node.
 type Error struct {
-	Time    time.Time // the node time that the error occurred
-	NodeID  string    // the node ID
-	Tag     string    // a string for error categorization
-	Message string    // the error text
+	LogEntry
+}
+
+// GetLogEntry implements antler.LogEntry
+func (e Error) GetLogEntry() LogEntry {
+	return e.LogEntry
 }
 
 // init registers Error with the gob encoder
@@ -33,24 +31,19 @@ func (e Error) flags() flag {
 }
 
 func (e Error) Error() string {
-	return fmt.Sprintf("%s %s %s: %s", e.Time.Format(readableTimeFormat),
-		e.NodeID, e.Tag, e.Message)
-}
-
-func (e Error) String() string {
-	return fmt.Sprintf("Error[%s]", e.Error())
+	return e.String()
 }
 
 // ErrorFactory provides methods to create and return Errors.
 type ErrorFactory struct {
-	nodeID string // the Error's NodeID
+	nodeID NodeID // the Error's NodeID
 	tag    string // the Error's Tag
 }
 
 // NewError returns a new Error with the given message.
 func (f ErrorFactory) NewError(message string) Error {
 	t := time.Now()
-	return Error{t, f.nodeID, f.tag, message}
+	return Error{LogEntry{t, f.nodeID, f.tag, message}}
 }
 
 // NewErrore returns an Error from the given error. If the given error is
@@ -60,11 +53,15 @@ func (f ErrorFactory) NewErrore(err error) Error {
 	if e, ok := err.(Error); ok {
 		return e
 	}
-	return Error{t, f.nodeID, f.tag, err.Error()}
+	return Error{LogEntry{t, f.nodeID, f.tag, err.Error()}}
 }
 
 // NewErrorf returns an Error with its Message formatted with prinf style args.
 func (f ErrorFactory) NewErrorf(format string, a ...any) Error {
 	t := time.Now()
-	return Error{t, f.nodeID, f.tag, fmt.Sprintf(format, a...)}
+	return Error{LogEntry{t, f.nodeID, f.tag, fmt.Sprintf(format, a...)}}
 }
+
+// errDone is an internal error sent on error channels to indicate the
+// completion of a goroutine.
+var errDone = errors.New("done")

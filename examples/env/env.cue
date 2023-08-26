@@ -25,9 +25,7 @@ Run: {
 	Test: {
 		// disable saving of gob data
 		DataFile: ""
-		// override default report to only emit to stdout
-		During: [
-			{EmitLog: {To: ["-"]}},
-		]
+		// remove default report that writes node.log
+		Report: []
 	}
 }

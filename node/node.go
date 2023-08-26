@@ -52,7 +52,7 @@ type node struct {
 }
 
 // newNode returns a new node.
-func newNode(nodeID string, parent transport) *node {
+func newNode(nodeID NodeID, parent transport) *node {
 	ev := make(chan event)
 	p := newConn(parent, ParentNode)
 	return &node{
@@ -75,7 +75,7 @@ func newNode(nodeID string, parent transport) *node {
 //
 // An error is returned if there was a failure when serving the connection, or
 // the node was explicitly canceled. Serve closes the conn when complete.
-func Serve(ctx context.Context, nodeID string, conn io.ReadWriteCloser) error {
+func Serve(ctx context.Context, nodeID NodeID, conn io.ReadWriteCloser) error {
 	n := newNode(nodeID, newGobTransport(conn))
 	n.run(ctx)
 	return n.err

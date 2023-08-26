@@ -206,8 +206,8 @@ func (c *conn) send(ev chan<- event) {
 	}()
 	for m := range c.tx {
 		if e := c.tr.Send(m); e != nil {
-			e = fmt.Errorf("send error to %s: %s", c.to, e)
-			c.ioError(e, ev)
+			e = fmt.Errorf("send error to '%s': %w", c.to, e)
+			ev <- errorEvent{e, true}
 			return
 		}
 	}
@@ -219,17 +219,17 @@ func (c *conn) receive(ev chan<- event) {
 	for {
 		m, e := c.tr.Receive()
 		if e != nil {
-			e = fmt.Errorf("receive error from %s: %s", c.to, e)
-			c.ioError(e, ev)
+			e = fmt.Errorf("receive error from '%s': %w", c.to, e)
+			ev <- errorEvent{e, true}
 			return
 		}
 		if m == nil {
 			e = fmt.Errorf("nil message received from %s", c.to)
-			c.ioError(e, ev)
+			ev <- errorEvent{e, true}
 			return
 		}
 		if e := c.received(m, ev); e != nil {
-			c.ioError(e, ev)
+			ev <- errorEvent{e, true}
 			return
 		}
 		if m.flags()&flagFinal != 0 {
@@ -258,10 +258,8 @@ func (c *conn) received(m message, ev chan<- event) (err error) {
 		c.mtx.Lock()
 		defer c.mtx.Unlock()
 		c.failRPC()
-	case Error:
-		ev <- errorEvent{v, false}
 	default:
-		err = fmt.Errorf("conn %s received unknown message type: %T", c.to, v)
+		err = fmt.Errorf("received unknown message type from '%s': %T", c.to, v)
 	}
 	return
 }
@@ -274,16 +272,12 @@ func (c *conn) ioDone(ev chan<- event) {
 	if c.io--; c.io == 0 {
 		c.failRPC()
 		close(c.tq)
-		c.tr.Close()
+		if e := c.tr.Close(); e != nil {
+			e = fmt.Errorf("close error for '%s': %w", c.to, e)
+			ev <- errorEvent{e, false}
+		}
 		ev <- connDone{c.to}
 	}
-}
-
-// ioError is called when an i/o error occurs.
-func (c *conn) ioError(err error, ev chan<- event) {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	ev <- errorEvent{err, true}
 }
 
 // connDone is sent after a conn's goroutines are done and the underlying

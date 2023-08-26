@@ -128,7 +128,6 @@ formats, and supporting platforms other than Linux.
 
 - improve poor error messages from CUE for syntax errors under disjunctions
   (e.g. when Env length > max- Run.Test: field not allowed)
-- record error from node when it exits with status 1
 
 ### Inbox
 

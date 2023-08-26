@@ -107,18 +107,18 @@ func Do(ctx context.Context, rn *Run, src ExeSource, data chan any) {
 	}
 	// root conn
 	ev := make(chan event)
-	var wg sync.WaitGroup
-	wg.Add(1)
+	var w sync.WaitGroup
+	w.Add(1)
 	go func() {
-		defer wg.Done()
+		defer w.Done()
 		for e := range ev {
 			switch v := e.(type) {
-			case StreamInfo, StreamIO, PacketInfo, PacketIO, FileData, LogEntry:
-				data <- v
-			case errorEvent:
-				data <- f.NewErrore(v.err)
 			case connDone:
 				return
+			case errorEvent:
+				data <- f.NewErrore(v.err)
+			default:
+				data <- v
 			}
 		}
 	}()
@@ -127,7 +127,7 @@ func Do(ctx context.Context, rn *Run, src ExeSource, data chan any) {
 	c.start(ev)
 	defer func() {
 		c.Cancel()
-		wg.Wait()
+		w.Wait()
 	}()
 	// root node
 	n := newNode(RootNodeID, tr.peer())

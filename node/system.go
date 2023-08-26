@@ -71,6 +71,11 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 	}
 	n, a := s.params()
 	c := exec.CommandContext(ctx, n, a...)
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("%w (%s)", err, c)
+		}
+	}()
 	if !s.Kill {
 		c.Cancel = func() error {
 			return c.Process.Signal(os.Interrupt)
@@ -96,10 +101,10 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 	var x cancelFunc = func() error {
 		s.io.Wait()
 		e := c.Wait()
-		if e != nil {
-			arg.rec.Logf("%s (%s)", e, c)
-		}
 		if s.Background {
+			if e != nil {
+				arg.rec.Logf("background error: %s (%s)", e, c)
+			}
 			return nil
 		}
 		return e

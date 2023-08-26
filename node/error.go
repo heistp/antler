@@ -30,6 +30,12 @@ func (e Error) flags() flag {
 	return flagPush
 }
 
+// handle implements event
+func (e Error) handle(node *node) {
+	node.setError(e)
+	node.parent.Send(e)
+}
+
 func (e Error) Error() string {
 	return e.String()
 }

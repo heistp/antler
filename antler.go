@@ -8,10 +8,8 @@ package antler
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
-	"os"
 
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
@@ -107,7 +105,6 @@ func (c *RunCommand) do(ctx context.Context, test *Test, rst reportStack) (
 		}
 		s = readData{r}
 	} else {
-		fmt.Fprintf(os.Stderr, "len(a) = %d\n", len(a))
 		s = rangeData(a)
 	}
 	err = doReport(ctx, s, test, rst)

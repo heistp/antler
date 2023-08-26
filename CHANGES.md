@@ -27,6 +27,7 @@ and this project adheres to
 - Fix panic in FCT analysis when no data points are available
 - Fix one second cancellation delay for Stream tests (check Context in receive)
 - Consistently cancel Contexts in defer after calling WithCancel/Cause
+- Return error if node exited with non-zero exit status
 
 ## 0.3.0 - 2023-08-18
 

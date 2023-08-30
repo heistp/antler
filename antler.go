@@ -8,6 +8,7 @@ package antler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 
@@ -155,6 +156,9 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
+	if err = r.workaround(&c.Results); err != nil {
+		return
+	}
 	if err = c.Results.open(); err != nil {
 		return
 	}
@@ -165,6 +169,25 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 	}()
 	d := doReport{r, c.Results}
 	err = c.Run.do(ctx, d, reportStack{})
+	return
+}
+
+// workaround makes the report command work prior to the implementation of
+// incremental test runs by changing WorkDir to point to the latest result
+// directory, and forcing Destructive mode to true.
+//
+// TODO remove report workaround after incremental runs are working
+func (r ReportCommand) workaround(res *Results) (err error) {
+	var ii []ResultInfo
+	if ii, err = res.resultInfo(); err != nil {
+		return
+	}
+	if len(ii) == 0 {
+		err = fmt.Errorf("no results found in '%s'", res.RootDir)
+		return
+	}
+	res.WorkDir = ii[0].Path
+	res.Destructive = true
 	return
 }
 

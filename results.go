@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 )
 
@@ -66,6 +67,41 @@ func (r Results) root() resultRW {
 // work returns a resultRW with WorkDir as the prefix.
 func (r Results) work() resultRW {
 	return resultRW{r.WorkDir, r.Destructive}
+}
+
+// resultInfo returns a list of ResultInfos by reading the directory names under
+// RootDir that match ResultDirFormat. The returned ResultInfos are sorted
+// descending by Name.
+func (r Results) resultInfo() (ii []ResultInfo, err error) {
+	var d *os.File
+	if d, err = os.Open(r.RootDir); err != nil {
+		return
+	}
+	defer d.Close()
+	var ee []fs.DirEntry
+	if ee, err = d.ReadDir(0); err != nil {
+		return
+	}
+	for _, e := range ee {
+		var i fs.FileInfo
+		if i, err = e.Info(); err != nil {
+			return
+		}
+		n := i.Name()
+		if _, te := time.Parse(r.ResultDirFormat, n); te == nil {
+			ii = append(ii, ResultInfo{n, filepath.Join(r.RootDir, n)})
+		}
+	}
+	sort.Slice(ii, func(i, j int) bool {
+		return ii[i].Name > ii[j].Name
+	})
+	return
+}
+
+// ResultInfo contains information on one result.
+type ResultInfo struct {
+	Name string // base name of result directory
+	Path string // path to result directory
 }
 
 // resultRW provides a rwer implementation for a given path prefix. If

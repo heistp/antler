@@ -6,7 +6,10 @@
 
 package antler
 
-import "list"
+import (
+	"path"
+	"list"
+)
 
 // Run is the top-level antler.TestRun, and consists of a hierarchy of TestRuns
 // and associated Reports. It is the only field that test packages must define.
@@ -45,7 +48,7 @@ Results: #Results
 //
 // WorkDir is the name of the directory where results for actively running
 // tests are written. In destructive mode, this is RootDir. In non-destructive
-// mode, WorkDir is a subdirectory under RootDir, and when the test is complete
+// mode, WorkDir must be a subdirectory under RootDir. When the test is done,
 // WorkDir is moved to the final result directory, named for each test run
 // using the ResultDirUTC and ResultDirFormat fields.
 //
@@ -65,7 +68,7 @@ Results: #Results
 		WorkDir: RootDir
 	}
 	if !Destructive {
-		WorkDir: string & !="" | *"in-progress"
+		WorkDir: string & !="" | *path.Join([RootDir, "in-progress"], path.Unix)
 	}
 	ResultDirUTC: bool | *true
 	if !ResultDirUTC {

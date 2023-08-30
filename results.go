@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // Results configures the behavior for reading and writing result files, which
@@ -20,6 +21,41 @@ type Results struct {
 	WorkDir         string
 	ResultDirUTC    bool
 	ResultDirFormat string
+}
+
+// open prepares the Results for use, and must be called before other Results
+// methods are used.
+func (r Results) open() (err error) {
+	if r.Destructive {
+		return
+	}
+	if err = os.MkdirAll(r.RootDir, 0755); err != nil {
+		return
+	}
+	if err = os.Mkdir(r.WorkDir, 0755); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			err = fmt.Errorf(
+				"directory '%s' exists- ensure no other test is running, then move it away",
+				r.WorkDir)
+		}
+		return
+	}
+	return
+}
+
+// close finalizes the Results, and must be called after all results are
+// written, preferably by a defer statement.
+func (r Results) close() (err error) {
+	if r.Destructive {
+		return
+	}
+	t := time.Now()
+	if r.ResultDirUTC {
+		t = t.UTC()
+	}
+	n := t.Format(r.ResultDirFormat)
+	err = os.Rename(r.WorkDir, filepath.Join(r.RootDir, n))
+	return
 }
 
 // root returns a resultRW with RootDir as the prefix.

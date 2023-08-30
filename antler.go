@@ -44,6 +44,14 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
+	if err = c.Results.open(); err != nil {
+		return
+	}
+	defer func() {
+		if e := c.Results.close(); e != nil && err == nil {
+			err = e
+		}
+	}()
 	d := doRun{r, c.Results}
 	err = c.Run.do(ctx, d, reportStack{})
 	return
@@ -147,6 +155,14 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
+	if err = c.Results.open(); err != nil {
+		return
+	}
+	defer func() {
+		if e := c.Results.close(); e != nil && err == nil {
+			err = e
+		}
+	}()
 	d := doReport{r, c.Results}
 	err = c.Run.do(ctx, d, reportStack{})
 	return

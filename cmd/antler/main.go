@@ -60,11 +60,7 @@ func list() (cmd *cobra.Command) {
 				if !f.Accept(t) {
 					return true
 				}
-				var p string
-				if p, err = t.GetResultPrefix(); err != nil {
-					p = err.Error()
-				}
-				fmt.Fprintf(w, "%s\t%s\n", t.ID, p)
+				fmt.Fprintf(w, "%s\t%s\n", t.ID, t.ResultPrefixX)
 				return true
 			})
 			w.Flush()

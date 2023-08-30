@@ -112,6 +112,29 @@ func (c *Config) validateNodeIDs() (err error) {
 	return
 }
 
+// evaluate performs any programmatic evaluation or execution for the Config.
+func (c *Config) evaluate() error {
+	return c.execResultPrefixTemplates()
+}
+
+// execResultPrefixTemplates executes ResultPrefix for each Test and assigns the
+// output to the ResultPrefixX field.
+func (c *Config) execResultPrefixTemplates() (err error) {
+	c.Run.VisitTests(func(t *Test) bool {
+		pt := template.New("ResultPrefix")
+		if pt, err = pt.Parse(t.ResultPrefix); err != nil {
+			return false
+		}
+		var p strings.Builder
+		if err = pt.Execute(&p, t.ID); err != nil {
+			return false
+		}
+		t.ResultPrefixX = p.String()
+		return true
+	})
+	return
+}
+
 // AmbiguousNodeIDError is returned when multiple Nodes use the same ID but with
 // different field values.
 type AmbiguousNodeIDError struct {
@@ -159,7 +182,10 @@ func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
 	if err = v.Decode(cfg); err != nil {
 		return
 	}
-	err = cfg.validate()
+	if err = cfg.validate(); err != nil {
+		return
+	}
+	err = cfg.evaluate()
 	return
 }
 

@@ -78,15 +78,11 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	} else {
 		p = append(p, &a)
 	}
-	var rw resultRW
-	if rw, err = test.WorkRW(u.Results); err != nil {
-		return
-	}
 	d := make(chan any, dataChanBufLen)
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)
 	go node.Do(ctx, &test.Run, &exeSource{}, d)
-	for e := range p.pipeline(ctx, d, nil, rw) {
+	for e := range p.pipeline(ctx, d, nil, test.WorkRW(u.Results)) {
 		x(e)
 		if err == nil {
 			err = e
@@ -105,7 +101,7 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	} else {
 		s = rangeData(a)
 	}
-	err = teeReport(ctx, s, test, rw, rst)
+	err = teeReport(ctx, s, test, test.WorkRW(u.Results), rst)
 	return
 }
 
@@ -190,11 +186,7 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 		err = nil
 		return
 	}
-	var rw resultRW
-	if rw, err = test.WorkRW(d.Results); err != nil {
-		return
-	}
-	err = teeReport(ctx, readData{r}, test, rw, rst)
+	err = teeReport(ctx, readData{r}, test, test.WorkRW(d.Results), rst)
 	return
 }
 

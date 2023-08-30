@@ -105,7 +105,7 @@ Results: #Results
 // required for a single Test.
 //
 // ResultPrefix is the base path for any output files. It may use Go template
-// syntax (https://pkg.go.dev/text/template), with the Test ID is passed to the
+// syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
 // template as its data. Any path separators (e.g. '/') in the string generated
 // by the template will result in the creation of directories.
 //

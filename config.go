@@ -45,6 +45,9 @@ func (c *Config) validate() (err error) {
 	if err = c.validateNodeIDs(); err != nil {
 		return
 	}
+	if err = c.validateResultPrefixes(); err != nil {
+		return
+	}
 	return
 }
 
@@ -65,7 +68,7 @@ func (c *Config) validateTestIDs() (err error) {
 		return true
 	})
 	if len(dd) > 0 {
-		err = &DuplicateTestIDError{dd}
+		err = DuplicateTestIDError{dd}
 	}
 	return
 }
@@ -76,7 +79,7 @@ type DuplicateTestIDError struct {
 }
 
 // Error implements error
-func (d *DuplicateTestIDError) Error() string {
+func (d DuplicateTestIDError) Error() string {
 	var s []string
 	for _, i := range d.ID {
 		s = append(s, i.String())
@@ -107,31 +110,8 @@ func (c *Config) validateNodeIDs() (err error) {
 		ii[n.ID] = struct{}{}
 	}
 	if len(aa) > 0 {
-		err = &AmbiguousNodeIDError{aa}
+		err = AmbiguousNodeIDError{aa}
 	}
-	return
-}
-
-// evaluate performs any programmatic evaluation or execution for the Config.
-func (c *Config) evaluate() error {
-	return c.execResultPrefixTemplates()
-}
-
-// execResultPrefixTemplates executes ResultPrefix for each Test and assigns the
-// output to the ResultPrefixX field.
-func (c *Config) execResultPrefixTemplates() (err error) {
-	c.Run.VisitTests(func(t *Test) bool {
-		pt := template.New("ResultPrefix")
-		if pt, err = pt.Parse(t.ResultPrefix); err != nil {
-			return false
-		}
-		var p strings.Builder
-		if err = pt.Execute(&p, t.ID); err != nil {
-			return false
-		}
-		t.ResultPrefixX = p.String()
-		return true
-	})
 	return
 }
 
@@ -142,13 +122,57 @@ type AmbiguousNodeIDError struct {
 }
 
 // Error implements error
-func (a *AmbiguousNodeIDError) Error() string {
+func (a AmbiguousNodeIDError) Error() string {
 	var s []string
 	for _, i := range a.ID {
 		s = append(s, i.String())
 	}
 	sort.Strings(s)
 	return fmt.Sprintf("ambiguous Node IDs: %s", strings.Join(s, ", "))
+}
+
+// validateResultPrefixes executes ResultPrefix for each Test and assigns the
+// output to the ResultPrefixX field.
+func (c *Config) validateResultPrefixes() (err error) {
+	pp := make(map[string]int)
+	var d []string
+	c.Run.VisitTests(func(t *Test) bool {
+		pt := template.New("ResultPrefix")
+		if pt, err = pt.Parse(t.ResultPrefix); err != nil {
+			return false
+		}
+		var pb strings.Builder
+		if err = pt.Execute(&pb, t.ID); err != nil {
+			return false
+		}
+		p := pb.String()
+		t.ResultPrefixX = p
+		if v, ok := pp[p]; ok {
+			if v == 1 {
+				d = append(d, p)
+			}
+			pp[p] = v + 1
+		} else {
+			pp[p] = 1
+		}
+		return true
+	})
+	if len(d) > 0 {
+		err = DuplicateResultPrefixError{d}
+	}
+	return
+}
+
+// DuplicateResultPrefixError is returned when multiple Tests have the same
+// ResultPrefix.
+type DuplicateResultPrefixError struct {
+	ResultPrefix []string
+}
+
+// Error implements error
+func (d DuplicateResultPrefixError) Error() string {
+	return fmt.Sprintf("duplicate Test ResultPrefixes: %s",
+		strings.Join(d.ResultPrefix, ", "))
 }
 
 // LoadConfig first executes templates in any .cue.tmpl files to create the
@@ -182,10 +206,7 @@ func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
 	if err = v.Decode(cfg); err != nil {
 		return
 	}
-	if err = cfg.validate(); err != nil {
-		return
-	}
-	err = cfg.evaluate()
+	err = cfg.validate()
 	return
 }
 

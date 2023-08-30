@@ -12,6 +12,7 @@ and this project adheres to
 - Implement pipelined reports (TestRun.Report, Test.During, Test.Report)
 - Turn Analyze into a report and add to examples that need it
 - Implement log sorting
+- Write results to single directory, configurable from CUE
 
 ### Changed
 
@@ -19,6 +20,7 @@ and this project adheres to
 - Change usages of interface{} to the `any` alias from Go 1.18
 - Remove conn.Close and simplify connection closure
 - Rename node.NodeID to node.ID to reduce stutter
+- Rename Test.OutputPrefix to Test.ResultPrefix
 
 ### Fixed
 

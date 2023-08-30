@@ -30,52 +30,46 @@ type Command interface {
 
 // RunCommand runs tests and reports.
 type RunCommand struct {
-	// Force re-runs the test and overwrites any existing data.
-	Force bool
-
 	// Filter selects which tests to run.
 	Filter TestFilter
 
 	// SkippedFiltered is called when a test was skipped because it was rejected
 	// by the Filter.
 	SkippedFiltered func(test *Test)
-
-	// SkippedDataFileExists is called when a test was skipped because there's
-	// already an output data file for it and RunCommand.Force is false.
-	SkippedDataFileExists func(test *Test, path string)
 }
 
 // run implements command
-func (r *RunCommand) run(ctx context.Context) (err error) {
+func (r RunCommand) run(ctx context.Context) (err error) {
 	var c *Config
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = c.Run.do(ctx, r, reportStack{})
+	d := doRun{r, c.Results}
+	err = c.Run.do(ctx, d, reportStack{})
 	return
 }
 
+// doRun is a doer that runs a Test and its reports.
+type doRun struct {
+	RunCommand
+	Results
+}
+
 // do implements doer
-func (c *RunCommand) do(ctx context.Context, test *Test, rst reportStack) (
+func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
-	if c.Filter != nil && !c.Filter.Accept(test) {
-		c.SkippedFiltered(test)
+	if u.Filter != nil && !u.Filter.Accept(test) {
+		if u.SkippedFiltered != nil {
+			u.SkippedFiltered(test)
+		}
 		return
 	}
 	var w io.WriteCloser
-	if w, err = test.DataWriter(c.Force); err != nil {
-		switch e := err.(type) {
-		case *FileExistsError:
-			if c.SkippedDataFileExists != nil {
-				c.SkippedDataFileExists(test, e.Path)
-			}
-			err = nil
-			return
-		case *NoDataFileError:
-			err = nil
-		default:
+	if w, err = test.DataWriter(u.Results); err != nil {
+		if _, ok := err.(NoDataFileError); !ok {
 			return
 		}
+		err = nil
 	}
 	var a appendData
 	p := test.During.report()
@@ -84,11 +78,15 @@ func (c *RunCommand) do(ctx context.Context, test *Test, rst reportStack) (
 	} else {
 		p = append(p, &a)
 	}
+	var rw resultRW
+	if rw, err = test.WorkRW(u.Results); err != nil {
+		return
+	}
 	d := make(chan any, dataChanBufLen)
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)
 	go node.Do(ctx, &test.Run, &exeSource{}, d)
-	for e := range p.pipeline(ctx, d, nil, test) {
+	for e := range p.pipeline(ctx, d, nil, rw) {
 		x(e)
 		if err == nil {
 			err = e
@@ -100,26 +98,27 @@ func (c *RunCommand) do(ctx context.Context, test *Test, rst reportStack) (
 	var s reporter
 	if w != nil {
 		var r io.ReadCloser
-		if r, err = test.DataReader(); err != nil {
+		if r, err = test.DataReader(u.Results); err != nil {
 			return
 		}
 		s = readData{r}
 	} else {
 		s = rangeData(a)
 	}
-	err = doReport(ctx, s, test, rst)
+	err = teeReport(ctx, s, test, rw, rst)
 	return
 }
 
-// doReport runs the Test.Report and reportStack pipelines concurrently,
-// using src to supply the data.
-func doReport(ctx context.Context, src reporter, test *Test, rst reportStack) (
-	err error) {
+// teeReport runs the Test.Report and reportStack pipelines concurrently, using
+// src to supply the data.
+func teeReport(ctx context.Context, src reporter, test *Test, rw rwer,
+	rst reportStack) (err error) {
 	var r []report
 	r = append(r, test.Report.report())
 	r = append(r, rst.report())
 	ctx, x := context.WithCancelCause(ctx)
-	for e := range report([]reporter{src}).tee(ctx, test, nil, r...) {
+	defer x(nil)
+	for e := range report([]reporter{src}).tee(ctx, rw, nil, r...) {
 		x(e)
 		if err == nil {
 			err = e
@@ -147,27 +146,36 @@ type ReportCommand struct {
 }
 
 // run implements command
-func (r *ReportCommand) run(ctx context.Context) (err error) {
+func (r ReportCommand) run(ctx context.Context) (err error) {
 	var c *Config
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	err = c.Run.do(ctx, r, reportStack{})
+	d := doReport{r, c.Results}
+	err = c.Run.do(ctx, d, reportStack{})
 	return
 }
 
+// doReport is a doer that runs reports.
+type doReport struct {
+	ReportCommand
+	Results
+}
+
 // do implements doer
-func (c *ReportCommand) do(ctx context.Context, test *Test, rst reportStack) (
+func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
-	if c.Filter != nil && !c.Filter.Accept(test) {
-		c.SkippedFiltered(test)
+	if d.Filter != nil && !d.Filter.Accept(test) {
+		if d.SkippedFiltered != nil {
+			d.SkippedFiltered(test)
+		}
 		return
 	}
 	var r io.ReadCloser
-	if r, err = test.DataReader(); err != nil {
-		if _, ok := err.(*NoDataFileError); ok {
-			if c.SkippedNoDataFile != nil {
-				c.SkippedNoDataFile(test)
+	if r, err = test.DataReader(d.Results); err != nil {
+		if _, ok := err.(NoDataFileError); ok {
+			if d.SkippedNoDataFile != nil {
+				d.SkippedNoDataFile(test)
 			}
 			err = nil
 			return
@@ -176,13 +184,17 @@ func (c *ReportCommand) do(ctx context.Context, test *Test, rst reportStack) (
 			return
 		}
 		e := err.(*fs.PathError)
-		if c.SkippedNotFound != nil {
-			c.SkippedNotFound(test, e.Path)
+		if d.SkippedNotFound != nil {
+			d.SkippedNotFound(test, e.Path)
 		}
 		err = nil
 		return
 	}
-	err = doReport(ctx, readData{r}, test, rst)
+	var rw resultRW
+	if rw, err = test.WorkRW(d.Results); err != nil {
+		return
+	}
+	err = teeReport(ctx, readData{r}, test, rw, rst)
 	return
 }
 

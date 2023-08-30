@@ -36,6 +36,7 @@ func (e Error) handle(node *node) {
 	node.parent.Send(e)
 }
 
+// Error implements error
 func (e Error) Error() string {
 	return e.String()
 }

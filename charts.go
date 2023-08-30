@@ -83,7 +83,7 @@ func (g *ChartsTimeSeries) report(ctx context.Context, in <-chan any,
 	}
 	var ww []io.Writer
 	for _, to := range g.To {
-		if w, err = rw.Writer(to, true); err != nil {
+		if w, err = rw.Writer(to); err != nil {
 			return
 		}
 		ww = append(ww, w)
@@ -207,7 +207,7 @@ func (g *ChartsFCT) report(ctx context.Context, in <-chan any, out chan<- any,
 	}
 	var ww []io.Writer
 	for _, to := range g.To {
-		if w, err = rw.Writer(to, true); err != nil {
+		if w, err = rw.Writer(to); err != nil {
 			return
 		}
 		ww = append(ww, w)

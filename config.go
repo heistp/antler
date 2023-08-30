@@ -32,8 +32,8 @@ var configCUE string
 
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
-	// Run is the top-level TestRun instance.
-	Run TestRun
+	Run     TestRun
+	Results Results
 }
 
 // validate performs any programmatic validation on the Config that isn't
@@ -75,6 +75,7 @@ type DuplicateTestIDError struct {
 	ID []TestID
 }
 
+// Error implements error
 func (d *DuplicateTestIDError) Error() string {
 	var s []string
 	for _, i := range d.ID {
@@ -117,6 +118,7 @@ type AmbiguousNodeIDError struct {
 	ID []node.ID
 }
 
+// Error implements error
 func (a *AmbiguousNodeIDError) Error() string {
 	var s []string
 	for _, i := range a.ID {

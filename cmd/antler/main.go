@@ -39,8 +39,8 @@ func root() (cmd *cobra.Command) {
 func list() (cmd *cobra.Command) {
 	return &cobra.Command{
 		Use:   "list [filter] ...",
-		Short: "Lists tests and their output path prefixes",
-		Long: help(`List lists tests and their output path prefixes.
+		Short: "Lists tests and their result path prefixes",
+		Long: help(`List lists tests and their result path prefixes.
 
 {{template "filter" "list"}}
 `),
@@ -54,14 +54,14 @@ func list() (cmd *cobra.Command) {
 				return
 			}
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "Test ID\tOutput Prefix")
+			fmt.Fprintln(w, "Test ID\tResult Prefix")
 			fmt.Fprintln(w, "-------\t-------------")
 			c.Run.VisitTests(func(t *antler.Test) bool {
 				if !f.Accept(t) {
 					return true
 				}
 				var p string
-				if p, err = t.OutputPath(""); err != nil {
+				if p, err = t.GetResultPrefix(); err != nil {
 					p = err.Error()
 				}
 				fmt.Fprintf(w, "%s\t%s\n", t.ID, p)
@@ -76,14 +76,9 @@ func list() (cmd *cobra.Command) {
 // run returns the run cobra command.
 func run() (cmd *cobra.Command) {
 	r := &antler.RunCommand{
-		false,
 		nil,
 		func(test *antler.Test) {
 			fmt.Printf("skipping %s, filtered\n", test.ID)
-		},
-		func(test *antler.Test, path string) {
-			fmt.Printf("skipping %s, '%s' already exists (use -f to force)\n",
-				test.ID, path)
 		},
 	}
 	cmd = &cobra.Command{
@@ -114,8 +109,6 @@ func run() (cmd *cobra.Command) {
 			return
 		},
 	}
-	cmd.Flags().BoolVarP(&r.Force, "force", "f", false,
-		"force tests to run, overwriting existing results")
 	return
 }
 
@@ -181,10 +174,10 @@ func newRegexFilter(args []string) (flt antler.AndFilter, err error) {
 // helpTemplate contains defined templates for common help snippets.
 const helpTemplate = `
 {{- define "filter" -}}
-Each filter argument may be either a single pattern matching the value of any ID
-field, or a string in the form key=value, where key and value are separate
-patterns that must match both a Test ID key and value for it to be accepted.
-Multiple filters are combined with a logical AND.
+Each filter argument may be either a single regex pattern matching the value of
+any ID field, or a string in the form key=value, where key and value are
+separate patterns that must match both a Test ID key and value for it to be
+accepted. Multiple filters are combined together with a logical AND.
 
 Example 1: antler {{.}} cca=cubic
 

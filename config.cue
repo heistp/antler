@@ -12,9 +12,69 @@ import "list"
 // and associated Reports. It is the only field that test packages must define.
 Run: #TestRun
 
+// Results configures the destination paths for results and reports.
+Results: #Results
+
 //
 // antler package
 //
+
+// antler.Results configures the destination paths for results and reports.
+//
+// The Destructive field chooses to save results in either destructive mode
+// (true) or non-destructive mode (false). In destructive mode, results are
+// stored under RootDir, and test runs overwrite any existing results. In
+// non-destructive mode, no result data is ever overwritten when running tests.
+// Instead, results are saved to RootDir/WorkDir during the test, and WorkDir
+// is moved to a dated directory when the test is complete. When switching
+// between the two modes, any existing results should be removed, or moved out
+// of the way. For serious testing, non-destructive mode should be used.
+// Destructive mode should only be used for examples or one-off experiments.
+//
+// Destructive mode:
+// RootDir/...
+//
+// Non-destructive mode:
+// RootDir/
+// RootDir/WorkDir/...
+// RootDir/2006-01-02-150415Z/...
+//
+// RootDir is the top-level directory where all results are saved, relative to
+// the test package. If this is changed, then the existing root directory must
+// be renamed in order to publish and locate results.
+//
+// WorkDir is the name of the directory where results for actively running
+// tests are written. In destructive mode, this is RootDir. In non-destructive
+// mode, WorkDir is a subdirectory under RootDir, and when the test is complete
+// WorkDir is moved to the final result directory, named for each test run
+// using the ResultDirUTC and ResultDirFormat fields.
+//
+// ResultDirUTC indicates whether to use UTC time for result directories (true)
+// or local time (false). If this is changed, existing directories should be
+// renamed to reflect the new time. Failing to do this may cause the lexical
+// sorting of runs to be incorrect, with undefined consequences.
+//
+// ResultDirFormat is a Go time layout (https://pkg.go.dev/time#pkg-constants)
+// used to create directory names below RootDir for each run. A fixed ISO 8601
+// compliant format is used that contains sufficient precision and sorts runs
+// lexically (inspired by Apple's Time Machine).
+#Results: {
+	Destructive: bool | *true
+	RootDir:     string & !="" | *"results"
+	if Destructive {
+		WorkDir: RootDir
+	}
+	if !Destructive {
+		WorkDir: string & !="" | *"in-progress"
+	}
+	ResultDirUTC: bool | *true
+	if !ResultDirUTC {
+		ResultDirFormat: "2006-01-02-150405"
+	}
+	if ResultDirUTC {
+		ResultDirFormat: "2006-01-02-150405Z"
+	}
+}
 
 // antler.TestRun is used to orchestrate the execution of Tests. Each TestRun
 // can have one of Test, Serial or Parallel set, and may have Reports.
@@ -44,7 +104,7 @@ Run: #TestRun
 // within the package, and its keys and values must match _IDregex. ID is not
 // required for a single Test.
 //
-// OutputPrefix is the base path for any output files. It may use Go template
+// ResultPrefix is the base path for any output files. It may use Go template
 // syntax (https://pkg.go.dev/text/template), with the Test ID is passed to the
 // template as its data. Any path separators (e.g. '/') in the string generated
 // by the template will result in the creation of directories.
@@ -66,7 +126,7 @@ Run: #TestRun
 #Test: {
 	_IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	ID: [string & =~_IDregex]: string & =~_IDregex
-	OutputPrefix: string & !="" | *"{{range $v := .}}{{$v}}_{{end}}"
+	ResultPrefix: string & !="" | *"{{range $v := .}}{{$v}}_{{end}}"
 	DataFile:     string | *"data.gob"
 	#Run
 	During: [...#Report] | *[

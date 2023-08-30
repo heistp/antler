@@ -35,29 +35,9 @@ import (
 // For configuration flexibility, most reports should forward data to out as
 // usual, unless they are certain to be the last stage in the pipeline.
 //
-// Reporters may read and write test output using the given 'rwer'.
+// Reporters may read or write results using the given 'rwer'.
 type reporter interface {
 	report(ctx context.Context, in <-chan any, out chan<- any, rw rwer) error
-}
-
-// readerer wraps the Reader method, to return a ReadCloser for reading test
-// output. The name parameter identifies the result data according to the
-// underlying implementation, and is typically a filename, or filename suffix.
-type readerer interface {
-	Reader(name string) (io.ReadCloser, error)
-}
-
-// writerer wraps the Writer method, to return a WriteCloser for writing test
-// output. The name parameter identifies the result data according to the
-// underlying implementation, and is typically a filename, or filename suffix.
-type writerer interface {
-	Writer(name string, overwrite bool) (io.WriteCloser, error)
-}
-
-// rwer groups the readerer and writerer interfaces.
-type rwer interface {
-	readerer
-	writerer
 }
 
 // Report represents a list of reporters.
@@ -114,11 +94,11 @@ func (r report) add(other report) report {
 // done. If out is not nil, the caller is expected to receive all items from it
 // until closed.
 //
-// If the report has no reporters, a nopReport is added so that pipeline's
-// contract is satisfied and it doesn't hang.
+// If the report has no reporters, a nopReport is added so the pipeline still
+// functions per the contract.
 //
 // The returned error channel receives any errors that occur, and is closed when
-// the pipeline is done.
+// the pipeline is done, meaning all of its stages are done.
 func (r report) pipeline(ctx context.Context, in chan any, out chan any,
 	rw rwer) <-chan error {
 	if len(r) == 0 {
@@ -176,9 +156,9 @@ func (r report) pipeline(ctx context.Context, in chan any, out chan any,
 }
 
 // tee confines goroutines to pipeline this report to concurrent pipelines for
-// each of the given reports. The output for each "to" report is nil. The
+// each of the given reports. The output for each 'to' report is nil. The
 // returned error channel receives any errors that occur, and is closed when
-// the tee completes.
+// the tee is done, meaning each of the pipelines is done.
 func (r report) tee(ctx context.Context, rw rwer, in chan any,
 	to ...report) <-chan error {
 	var c []chan any
@@ -201,6 +181,16 @@ func (r report) tee(ctx context.Context, rw rwer, in chan any,
 	return oc
 }
 
+// nopReport is a reporter for internal use that does nothing.
+type nopReport struct {
+}
+
+// report implements reporter
+func (nopReport) report(ctx context.Context, in <-chan any, out chan<- any,
+	rw rwer) (err error) {
+	return
+}
+
 // reportStack is a stack of reports used when running a TestRun hierarchy.
 type reportStack []report
 
@@ -221,16 +211,6 @@ func (s *reportStack) report() (rr report) {
 	for _, r := range *s {
 		rr = append(rr, r...)
 	}
-	return
-}
-
-// nopReport is a reporter for internal use that does nothing.
-type nopReport struct {
-}
-
-// report implements reporter
-func (nopReport) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
 	return
 }
 
@@ -259,7 +239,7 @@ func (s *SaveFiles) report(ctx context.Context, in <-chan any, out chan<- any,
 		}
 		var w io.WriteCloser
 		if w, ok = m[fd.Name]; !ok {
-			if w, err = rw.Writer(fd.Name, true); err != nil {
+			if w, err = rw.Writer(fd.Name); err != nil {
 				return
 			}
 			m[fd.Name] = w
@@ -276,7 +256,7 @@ func (s *SaveFiles) report(ctx context.Context, in <-chan any, out chan<- any,
 
 // expects to be the first stage in a pipeline, so "in" is first discarded.
 //
-// If an decoding error occurs, the error is returned immediately.
+// If a decoding error occurs, the error is returned immediately.
 //
 // If the Context is canceled, sending is stopped and the error from
 // context.Cause() is returned.

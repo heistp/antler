@@ -24,8 +24,8 @@ func tee(out ...chan any) (in chan any) {
 	return
 }
 
-// mergeErr confines goroutines to fan in errors from the given channels. The
-// returned out channel is closed after all in channels are closed.
+// mergeErr confines goroutines to combine errors from the given in channels to
+// the out channel. The out channel is closed after all in channels are closed.
 func mergeErr(in ...<-chan error) (out chan error) {
 	out = make(chan error)
 	ec := make(chan error)

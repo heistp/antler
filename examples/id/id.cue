@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2023 Pete Heist
 
-// This Antler example experiments with Test IDs and OutputPrefix.
+// This Antler example experiments with Test IDs and ResultPrefix.
 
 package id
 
@@ -26,8 +26,8 @@ _testRun: {
 			B: _B
 		}
 
-		// OutputPrefix uses a directory for A, and B as the filename prefix.
-		OutputPrefix: "{{.A}}/{{.B}}-"
+		// ResultPrefix uses a directory for A, and B as the filename prefix.
+		ResultPrefix: "{{.A}}/{{.B}}-"
 
 		// Emit A and B, for testing.
 		System: Command: "echo A=\(_A) B=\(_B)"

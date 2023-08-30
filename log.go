@@ -37,7 +37,7 @@ func (l *EmitLog) report(ctx context.Context, in <-chan any, out chan<- any,
 		ww = ww[:0]
 		for _, s := range l.To {
 			var w io.WriteCloser
-			if w, err = rw.Writer(s, true); err != nil {
+			if w, err = rw.Writer(s); err != nil {
 				return
 			}
 			ww = append(ww, w)

@@ -121,19 +121,19 @@ formats, and supporting platforms other than Linux.
 #### Features
 
 - move SCE examples into sce-tests repo and deploy to public server
-- refactor examples to share common setup
+- combine examples into one package, to share common setup
 - build examples to a public server and remove from README
 
 #### Bugs
 
-- improve poor error messages from CUE for syntax errors under disjunctions
-  (e.g. when Env length > max- Run.Test: field not allowed)
+- improve poor error messages from CUE by saving antler.cue to test package
 
 ### Inbox
 
 #### Features
 
 - add runner duration for use in timeouts and test duration estimation
+- add test progress bar
 - improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
 - add ability to buffer System Stdout to a tmp file before sending as FileData
@@ -151,6 +151,7 @@ formats, and supporting platforms other than Linux.
 
 #### Refactoring
 
+- convert longer funcs/methods to use explicit return values
 - consistently document config in either config.cue or config structs
 - replace use of chan any in conn
 - replace type switch in node.Do

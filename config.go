@@ -34,6 +34,7 @@ var configCUE string
 type Config struct {
 	Run     TestRun
 	Results Results
+	Server  Server
 }
 
 // validate performs any programmatic validation on the Config that isn't

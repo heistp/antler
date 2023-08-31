@@ -27,12 +27,26 @@ func root() (cmd *cobra.Command) {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	cmd.AddCommand(vet())
 	cmd.AddCommand(list())
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
-	cmd.AddCommand(vet())
+	cmd.AddCommand(server())
 	cmd.Version = antler.Version
 	return
+}
+
+// vet returns the vet cobra command.
+func vet() (cmd *cobra.Command) {
+	c := context.Background()
+	v := &antler.VetCommand{}
+	return &cobra.Command{
+		Use:   "vet",
+		Short: "Checks the CUE configuration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return antler.Run(c, v)
+		},
+	}
 }
 
 // list returns the list cobra command.
@@ -141,15 +155,17 @@ func report() (cmd *cobra.Command) {
 	}
 }
 
-// vet returns the vet cobra command.
-func vet() (cmd *cobra.Command) {
-	c := context.Background()
-	v := &antler.VetCommand{}
+// server returns the server cobra command.
+func server() (cmd *cobra.Command) {
+	s := &antler.ServerCommand{}
 	return &cobra.Command{
-		Use:   "vet",
-		Short: "Checks the CUE configuration",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return antler.Run(c, v)
+		Use:   "server",
+		Short: "Runs the builtin web server",
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			c, x := context.WithCancelCause(context.Background())
+			defer x(nil)
+			err = antler.Run(c, s)
+			return
 		},
 	}
 }

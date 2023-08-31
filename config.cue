@@ -18,9 +18,34 @@ Run: #TestRun
 // Results configures the destination paths for results and reports.
 Results: #Results
 
+// Server configures the builtin web server.
+Server: #Server
+
 //
 // antler package
 //
+
+// antler.TestRun is used to orchestrate the execution of Tests. Each TestRun
+// can have one of Test, Serial or Parallel set, and may have Reports.
+//
+// Serial lists Tests to be executed sequentially, and Parallel lists Tests to
+// be executed concurrently. It's up to the author to ensure that Parallel
+// tests can be executed safely, for example by assigning separate namespaces
+// to those Tests which may execute at the same time.
+//
+// Report is a pipeline of #Reports run after the Test completes, and by the
+// report command, in parallel with the pipeline in Test.Report. See also the
+// During and Report fields in Test.
+#TestRun: {
+	{} | {
+		Test?: #Test
+	} | {
+		Serial?: [#TestRun, ...#TestRun]
+	} | {
+		Parallel?: [#TestRun, ...#TestRun]
+	}
+	Report?: [#Report, ...#Report]
+}
 
 // antler.Results configures the destination paths for results and reports.
 //
@@ -79,26 +104,14 @@ Results: #Results
 	}
 }
 
-// antler.TestRun is used to orchestrate the execution of Tests. Each TestRun
-// can have one of Test, Serial or Parallel set, and may have Reports.
+// antler.Server configures the builtin web server.
 //
-// Serial lists Tests to be executed sequentially, and Parallel lists Tests to
-// be executed concurrently. It's up to the author to ensure that Parallel
-// tests can be executed safely, for example by assigning separate namespaces
-// to those Tests which may execute at the same time.
+// ListenAddr is the listen address in the form ":port" or "host:port".
 //
-// Report is a pipeline of #Reports run after the Test completes, and by the
-// report command, in parallel with the pipeline in Test.Report. See also the
-// During and Report fields in Test.
-#TestRun: {
-	{} | {
-		Test?: #Test
-	} | {
-		Serial?: [#TestRun, ...#TestRun]
-	} | {
-		Parallel?: [#TestRun, ...#TestRun]
-	}
-	Report?: [#Report, ...#Report]
+// RootDir is fixed to serve the results.
+#Server: {
+	ListenAddr: string & !="" | *":8080"
+	RootDir:    Results.RootDir
 }
 
 // antler.Test defines a test to run.

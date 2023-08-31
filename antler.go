@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
+	"os"
 
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
@@ -27,6 +29,16 @@ func Run(ctx context.Context, cmd Command) error {
 // A Command is an Antler command.
 type Command interface {
 	run(context.Context) error
+}
+
+// VetCommand loads and checks the CUE config.
+type VetCommand struct {
+}
+
+// run implements command
+func (*VetCommand) run(context.Context) (err error) {
+	_, err = LoadConfig(&load.Config{})
+	return
 }
 
 // RunCommand runs tests and reports.
@@ -229,12 +241,19 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	return
 }
 
-// VetCommand loads and checks the CUE config.
-type VetCommand struct {
+// ServerCommand runs the builtin web server.
+type ServerCommand struct {
 }
 
 // run implements command
-func (*VetCommand) run(context.Context) (err error) {
-	_, err = LoadConfig(&load.Config{})
+func (s ServerCommand) run(ctx context.Context) (err error) {
+	var c *Config
+	if c, err = LoadConfig(&load.Config{}); err != nil {
+		return
+	}
+	log.SetPrefix("")
+	log.SetFlags(0)
+	log.SetOutput(os.Stdout)
+	err = c.Server.Run()
 	return
 }

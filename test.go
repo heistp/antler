@@ -119,5 +119,5 @@ func (n NoDataFileError) Error() string {
 // WorkRW returns a resultRW for reading and writing this Test's results in the
 // working directory.
 func (t *Test) WorkRW(res Results) resultRW {
-	return res.work().Join(t.ResultPrefixX)
+	return res.work().Append(t.ResultPrefixX)
 }

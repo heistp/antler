@@ -61,12 +61,12 @@ func (r Results) close() (err error) {
 
 // root returns a resultRW with RootDir as the prefix.
 func (r Results) root() resultRW {
-	return resultRW{r.RootDir, r.Destructive}
+	return resultRW{r.RootDir + string(os.PathSeparator), r.Destructive}
 }
 
 // work returns a resultRW with WorkDir as the prefix.
 func (r Results) work() resultRW {
-	return resultRW{r.WorkDir, r.Destructive}
+	return resultRW{r.WorkDir + string(os.PathSeparator), r.Destructive}
 }
 
 // resultInfo returns a list of ResultInfos by reading the directory names under
@@ -111,11 +111,11 @@ type resultRW struct {
 	destructive bool
 }
 
-// Join returns a new resultRW by joining the prefix of this resultRW with the
-// given prefix using filepath.Join.
-func (r resultRW) Join(prefix string) resultRW {
+// Append returns a new resultRW by appending the given prefix to the prefix of
+// this resultRW.
+func (r resultRW) Append(prefix string) resultRW {
 	return resultRW{
-		filepath.Clean(filepath.Join(r.prefix, prefix)),
+		r.prefix + prefix,
 		r.destructive,
 	}
 }
@@ -142,7 +142,8 @@ func (r resultRW) Writer(name string) (wc io.WriteCloser, err error) {
 			return
 		}
 	}
-	if d := filepath.Dir(p); d != "/" && d != "." && d != ".." {
+	if d := filepath.Dir(p); d != string(os.PathSeparator) &&
+		d != "." && d != ".." {
 		if err = os.MkdirAll(d, 0755); err != nil {
 			return
 		}

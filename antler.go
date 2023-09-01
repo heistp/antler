@@ -254,6 +254,6 @@ func (s ServerCommand) run(ctx context.Context) (err error) {
 	log.SetPrefix("")
 	log.SetFlags(0)
 	log.SetOutput(os.Stdout)
-	err = c.Server.Run()
+	err = c.Server.Run(ctx)
 	return
 }

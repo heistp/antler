@@ -164,6 +164,17 @@ func server() (cmd *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			c, x := context.WithCancelCause(context.Background())
 			defer x(nil)
+			sc := make(chan os.Signal, 1)
+			signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
+			go func() {
+				s := <-sc
+				fmt.Fprintf(os.Stderr,
+					"%s, shutting down (one more to terminate)\n", s)
+				x(errors.New(s.String()))
+				s = <-sc
+				fmt.Fprintf(os.Stderr, "%s, exiting forcibly\n", s)
+				os.Exit(-1)
+			}()
 			err = antler.Run(c, s)
 			return
 		},

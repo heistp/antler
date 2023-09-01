@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <link rel="stylesheet" href="css/xterm.css" />
+    <link rel="stylesheet" href="css/antler.css" />
+    <script src="lib/xterm.js"></script>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <script>
+      var term = new Terminal();
+      term.open(document.getElementById('terminal'));
+      term.write('admin@antler # NOT YET');
+      term.options.cursorBlink = true;
+      term.options.fontSize = 16;
+      term.options.fontFamily = 'Inconsolata Bold, Courier New, monospace';
+      term.focus();
+    </script>
+  </body>
+</html>

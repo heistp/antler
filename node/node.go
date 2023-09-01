@@ -82,7 +82,7 @@ func Serve(ctx context.Context, nodeID ID, conn io.ReadWriteCloser) error {
 }
 
 // RootNodeID is the ID used for the root node in node.Do.
-const RootNodeID = "-"
+const RootNodeID = "antler"
 
 // Do runs a Run tree in an in-process "root" node, and sends data items back on
 // the given data channel. The item types that may be sent include StreamInfo,

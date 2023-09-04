@@ -73,6 +73,10 @@ func (r Results) work() resultRW {
 // RootDir that match ResultDirFormat. The returned ResultInfos are sorted
 // descending by Name.
 func (r Results) resultInfo() (ii []ResultInfo, err error) {
+	if r.Destructive {
+		ii = append(ii, ResultInfo{".", r.WorkDir})
+		return
+	}
 	var d *os.File
 	if d, err = os.Open(r.RootDir); err != nil {
 		return

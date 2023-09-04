@@ -46,9 +46,12 @@ type RunCommand struct {
 	// Filter selects which tests to run.
 	Filter TestFilter
 
-	// SkippedFiltered is called when a test was skipped because it was rejected
-	// by the Filter.
-	SkippedFiltered func(test *Test)
+	// Running is called when a Test starts running.
+	Running func(test *Test)
+
+	// Filtered is called when a test was skipped because it was rejected by the
+	// Filter.
+	Filtered func(test *Test)
 }
 
 // run implements command
@@ -80,11 +83,12 @@ type doRun struct {
 func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
 	if u.Filter != nil && !u.Filter.Accept(test) {
-		if u.SkippedFiltered != nil {
-			u.SkippedFiltered(test)
+		if u.Filtered != nil {
+			u.Filtered(test)
 		}
 		return
 	}
+	u.Running(test)
 	var w io.WriteCloser
 	if w, err = test.DataWriter(u.Results); err != nil {
 		if _, ok := err.(NoDataFileError); !ok {
@@ -149,17 +153,20 @@ type ReportCommand struct {
 	// Filter selects which tests to run.
 	Filter TestFilter
 
-	// SkippedFiltered is called when a report was skipped because it was
-	// rejected by the Filter.
-	SkippedFiltered func(test *Test)
+	// Reporting is called when a report starts running.
+	Reporting func(test *Test)
 
-	// SkippedNoDataFile is called when a report was skipped because the Test's
+	// Filtered is called when a report was skipped because it was rejected by
+	// the Filter.
+	Filtered func(test *Test)
+
+	// NoDataFile is called when a report was skipped because the Test's
 	// DataFile field is empty.
-	SkippedNoDataFile func(test *Test)
+	NoDataFile func(test *Test)
 
-	// SkippedNotFound is called when a report was skipped because the data file
-	// needed to run it doesn't exist.
-	SkippedNotFound func(test *Test, path string)
+	// NotFound is called when a report was skipped because the data file needed
+	// to run it doesn't exist.
+	NotFound func(test *Test, path string)
 }
 
 // run implements command
@@ -213,16 +220,17 @@ type doReport struct {
 func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
 	if d.Filter != nil && !d.Filter.Accept(test) {
-		if d.SkippedFiltered != nil {
-			d.SkippedFiltered(test)
+		if d.Filtered != nil {
+			d.Filtered(test)
 		}
 		return
 	}
+	d.Reporting(test)
 	var r io.ReadCloser
 	if r, err = test.DataReader(d.Results); err != nil {
 		if _, ok := err.(NoDataFileError); ok {
-			if d.SkippedNoDataFile != nil {
-				d.SkippedNoDataFile(test)
+			if d.NoDataFile != nil {
+				d.NoDataFile(test)
 			}
 			err = nil
 			return
@@ -231,8 +239,8 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 			return
 		}
 		e := err.(*fs.PathError)
-		if d.SkippedNotFound != nil {
-			d.SkippedNotFound(test, e.Path)
+		if d.NotFound != nil {
+			d.NotFound(test, e.Path)
 		}
 		err = nil
 		return

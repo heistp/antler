@@ -6,12 +6,11 @@ Antler is a tool for network and congestion control testing. The name stands for
 
 ## Introduction
 
-Antler grew out of testing needs that arose during work on
+Antler can be used to set up and tear down test environments, coordinate traffic
+flows across multiple nodes, gather data using external tools like tcpdump, and
+generate reports and plots from the results. It grew out of testing needs for
 [SCE](https://datatracker.ietf.org/doc/draft-morton-tsvwg-sce/), and related
-congestion control projects in the IETF. It can be used to set up and tear down
-test environments, coordinate traffic flows across multiple nodes, gather data
-using external tools like tcpdump, and generate reports and plots from the
-results.
+congestion control projects in the IETF.
 
 ## Features
 
@@ -34,6 +33,7 @@ results.
   FCT plots using [Google Charts](https://developers.google.com/chart)
 * configuration using [CUE](https://cuelang.org/), to support test parameter
   combinations, config schema definition, data validation and config reuse
+* embedded web server to serve results
 
 ## Examples
 
@@ -79,11 +79,10 @@ either this must be added to that path, or additional configuration is required.
 
 ## Documentation
 
-At present, Antler is documented through the [examples](examples), and the
-comments in [config.cue](config.cue). Antler is configured using
-[CUE](https://cuelang.org/), so it helps to get familiar with the language at a
-basic level, although for simple tests it may be sufficient to just follow the
-examples.
+Antler is documented through the [examples](examples), and the comments in
+[config.cue](config.cue). Antler is configured using
+[CUE](https://cuelang.org/), so it helps to get familiar with the language, but
+for simple tests, it may be enought to just follow the examples.
 
 ## Status
 
@@ -123,6 +122,7 @@ formats, and supporting platforms other than Linux.
 - move SCE examples into sce-tests repo and deploy to public server
 - combine examples into one package, to share common setup
 - build examples to a public server and remove from README
+- include git tags in kernel and Antler versions, and record in results
 
 #### Bugs
 
@@ -132,6 +132,8 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
+- handle interrupts and context done in report command
+- process pcaps to get retransmits, CE/SCE marks, TCP RTT or other stats
 - add runner duration for use in timeouts and test duration estimation
 - add test progress bar
 - improve semantics for System.Stdout and Stderr

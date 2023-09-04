@@ -9,10 +9,13 @@ and this project adheres to
 
 ### Added
 
-- Implement pipelined reports (TestRun.Report, Test.During, Test.Report)
+- Implement pipelined reports (`TestRun.Report`, `Test.During`, `Test.Report`)
 - Turn Analyze into a report and add to examples that need it
 - Implement log sorting
 - Write results to single directory, configurable from CUE
+- Allow writing test results non-destructively (`Results.Destructive=false`)
+- Validate ResultPrefixes are unique
+- Add embedded web server to serve results (`server` command)
 
 ### Changed
 

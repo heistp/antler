@@ -4,9 +4,13 @@
 package antler
 
 import (
+	"bufio"
+	"bytes"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -16,7 +20,6 @@ import (
 	"text/template"
 	"time"
 
-	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
@@ -27,8 +30,11 @@ import (
 // templateExtension is the filename extension used for Go templates.
 const templateExtension = ".tmpl"
 
-//go:embed config.cue
-var configCUE string
+// schemaFileName is the name of Antler's config schema file.
+const schemaFileName = "antler.cue"
+
+//go:embed antler.cue
+var schemaCUE string
 
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
@@ -176,38 +182,126 @@ func (d DuplicateResultPrefixError) Error() string {
 		strings.Join(d.ResultPrefix, ", "))
 }
 
-// LoadConfig first executes templates in any .cue.tmpl files to create the
-// corresponding .cue files, then uses the CUE API to load and return the Antler
-// Config.
+// LoadConfig generates the schema config file (antler.cue), executes templates
+// in any .cue.tmpl files to create the corresponding .cue files, then uses the
+// CUE API to load and return the Antler Config.
 func LoadConfig(cuecfg *load.Config) (cfg *Config, err error) {
+	var p string
+	if p, err = determinePackageName(); err != nil {
+		return
+	}
+	if err = generateSchemaCUE(p); err != nil {
+		return
+	}
 	if err = executeConfigTemplates(); err != nil {
 		return
 	}
-	// compile config schema
-	ctx := cuecontext.New()
-	s := ctx.CompileString(configCUE, cue.Filename("config.cue"))
-	if s.Err() != nil {
-		err = s.Err()
-		return
-	}
-	// compile data value from the CUE app instance
-	inst := load.Instances([]string{}, cuecfg)[0]
-	d := ctx.BuildInstance(inst)
+	i := load.Instances([]string{}, cuecfg)[0]
+	c := cuecontext.New()
+	d := c.BuildInstance(i)
 	if d.Err() != nil {
 		err = d.Err()
 		return
 	}
-	// unify data and schema into CUE value
-	v := d.Unify(s)
-	if v.Err() != nil {
-		err = v.Err()
-		return
-	}
 	cfg = &Config{}
-	if err = v.Decode(cfg); err != nil {
+	if err = d.Decode(cfg); err != nil {
 		return
 	}
 	err = cfg.validate()
+	return
+}
+
+// determinePackageName reads package statements from *.cue, excluding the
+// schema file (antler.cue), and determines the package name. An error is
+// returned if multiple packages are defined.
+func determinePackageName() (pkg string, err error) {
+	var nn []string
+	if nn, err = filepath.Glob("*.cue"); err != nil {
+		return
+	}
+	pp := make(map[string]struct{})
+	for _, n := range nn {
+		if n == schemaFileName {
+			continue
+		}
+		var p string
+		if p, err = readPackageName(n); err != nil {
+			return
+		}
+		pp[p] = struct{}{}
+	}
+	if len(pp) == 0 {
+		err = fmt.Errorf("no CUE files found")
+		return
+	}
+	if len(pp) > 1 {
+		var s []string
+		for p := range pp {
+			s = append(s, p)
+		}
+		err = fmt.Errorf("multiple packages found in CUE files: %s",
+			strings.Join(s, ", "))
+		return
+	}
+	for p := range pp {
+		pkg = p
+	}
+	if pkg == "" {
+		err = fmt.Errorf("no package name found in any CUE files")
+		return
+	}
+	return
+}
+
+// readPackageName reads the package name from a CUE file with the given name.
+func readPackageName(name string) (pkg string, err error) {
+	var f *os.File
+	if f, err = os.Open(name); err != nil {
+		return
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if s.Err() != nil {
+			err = s.Err()
+			return
+		}
+		ff := strings.Fields(s.Text())
+		if len(ff) == 0 {
+			continue
+		}
+		if ff[0] != "package" {
+			continue
+		}
+		if len(ff) < 2 {
+			err = fmt.Errorf("malformed package statement in '%s': '%s'",
+				name, s.Text())
+			return
+		}
+		pkg = ff[1]
+		return
+	}
+	return
+}
+
+// generateSchemaCUE generates a CUE schema file (antler.cue) with the given
+// package name, and writes it if new or changed.
+func generateSchemaCUE(pkg string) (err error) {
+	pkgLine := func(p string) string {
+		return fmt.Sprintf("\npackage %s\n", p)
+	}
+	s := strings.ReplaceAll(schemaCUE, pkgLine("antler"), pkgLine(pkg))
+	var fb []byte
+	if fb, err = os.ReadFile(schemaFileName); err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return
+		}
+	}
+	if !bytes.Equal([]byte(s), fb) {
+		if err = os.WriteFile(schemaFileName, []byte(s), 0644); err != nil {
+			return
+		}
+	}
 	return
 }
 

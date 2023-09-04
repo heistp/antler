@@ -13,6 +13,7 @@ examples/**/*.log
 examples/**/*.pcap
 examples/**/*.txt
 examples/**/*.bin
+examples/**/antler.cue
 examples/fct/fct.cue
 
 # node/bin directory

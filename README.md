@@ -101,7 +101,6 @@ formats, and supporting platforms other than Linux.
   - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
   - an HTML index of tests and results
 - add support for sampling Linux socket stats via netlink (in C)
-- implement incremental test runs using hard links
 - implement timeouts, both for runners and the node control connection
 - complete the SSH launcher, with sudo support, and add an example of its use
 - for packet flows:
@@ -119,6 +118,7 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
+- implement incremental test runs using hard links
 - move SCE examples into sce-tests repo and deploy to public server
 - combine examples into one package, to share common setup
 - build examples to a public server and remove from README
@@ -126,7 +126,7 @@ formats, and supporting platforms other than Linux.
 
 #### Bugs
 
-- improve poor error messages from CUE by saving antler.cue to test package
+- improve poor error messages from CUE, especially under disjunctions
 
 ### Inbox
 

@@ -23,21 +23,19 @@ type Results struct {
 	ResultDirFormat string
 }
 
-// open prepares the Results for use, and must be called before other Results
-// methods are used.
-func (r Results) open() (err error) {
-	if err = os.MkdirAll(r.RootDir, 0755); err != nil {
-		return
+// open ensures the Results are ready for use. It must be called before other
+// Results methods are used.
+func (r Results) open() error {
+	var e error
+	if _, e = os.Stat(r.WorkDir); e == nil {
+		return fmt.Errorf(
+			"'%s' already exists- ensure no other test is running, then move it away",
+			r.WorkDir)
 	}
-	if err = os.Mkdir(r.WorkDir, 0755); err != nil {
-		if errors.Is(err, fs.ErrExist) {
-			err = fmt.Errorf(
-				"directory '%s' exists- ensure no other test is running, then move it away",
-				r.WorkDir)
-		}
-		return
+	if errors.Is(e, fs.ErrNotExist) {
+		return nil
 	}
-	return
+	return e
 }
 
 // close finalizes the Results, and must be called after all results are
@@ -47,8 +45,10 @@ func (r Results) close() (err error) {
 	if r.ResultDirUTC {
 		t = t.UTC()
 	}
-	n := t.Format(r.ResultDirFormat)
-	err = os.Rename(r.WorkDir, filepath.Join(r.RootDir, n))
+	p := filepath.Join(r.RootDir, t.Format(r.ResultDirFormat))
+	if err = os.Rename(r.WorkDir, p); errors.Is(err, fs.ErrNotExist) {
+		err = nil
+	}
 	return
 }
 

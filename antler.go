@@ -192,8 +192,7 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 }
 
 // workaround makes the report command work prior to the implementation of
-// incremental test runs by changing WorkDir to point to the latest result
-// directory, and forcing Destructive mode to true.
+// incremental test runs by changing WorkDir to the latest result directory.
 //
 // TODO remove report workaround after incremental runs are working
 func (r ReportCommand) workaround(res *Results) (err error) {
@@ -206,7 +205,6 @@ func (r ReportCommand) workaround(res *Results) (err error) {
 		return
 	}
 	res.WorkDir = ii[0].Path
-	res.Destructive = true
 	return
 }
 

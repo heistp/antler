@@ -17,7 +17,6 @@ import (
 // Results configures the behavior for reading and writing result files, which
 // include all output files and reports.
 type Results struct {
-	Destructive     bool
 	RootDir         string
 	WorkDir         string
 	ResultDirUTC    bool
@@ -27,9 +26,6 @@ type Results struct {
 // open prepares the Results for use, and must be called before other Results
 // methods are used.
 func (r Results) open() (err error) {
-	if r.Destructive {
-		return
-	}
 	if err = os.MkdirAll(r.RootDir, 0755); err != nil {
 		return
 	}
@@ -45,11 +41,8 @@ func (r Results) open() (err error) {
 }
 
 // close finalizes the Results, and must be called after all results are
-// written, preferably by a defer statement.
+// written. Use of a defer statement is strongly advised.
 func (r Results) close() (err error) {
-	if r.Destructive {
-		return
-	}
 	t := time.Now()
 	if r.ResultDirUTC {
 		t = t.UTC()
@@ -61,22 +54,18 @@ func (r Results) close() (err error) {
 
 // root returns a resultRW with RootDir as the prefix.
 func (r Results) root() resultRW {
-	return resultRW{r.RootDir + string(os.PathSeparator), r.Destructive}
+	return resultRW{r.RootDir + string(os.PathSeparator)}
 }
 
 // work returns a resultRW with WorkDir as the prefix.
 func (r Results) work() resultRW {
-	return resultRW{r.WorkDir + string(os.PathSeparator), r.Destructive}
+	return resultRW{r.WorkDir + string(os.PathSeparator)}
 }
 
 // resultInfo returns a list of ResultInfos by reading the directory names under
 // RootDir that match ResultDirFormat. The returned ResultInfos are sorted
 // descending by Name.
 func (r Results) resultInfo() (ii []ResultInfo, err error) {
-	if r.Destructive {
-		ii = append(ii, ResultInfo{".", r.WorkDir})
-		return
-	}
 	var d *os.File
 	if d, err = os.Open(r.RootDir); err != nil {
 		return
@@ -108,20 +97,15 @@ type ResultInfo struct {
 	Path string // path to result directory
 }
 
-// resultRW provides a rwer implementation for a given path prefix. If
-// destructive is true, the Writer method overwrites existing results.
+// resultRW provides a rwer implementation for a given path prefix.
 type resultRW struct {
-	prefix      string
-	destructive bool
+	prefix string
 }
 
 // Append returns a new resultRW by appending the given prefix to the prefix of
 // this resultRW.
 func (r resultRW) Append(prefix string) resultRW {
-	return resultRW{
-		r.prefix + prefix,
-		r.destructive,
-	}
+	return resultRW{r.prefix + prefix}
 }
 
 // Reader implements rwer
@@ -136,16 +120,6 @@ func (r resultRW) Writer(name string) (wc io.WriteCloser, err error) {
 		return
 	}
 	p := r.path(name)
-	if !r.destructive {
-		if _, err = os.Stat(p); err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
-				return
-			}
-		} else {
-			err = FileExistsError{p}
-			return
-		}
-	}
 	if d := filepath.Dir(p); d != string(os.PathSeparator) &&
 		d != "." && d != ".." {
 		if err = os.MkdirAll(d, 0755); err != nil {
@@ -159,17 +133,6 @@ func (r resultRW) Writer(name string) (wc io.WriteCloser, err error) {
 // path returns the path to a results file given its name.
 func (r resultRW) path(name string) string {
 	return filepath.Clean(r.prefix + name)
-}
-
-// FileExistsError is returned by Writer when the named file already exists, and
-// destructive is false. The Path field is the path to the file.
-type FileExistsError struct {
-	Path string
-}
-
-// Error implements error
-func (f FileExistsError) Error() string {
-	return fmt.Sprintf("file already exists: '%s'\n", f.Path)
 }
 
 // readerer wraps the Reader method, to return a ReadCloser for reading results.

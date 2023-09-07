@@ -7,7 +7,6 @@
 package antler
 
 import (
-	"path"
 	"list"
 )
 
@@ -49,33 +48,20 @@ Server: #Server
 
 // antler.Results configures the destination paths for results and reports.
 //
-// The Destructive field chooses to save results in either destructive mode
-// (true) or non-destructive mode (false). In destructive mode, results are
-// stored under RootDir, and test runs overwrite any existing results. In
-// non-destructive mode, no result data is ever overwritten when running tests.
-// Instead, results are saved to RootDir/WorkDir during the test, and WorkDir
-// is moved to a dated directory when the test is complete. When switching
-// between the two modes, any existing results should be removed, or moved out
-// of the way. For serious testing, non-destructive mode should be used.
-// Destructive mode should only be used for examples or one-off experiments.
+// Antler writes results non-destructively, i.e. no result data is ever
+// overwritten when running tests. Instead, results are saved to a working
+// directory during the test, and this is moved to a dated directory when the
+// test is complete. The directory structure is as follows:
 //
-// Destructive mode:
-// RootDir/...
-//
-// Non-destructive mode:
 // RootDir/
 // RootDir/WorkDir/...
 // RootDir/2006-01-02-150415Z/...
 //
 // RootDir is the top-level directory where all results are saved, relative to
 // the test package. If this is changed, then the existing root directory must
-// be renamed in order to publish and locate results.
+// be renamed in order to retain and serve existing results.
 //
-// WorkDir is the name of the directory where results for actively running
-// tests are written. In destructive mode, this is RootDir. In non-destructive
-// mode, WorkDir must be a subdirectory under RootDir. When the test is done,
-// WorkDir is moved to the final result directory, named for each test run
-// using the ResultDirUTC and ResultDirFormat fields.
+// WorkDir is the name of the working directory, under RootDir.
 //
 // ResultDirUTC indicates whether to use UTC time for result directories (true)
 // or local time (false). If this is changed, existing directories should be
@@ -87,14 +73,8 @@ Server: #Server
 // compliant format is used that contains sufficient precision and sorts runs
 // lexically (inspired by Apple's Time Machine).
 #Results: {
-	Destructive: bool | *true
-	RootDir:     string & !="" | *"results"
-	if Destructive {
-		WorkDir: RootDir
-	}
-	if !Destructive {
-		WorkDir: string & !="" | *path.Join([RootDir, "in-progress"], path.Unix)
-	}
+	RootDir:      string & !="" | *"results"
+	WorkDir:      string & !="" | *"\(RootDir)/in-progress"
 	ResultDirUTC: bool | *true
 	if !ResultDirUTC {
 		ResultDirFormat: "2006-01-02-150405"

@@ -52,7 +52,9 @@ func (g *ChartsTimeSeries) report(ctx context.Context, in <-chan any,
 	var w io.WriteCloser
 	defer func() {
 		if w != nil {
-			w.Close()
+			if e := w.Close(); e != nil && err == nil {
+				err = e
+			}
 		}
 	}()
 	t := template.New("ChartsTimeSeries")
@@ -170,7 +172,9 @@ func (g *ChartsFCT) report(ctx context.Context, in <-chan any, out chan<- any,
 	var w io.WriteCloser
 	defer func() {
 		if w != nil {
-			w.Close()
+			if e := w.Close(); e != nil && err == nil {
+				err = e
+			}
 		}
 	}()
 	t := template.New("ChartsFCT")

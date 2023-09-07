@@ -30,7 +30,9 @@ func (l *EmitLog) report(ctx context.Context, in <-chan any, out chan<- any,
 	ww := []io.WriteCloser{stdoutWriter{}}
 	defer func() {
 		for _, w := range ww {
-			w.Close()
+			if e := w.Close(); e != nil && err == nil {
+				err = e
+			}
 		}
 	}()
 	if len(l.To) > 0 {

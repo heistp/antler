@@ -12,7 +12,7 @@ and this project adheres to
 - Implement pipelined reports (`TestRun.Report`, `Test.During`, `Test.Report`)
 - Turn Analyze into a report and add it to examples that need it
 - Implement log sorting
-- Write test results non-destructively
+- Write test results non-destructively and atomically
 - Validate ResultPrefixes are unique
 - Add embedded web server to serve results (`server` command)
 

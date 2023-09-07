@@ -226,7 +226,9 @@ func (s *SaveFiles) report(ctx context.Context, in <-chan any, out chan<- any,
 	m := make(map[string]io.WriteCloser)
 	defer func() {
 		for n, w := range m {
-			w.Close()
+			if e := w.Close(); e != nil && err == nil {
+				err = e
+			}
 			delete(m, n)
 		}
 	}()
@@ -302,19 +304,23 @@ type writeData struct {
 
 // report implements reporter
 func (w writeData) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) error {
-	defer w.Close()
+	rw rwer) (err error) {
+	defer func() {
+		if e := w.Close(); e != nil && err == nil {
+			err = e
+		}
+	}()
 	c := gob.NewEncoder(w)
-	var f error
 	for d := range in {
 		if e := c.Encode(&d); e != nil {
-			return e
+			err = e
+			return
 		}
-		if e, ok := d.(error); ok && f == nil {
-			f = e
+		if e, ok := d.(error); ok && err == nil {
+			err = e
 		}
 	}
-	return f
+	return
 }
 
 // rangeData is a reporter that sends data from its slice to out. rangeData

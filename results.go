@@ -126,7 +126,54 @@ func (r resultRW) Writer(name string) (wc io.WriteCloser, err error) {
 			return
 		}
 	}
-	wc, err = os.Create(p)
+	wc, err = openAtomic(p)
+	return
+}
+
+// atomicWriter is a WriteCloser for a given named file that first writes to a
+// temporary file name~, then moves name~ to name when Close is called. Close
+// *must* be called, so it's strongly suggested to call it in a defer, and check
+// for any errors it may return.
+//
+// For safety, the Close method does *not* replace the named file if an error
+// occurred during Write.
+//
+// atomicWriter is not safe for concurrent use.
+type atomicWriter struct {
+	name string
+	tmp  *os.File
+	err  bool
+}
+
+// openAtomic returns a new atomicWriter, open and ready for use.
+func openAtomic(name string) (w *atomicWriter, err error) {
+	w = &atomicWriter{name: name}
+	w.tmp, err = os.Create(w.tmpName())
+	return
+}
+
+// tmpName returns the name of the temporary file for writing.
+func (a *atomicWriter) tmpName() string {
+	return a.name + "~"
+}
+
+// Write implements io.Writer.
+func (a *atomicWriter) Write(p []byte) (n int, err error) {
+	if n, err = a.tmp.Write(p); err != nil {
+		a.err = true
+	}
+	return
+}
+
+// Close implements io.Closer.
+func (a *atomicWriter) Close() (err error) {
+	if err = a.tmp.Close(); err != nil {
+		return
+	}
+	if a.err {
+		return
+	}
+	err = os.Rename(a.tmpName(), a.name)
 	return
 }
 

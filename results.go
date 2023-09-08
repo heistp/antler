@@ -9,8 +9,10 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -21,6 +23,7 @@ type Results struct {
 	WorkDir         string
 	ResultDirUTC    bool
 	ResultDirFormat string
+	Compressors     Compressors
 }
 
 // open ensures the Results are ready for use. It must be called before other
@@ -54,12 +57,12 @@ func (r Results) close() (err error) {
 
 // root returns a resultRW with RootDir as the prefix.
 func (r Results) root() resultRW {
-	return resultRW{r.RootDir + string(os.PathSeparator)}
+	return resultRW{r.RootDir + string(os.PathSeparator), r.Compressors}
 }
 
 // work returns a resultRW with WorkDir as the prefix.
 func (r Results) work() resultRW {
-	return resultRW{r.WorkDir + string(os.PathSeparator)}
+	return resultRW{r.WorkDir + string(os.PathSeparator), r.Compressors}
 }
 
 // resultInfo returns a list of ResultInfos by reading the directory names under
@@ -91,6 +94,61 @@ func (r Results) resultInfo() (ii []ResultInfo, err error) {
 	return
 }
 
+// Compressors wraps a map of Compressors to provide related methods.
+type Compressors map[string]Compressor
+
+// forName returns a Compressor for the given filename.
+func (s Compressors) forName(name string) (cmp Compressor, ok bool) {
+	var cc []Compressor
+	for _, v := range s {
+		cc = append(cc, v)
+	}
+	sort.Slice(cc, func(i, j int) bool {
+		return cc[i].CompressPriority < cc[j].CompressPriority
+	})
+	for _, c := range cc {
+		if c.handlesName(name) {
+			cmp = c
+			ok = true
+			return
+		}
+	}
+	return
+}
+
+// Compressor configures a file compression format.
+type Compressor struct {
+	ID               string
+	Extension        []string
+	Compress         string
+	CompressArg      []string
+	Decompress       string
+	DecompressArg    []string
+	Priority         int
+	CompressPriority int
+}
+
+// handlesName returns true if the given file name ends with one of the
+// Compressor's Extensions.
+func (c Compressor) handlesName(name string) bool {
+	for _, x := range c.Extension {
+		if strings.HasSuffix(name, x) {
+			return true
+		}
+	}
+	return false
+}
+
+// compressCmd returns an exec.Cmd that compresses data from stdin to stdout.
+func (c Compressor) compressCmd() *exec.Cmd {
+	return exec.Command(c.Compress, c.CompressArg...)
+}
+
+// decompressCmd returns an exec.Cmd that decompresses data from stdin to stdout.
+func (c Compressor) decompressCmd() *exec.Cmd {
+	return exec.Command(c.Decompress, c.DecompressArg...)
+}
+
 // ResultInfo contains information on one result.
 type ResultInfo struct {
 	Name string // base name of result directory
@@ -99,13 +157,14 @@ type ResultInfo struct {
 
 // resultRW provides a rwer implementation for a given path prefix.
 type resultRW struct {
-	prefix string
+	prefix      string
+	compressors Compressors
 }
 
 // Append returns a new resultRW by appending the given prefix to the prefix of
 // this resultRW.
 func (r resultRW) Append(prefix string) resultRW {
-	return resultRW{r.prefix + prefix}
+	return resultRW{r.prefix + prefix, r.compressors}
 }
 
 // Reader implements rwer
@@ -126,7 +185,76 @@ func (r resultRW) Writer(name string) (wc io.WriteCloser, err error) {
 			return
 		}
 	}
-	wc, err = openAtomic(p)
+	var a io.WriteCloser
+	if a, err = openAtomic(p); err != nil {
+		return
+	}
+	wc, err = r.compress(p, a)
+	return
+}
+
+// compress wraps the given WriteCloser to transparently compress the data
+// written, using the given file name to identify the compression format.
+func (r resultRW) compress(name string, underlying io.WriteCloser) (
+	wc io.WriteCloser, err error) {
+	var c Compressor
+	var ok bool
+	if c, ok = r.compressors.forName(name); !ok {
+		wc = underlying
+		return
+	}
+	wc, err = newCmdWriter(c.compressCmd(), underlying)
+	return
+}
+
+// cmdWriter is a WriteCloser that uses a system command to filter data before
+// writing it to the underlying Writer. When the cmdWriter is closed, the
+// underlying Writer is also closed.
+type cmdWriter struct {
+	cmd        *exec.Cmd
+	underlying io.WriteCloser
+	errc       chan error
+	io.WriteCloser
+}
+
+// newCmdWriter returns a new cmdWriter, with the command started and the Writer
+// ready for use.
+func newCmdWriter(cmd *exec.Cmd, underlying io.WriteCloser) (cw *cmdWriter,
+	err error) {
+	cw = &cmdWriter{cmd, underlying, make(chan error), nil}
+	if cw.WriteCloser, err = cmd.StdinPipe(); err != nil {
+		return
+	}
+	var o io.ReadCloser
+	if o, err = cmd.StdoutPipe(); err != nil {
+		return
+	}
+	go func() {
+		var e error
+		defer func() {
+			if e != nil {
+				cw.errc <- e
+			}
+			close(cw.errc)
+		}()
+		_, e = io.Copy(underlying, o)
+	}()
+	err = cmd.Start()
+	return
+}
+
+// Close implements io.Closer.
+func (w *cmdWriter) Close() (err error) {
+	err = w.WriteCloser.Close()
+	if e := <-w.errc; e != nil {
+		err = e
+	}
+	if e := w.cmd.Wait(); e != nil && err == nil {
+		err = e
+	}
+	if e := w.underlying.Close(); e != nil && err == nil {
+		err = e
+	}
 	return
 }
 

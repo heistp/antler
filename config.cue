@@ -72,6 +72,8 @@ Server: #Server
 // used to create directory names below RootDir for each run. A fixed ISO 8601
 // compliant format is used that contains sufficient precision and sorts runs
 // lexically (inspired by Apple's Time Machine).
+//
+// Compressors defines some recognized file compression formats.
 #Results: {
 	RootDir:      string & !="" | *"results"
 	WorkDir:      string & !="" | *"\(RootDir)/in-progress"
@@ -82,6 +84,58 @@ Server: #Server
 	if ResultDirUTC {
 		ResultDirFormat: "2006-01-02-150405Z"
 	}
+	Compressors: [_id=string & !=""]: #Compressor & {ID: _id}
+	Compressors: {
+		zstd: {
+			Extension: [".zst", ".zstd"]
+			Priority: 100 // 0.35s
+		}
+		gzip: {
+			Extension: [".gz"]
+			Priority: 200 // 1.78s
+		}
+		xz: {
+			Extension: [".xz"]
+			Priority: 300 // 3.27s
+		}
+		bzip2: {
+			Extension: [".bz2"]
+			Priority: 400 // 6.56s
+		}
+	}
+}
+
+// antler.Compressor configures a file compression format.
+//
+// ID is a string ID to identify the Compressor. Using the name of the command
+// for the ID often allows the Compress and Decompress field defaults to work
+// automatically.
+//
+// Compress and Decompress are the names of the commands used to compress and
+// decompress a file from stdin to stdout, respectively. CompressArg and
+// DecompressArg list their corresponding command line arguments.
+//
+// Extension is a list of filename extensions recognized by the Compressor.
+//
+// Priority sets an order to be used when selecting a Compressor to decompress
+// a file, in case there are multiple compressed versions of a file available.
+// Compressors with a lower Priority are preferred first, and should generally
+// be the ones with better decompression performance (e.g. faster).
+//
+// CompressPriority sets an order to be used when selecting a Compressor to
+// compress a file, in case there are multiple Compressors defined with the
+// same Extension. Compressors with a lower CompressPriority are preferred
+// first, and should generally be the ones with better compression performance
+// (e.g. faster).
+#Compressor: {
+	ID: string & !=""
+	Extension: [string & =~"\\..*", ...string & =~"\\..*"]
+	Compress:         string & !="" | *ID
+	CompressArg:      [...string & !=""] | *[]
+	Decompress:       string & !="" | *ID
+	DecompressArg:    [...string & !=""] | *["-d"]
+	Priority:         int
+	CompressPriority: int | *Priority
 }
 
 // antler.Server configures the builtin web server.

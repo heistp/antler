@@ -5,18 +5,21 @@
 
 package env
 
-// Run contains a single Test that streams data from /dev/random to illustrate
-// how data streaming works.
+// Run contains a single Test that streams data from /dev/random and /dev/zero
+// to illustrate how data streaming and compression works.
 //
 // Because all data is streamed, it's transferred from the child node to the
-// root node as the test runs. We have overridden Test: Report to *not* include
-// the SavesFiles reporter, so the data is discarded.
+// root node as the test runs. We have set Test.DataFile to "", so the raw data
+// is discarded.
 //
 // While the test runs, you should see CPU used by antler and antler-node for
 // transferring the data, but the heap should stay stable. Be careful if you
 // comment out the ResultStream config. The data from /dev/random will be
-// buffered in the node's heap, and since there is 6.4G of it, you may run
+// buffered in the node's heap, and since there is 640MB of it, you may run
 // short on memory. :)
+//
+// The compression format is chosen based on the file extension. Here, we use
+// the .zst extension, so the zstd utility must be present.
 Run: {
 	Test: Serial: [
 		// stream everything in root node
@@ -31,8 +34,12 @@ Run: {
 				// stream everything in child node
 				{ResultStream: Include: All: true},
 				{System: {
-					Command: "dd if=/dev/random bs=64K count=100000"
-					Stdout:  "discard.bin"
+					Command: "dd if=/dev/random bs=64K count=10000"
+					Stdout:  "random.bin"
+				}},
+				{System: {
+					Command: "dd if=/dev/zero bs=64K count=10000"
+					Stdout:  "zero.foo"
 				}},
 			]
 		}},

@@ -9,17 +9,11 @@ package env
 // to illustrate how data streaming and compression works.
 //
 // Because all data is streamed, it's transferred from the child node to the
-// root node as the test runs. We have set Test.DataFile to "", so the raw data
-// is discarded.
-//
-// While the test runs, you should see CPU used by antler and antler-node for
-// transferring the data, but the heap should stay stable. Be careful if you
-// comment out the ResultStream config. The data from /dev/random will be
-// buffered in the node's heap, and since there is 640MB of it, you may run
-// short on memory. :)
+// root node as the test runs. We set Test.DataFile to "", so the raw test data
+// is discarded, but the generated data files will remain.
 //
 // The compression format is chosen based on the file extension. Here, we use
-// the .zst extension, so the zstd utility must be present.
+// .zst and .gz, so the zstd and gzip utilities must be present.
 Run: {
 	Test: Serial: [
 		// stream everything in root node
@@ -33,13 +27,15 @@ Run: {
 			Serial: [
 				// stream everything in child node
 				{ResultStream: Include: All: true},
+				// first, transfer 64M of random data
 				{System: {
-					Command: "dd if=/dev/random bs=64K count=10000"
+					Command: "dd if=/dev/random bs=64K count=1000"
 					Stdout:  "random.bin"
 				}},
+				// next, transfer and compress 64M of zeroes to zstd format
 				{System: {
-					Command: "dd if=/dev/zero bs=64K count=10000"
-					Stdout:  "zero.foo"
+					Command: "dd if=/dev/zero bs=64K count=1000"
+					Stdout:  "zero.zst"
 				}},
 			]
 		}},
@@ -51,4 +47,15 @@ Run: {
 		// remove default reporter that writes node.log
 		Report: []
 	}
+
+	// add report to compress random.bin to random.bin.gz.
+	//
+	// Since we set Destructive to true, the original is removed.
+	Report: [
+		{Encode: {
+			File: ["random.bin"]
+			Extension:   ".gz"
+			Destructive: true
+		}},
+	]
 }

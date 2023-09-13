@@ -73,7 +73,7 @@ Server: #Server
 // compliant format is used that contains sufficient precision and sorts runs
 // lexically (inspired by Apple's Time Machine).
 //
-// Compressors defines some recognized file compression formats.
+// Codec defines some recognized file encoding (e.g. compression) formats.
 #Results: {
 	RootDir:      string & !="" | *"results"
 	WorkDir:      string & !="" | *"\(RootDir)/in-progress"
@@ -84,58 +84,57 @@ Server: #Server
 	if ResultDirUTC {
 		ResultDirFormat: "2006-01-02-150405Z"
 	}
-	Compressors: [_id=string & !=""]: #Compressor & {ID: _id}
-	Compressors: {
+	Codec: [_id=string & !=""]: #Codec & {ID: _id}
+	Codec: {
 		zstd: {
 			Extension: [".zst", ".zstd"]
-			Priority: 100 // 0.35s
+			DecodePriority: 100 // 0.35s
 		}
 		gzip: {
 			Extension: [".gz"]
-			Priority: 200 // 1.78s
+			DecodePriority: 200 // 1.78s
 		}
 		xz: {
 			Extension: [".xz"]
-			Priority: 300 // 3.27s
+			DecodePriority: 300 // 3.27s
 		}
 		bzip2: {
 			Extension: [".bz2"]
-			Priority: 400 // 6.56s
+			DecodePriority: 400 // 6.56s
 		}
 	}
 }
 
-// antler.Compressor configures a file compression format.
+// antler.Codec configures a file encoder/decoder. This may be for compression,
+// or translation between file formats.
 //
-// ID is a string ID to identify the Compressor. Using the name of the command
-// for the ID often allows the Compress and Decompress field defaults to work
-// automatically.
+// ID is a string ID to identify the Codec. Using the name of the command for
+// the ID often allows the Encode and Decode defaults to work automatically.
 //
-// Compress and Decompress are the names of the commands used to compress and
-// decompress a file from stdin to stdout, respectively. CompressArg and
-// DecompressArg list their corresponding command line arguments.
+// Encode and Decode are the names of the commands used to encode and decode a
+// file from stdin to stdout, respectively. EncodeArg and DecodeArg list their
+// corresponding command line arguments.
 //
-// Extension is a list of filename extensions recognized by the Compressor.
+// Extension is a list of filename extensions recognized by the Codec.
 //
-// Priority sets an order to be used when selecting a Compressor to decompress
-// a file, in case there are multiple compressed versions of a file available.
-// Compressors with a lower Priority are preferred first, and should generally
-// be the ones with better decompression performance (e.g. faster).
+// DecodePriority sets an order to be used when selecting a Codec to decode a
+// file, in case there are multiple encoded versions of a file available.
+// Codecs with a lower DecodePriority are preferred first, and should generally
+// be the ones with better decoding characteristics (e.g. faster).
 //
-// CompressPriority sets an order to be used when selecting a Compressor to
-// compress a file, in case there are multiple Compressors defined with the
-// same Extension. Compressors with a lower CompressPriority are preferred
-// first, and should generally be the ones with better compression performance
-// (e.g. faster).
-#Compressor: {
+// EncodePriority sets an order to be used when selecting a Codec to encode a
+// file, in case there are multiple Codecs defined with the same Extension.
+// Codecs with a lower EncodePriority are preferred first, and should generally
+// be the ones with better encoding characteristics (e.g. faster).
+#Codec: {
 	ID: string & !=""
 	Extension: [string & =~"\\..*", ...string & =~"\\..*"]
-	Compress:         string & !="" | *ID
-	CompressArg:      [...string & !=""] | *[]
-	Decompress:       string & !="" | *ID
-	DecompressArg:    [...string & !=""] | *["-d"]
-	Priority:         int
-	CompressPriority: int | *Priority
+	Decode:         string & !="" | *ID
+	DecodeArg:      [...string & !=""] | *["-d"]
+	DecodePriority: int
+	Encode:         string & !="" | *ID
+	EncodeArg:      [...string & !=""] | *[]
+	EncodePriority: int | *DecodePriority
 }
 
 // antler.Server configures the builtin web server.
@@ -194,6 +193,8 @@ Server: #Server
 	{} | {
 		Analyze?: #Analyze
 	} | {
+		Encode?: #Encode
+	} | {
 		EmitLog?: #EmitLog
 	} | {
 		ChartsTimeSeries?: #ChartsTimeSeries
@@ -207,6 +208,29 @@ Server: #Server
 // antler.Analyze is a report that analyzes data used by other reports. This
 // must be in the Report pipeline *before* reporters that require it.
 #Analyze: {
+}
+
+// antler.Encode is a report that encodes, re-encodes and decodes files.
+//
+// File is a list of glob patterns of files to handle.
+//
+// Extension is the new extension for the files, indicating the encoding format
+// (e.g. ".gz"), which must be supported by one of the Codecs. If blank, the
+// file is decoded.
+//
+// ReEncode, if true, allows re-encoding from and to the same file. This could
+// be permitted, for example, to re-encode files from one compression level to
+// another. If ReEncode is true, Destructive is implied as false.
+//
+// Destructive, if true, indicates to remove the original file upon success, if
+// the original and destination files are not the same.
+//
+// TODO finish Encode doc
+#Encode: {
+	File: [string & !="", ...string & !=""]
+	Extension:   string
+	ReEncode:    bool | *false
+	Destructive: bool | *false
 }
 
 // antler.EmitLog is a report that emits logs. Multiple destinations may be

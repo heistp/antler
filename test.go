@@ -104,7 +104,7 @@ func (t *Test) DataReader(res Results) (rc io.ReadCloser, err error) {
 	return
 }
 
-// NoDataFileError is returned by DataWriter ot DataReader when the Test's
+// NoDataFileError is returned by DataWriter or DataReader when the Test's
 // DataFile field is empty, so no data may be read or written. The Test field
 // is the corresponding Test.
 type NoDataFileError struct {

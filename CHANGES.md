@@ -9,6 +9,7 @@ and this project adheres to
 
 ### Added
 
+- Implement transparent result file encoding (compression/decompression)
 - Implement pipelined reports (`TestRun.Report`, `Test.During`, `Test.Report`)
 - Turn Analyze into a report and add it to examples that need it
 - Implement log sorting

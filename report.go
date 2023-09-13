@@ -8,6 +8,8 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"runtime/debug"
 
 	"github.com/heistp/antler/node"
@@ -58,6 +60,7 @@ type reporters struct {
 	ChartsFCT        *ChartsFCT
 	ChartsTimeSeries *ChartsTimeSeries
 	SaveFiles        *SaveFiles
+	Encode           *Encode
 }
 
 // reporter returns the only non-nil reporter implementation.
@@ -73,6 +76,8 @@ func (r *reporters) reporter() reporter {
 		return r.ChartsTimeSeries
 	case r.SaveFiles != nil:
 		return r.SaveFiles
+	case r.Encode != nil:
+		return r.Encode
 	default:
 		panic("no reporter set in reporters union")
 	}
@@ -245,6 +250,7 @@ func (s *SaveFiles) report(ctx context.Context, in <-chan any, out chan<- any,
 				return
 			}
 			m[fd.Name] = w
+			out <- FileRef{fd.Name}
 		}
 		if _, err = w.Write(fd.Data); err != nil {
 			return
@@ -253,6 +259,93 @@ func (s *SaveFiles) report(ctx context.Context, in <-chan any, out chan<- any,
 			out <- d
 		}
 	}
+	return
+}
+
+// FileRef is sent as a data item by SaveFiles to record the presence of a file
+// with the specified Name, even after its FileData items may have been
+// consumed.
+type FileRef struct {
+	Name string
+}
+
+// init registers FileRef with the gob encoder.
+func init() {
+	gob.Register(FileRef{})
+}
+
+// Encode is a reporter that encodes files referenced by FileRefs.
+type Encode struct {
+	File        []string // list of glob patterns of files to encode
+	Extension   string   // extension for newly encoded files (e.g. ".gz")
+	ReEncode    bool     // if true, allow re-encoding of file
+	Destructive bool     // if true, delete originals upon success
+}
+
+// report implements reporter
+func (c *Encode) report(ctx context.Context, in <-chan any, out chan<- any,
+	rw rwer) (err error) {
+	for d := range in {
+		if f, ok := d.(FileRef); ok {
+			var m bool
+			if m, err = c.match(f.Name); err != nil {
+				return
+			}
+			if !m {
+				continue
+			}
+			if err = c.encode(f.Name, rw); err != nil {
+				return
+			}
+		}
+		out <- d
+	}
+	return
+}
+
+// match reports whether name matches any of the patterns in the File field.
+func (c *Encode) match(name string) (matched bool, err error) {
+	for _, p := range c.File {
+		if matched, err = filepath.Match(p, name); matched || err != nil {
+			return
+		}
+	}
+	return
+}
+
+// encode encodes, re-encodes or decodes the named file.
+func (c *Encode) encode(name string, rw rwer) (err error) {
+	var rc io.ReadCloser
+	var wc io.WriteCloser
+	var r *ResultReader
+	var w *ResultWriter
+	defer func() {
+		if err == nil && c.Destructive && r.SrcPath != w.Path {
+			err = os.Remove(r.SrcPath)
+		}
+	}()
+	if rc, err = rw.Reader(name); err != nil {
+		return
+	}
+	r = rc.(*ResultReader)
+	defer func() {
+		if e := rc.Close(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	if wc, err = rw.Writer(name + c.Extension); err != nil {
+		return
+	}
+	w = wc.(*ResultWriter)
+	defer func() {
+		if e := wc.Close(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	if !c.ReEncode && r.Codec.Equal(w.Codec) {
+		return
+	}
+	_, err = io.Copy(wc, rc)
 	return
 }
 

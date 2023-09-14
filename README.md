@@ -143,6 +143,7 @@ formats, and supporting platforms other than Linux.
 - enhance stream server protocol to ensure streams have completed
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
+- abort atomic writes when ResultWriter callers fail?
 - show bandwidth for FCT distribution
 - find a better way than unions to create interface implementations from CUE
 - allow Go template syntax right in .cue files, instead of using .cue.tmpl files

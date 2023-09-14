@@ -332,14 +332,16 @@ func (r *cmdReader) start() (err error) {
 		var e error
 		defer func() {
 			if ce := i.Close(); ce != nil && e == nil {
-				e = ce
+				e = fmt.Errorf("cmdReader stdin close error: %w", ce)
 			}
 			if e != nil {
 				r.errc <- e
 			}
 			close(r.errc)
 		}()
-		_, e = io.Copy(i, r.underlying)
+		if _, e = io.Copy(i, r.underlying); e != nil {
+			fmt.Errorf("cmdReader io.Copy error: %w", e)
+		}
 	}()
 	err = r.cmd.Start()
 	return
@@ -356,7 +358,7 @@ func (r *cmdReader) Close() (err error) {
 			err = e
 		}
 		if e := r.cmd.Wait(); e != nil && err == nil {
-			err = e
+			err = fmt.Errorf("%s: %w", r.cmd, e)
 		}
 	}
 	if e := r.underlying.Close(); e != nil && err == nil {
@@ -508,11 +510,13 @@ func (w *cmdWriter) start() (err error) {
 		var e error
 		defer func() {
 			if e != nil {
-				w.errc <- e
+				w.errc <- fmt.Errorf("cmdWriter io.Copy error: %w", e)
 			}
 			close(w.errc)
 		}()
-		_, e = io.Copy(w.underlying, o)
+		if _, e = io.Copy(w.underlying, o); e != nil {
+			fmt.Errorf("cmdWriter io.Copy error: %w", e)
+		}
 	}()
 	err = w.cmd.Start()
 	return
@@ -526,7 +530,7 @@ func (w *cmdWriter) Close() (err error) {
 			err = e
 		}
 		if e := w.cmd.Wait(); e != nil && err == nil {
-			err = e
+			err = fmt.Errorf("%s: %w", w.cmd, e)
 		}
 	}
 	if e := w.underlying.Close(); e != nil && err == nil {

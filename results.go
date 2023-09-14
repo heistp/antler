@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -185,7 +186,14 @@ func (c Codec) decodeCmd() *exec.Cmd {
 
 // Equal returns true if the Codecs are equal.
 func (c Codec) Equal(other Codec) bool {
-	return c.ID == other.ID
+	return c.ID == other.ID &&
+		slices.Equal(c.Extension, other.Extension) &&
+		c.Encode == other.Encode &&
+		slices.Equal(c.EncodeArg, other.EncodeArg) &&
+		c.EncodePriority == other.EncodePriority &&
+		c.Decode == other.Decode &&
+		slices.Equal(c.DecodeArg, other.DecodeArg) &&
+		c.DecodePriority == other.DecodePriority
 }
 
 // ResultInfo contains information on one result.

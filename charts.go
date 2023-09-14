@@ -49,14 +49,6 @@ type ChartsTimeSeries struct {
 // report implements reporter
 func (g *ChartsTimeSeries) report(ctx context.Context, in <-chan any,
 	out chan<- any, rw rwer) (err error) {
-	var w io.WriteCloser
-	defer func() {
-		if w != nil {
-			if e := w.Close(); e != nil && err == nil {
-				err = e
-			}
-		}
-	}()
 	t := template.New("ChartsTimeSeries")
 	t = t.Funcs(template.FuncMap{
 		"flowLabel": func(flow node.Flow) (label string) {
@@ -83,14 +75,18 @@ func (g *ChartsTimeSeries) report(ctx context.Context, in <-chan any,
 		g.data(a.streams.byTime(), a.packets.byTime()),
 		g.Options,
 	}
-	var ww []io.Writer
+	var ww []io.WriteCloser
 	for _, to := range g.To {
-		if w, err = rw.Writer(to); err != nil {
-			return
-		}
-		ww = append(ww, w)
+		ww = append(ww, rw.Writer(to))
 	}
-	err = t.Execute(io.MultiWriter(ww...), td)
+	defer func() {
+		for _, w := range ww {
+			if e := w.Close(); e != nil && err == nil {
+				err = e
+			}
+		}
+	}()
+	err = t.Execute(multiWriteCloser(ww...), td)
 	return
 }
 
@@ -169,14 +165,6 @@ type ChartsFCT struct {
 // report implements reporter
 func (g *ChartsFCT) report(ctx context.Context, in <-chan any, out chan<- any,
 	rw rwer) (err error) {
-	var w io.WriteCloser
-	defer func() {
-		if w != nil {
-			if e := w.Close(); e != nil && err == nil {
-				err = e
-			}
-		}
-	}()
 	t := template.New("ChartsFCT")
 	t = t.Funcs(template.FuncMap{})
 	if t, err = t.Parse(chartsTemplate); err != nil {
@@ -209,14 +197,18 @@ func (g *ChartsFCT) report(ctx context.Context, in <-chan any, out chan<- any,
 		g.data(a.streams.byTime()),
 		g.Options,
 	}
-	var ww []io.Writer
+	var ww []io.WriteCloser
 	for _, to := range g.To {
-		if w, err = rw.Writer(to); err != nil {
-			return
-		}
-		ww = append(ww, w)
+		ww = append(ww, rw.Writer(to))
 	}
-	err = t.Execute(io.MultiWriter(ww...), td)
+	defer func() {
+		for _, w := range ww {
+			if e := w.Close(); e != nil && err == nil {
+				err = e
+			}
+		}
+	}()
+	err = t.Execute(multiWriteCloser(ww...), td)
 	return
 }
 

@@ -38,11 +38,7 @@ func (l *EmitLog) report(ctx context.Context, in <-chan any, out chan<- any,
 	if len(l.To) > 0 {
 		ww = ww[:0]
 		for _, s := range l.To {
-			var w io.WriteCloser
-			if w, err = rw.Writer(s); err != nil {
-				return
-			}
-			ww = append(ww, w)
+			ww = append(ww, rw.Writer(s))
 		}
 	}
 	emit := func(y node.LogEntry) error {

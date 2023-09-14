@@ -86,7 +86,7 @@ func (t *Test) DataWriter(res Results) (wc io.WriteCloser, err error) {
 		err = NoDataFileError{t}
 		return
 	}
-	wc, err = t.WorkRW(res).Writer(t.DataFile)
+	wc = t.WorkRW(res).Writer(t.DataFile)
 	return
 }
 

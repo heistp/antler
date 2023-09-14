@@ -228,7 +228,7 @@ type rwer interface {
 	// Writer returns a WriteCloser for writing a result. If name is "-", the
 	// result is written to stdout. Otherwise, the result is written to the
 	// named result file, and the returned WriteCloser is of type *ResultWriter.
-	Writer(name string) (io.WriteCloser, error)
+	Writer(name string) io.WriteCloser
 }
 
 // ResultReader reads a result file.
@@ -399,7 +399,7 @@ func (t *truncateReader) Read(p []byte) (n int, err error) {
 }
 
 // Writer implements rwer
-func (r resultRW) Writer(name string) (wc io.WriteCloser, err error) {
+func (r resultRW) Writer(name string) (wc io.WriteCloser) {
 	if name == "-" {
 		wc = &stdoutWriter{}
 		return

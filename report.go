@@ -246,9 +246,7 @@ func (s *SaveFiles) report(ctx context.Context, in <-chan any, out chan<- any,
 		}
 		var w io.WriteCloser
 		if w, ok = m[fd.Name]; !ok {
-			if w, err = rw.Writer(fd.Name); err != nil {
-				return
-			}
+			w = rw.Writer(fd.Name)
 			m[fd.Name] = w
 			out <- FileRef{fd.Name}
 		}
@@ -333,9 +331,7 @@ func (c *Encode) encode(name string, rw rwer) (err error) {
 			err = e
 		}
 	}()
-	if wc, err = rw.Writer(name + c.Extension); err != nil {
-		return
-	}
+	wc = rw.Writer(name + c.Extension)
 	w = wc.(*ResultWriter)
 	defer func() {
 		if e := wc.Close(); e != nil && err == nil {

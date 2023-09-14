@@ -320,8 +320,8 @@ func (c *Encode) encode(name string, rw rwer) (err error) {
 	var r *ResultReader
 	var w *ResultWriter
 	defer func() {
-		if err == nil && c.Destructive && r.SrcPath != w.Path {
-			err = os.Remove(r.SrcPath)
+		if err == nil && c.Destructive && r.Path != w.Path {
+			err = os.Remove(r.Path)
 		}
 	}()
 	if rc, err = rw.Reader(name); err != nil {

@@ -211,28 +211,6 @@ func (r resultRW) Reader(name string) (io.ReadCloser, error) {
 	return newResultReader(name, r.path(name), r.codec)
 }
 
-/*
-// decode returns a ReadCloser that transparently decodes an encoded version of
-// the named file. Files are searched by appending known Codec extensions to
-// name, until a recognized file is found. If a file supported by one of the
-// Codecs could not be found, then errors.Is(err, fs.ErrNotExist) will
-// return true.
-func (r resultRW) decode(name string) (rc io.ReadCloser, err error) {
-	for _, c := range r.codec.byDecodePrio() {
-		var f *os.File
-		if f, err = c.openEncoded(name); err != nil {
-			return
-		}
-		if f == nil {
-			continue
-		}
-		rc = newCmdReader(c.decodeCmd(), f)
-		return
-	}
-	return
-}
-*/
-
 // rwer provides methods to read and write results.
 type rwer interface {
 	// Reader returns a ReadCloser of type *ResultReader for reading the named
@@ -251,14 +229,9 @@ type ResultReader struct {
 	// a file on the filesystem.
 	Name string
 
-	// Path is the path to the result file, including the result prefix and
-	// name. This is only the name of a file on the filesystem if the file is on
-	// the filesystem without any encoding.
+	// Path is the path to the result file actually read, which may be either an
+	// encoded or unencoded version of the file.
 	Path string
-
-	// SrcPath is the path to the result file actually read, which may be either
-	// an encoded or unencoded version of the file.
-	SrcPath string
 
 	// Codec is the Codec used to decode the file. The zero value of Codec means
 	// the file is read directly.
@@ -274,9 +247,8 @@ type ResultReader struct {
 func newResultReader(name, path string, codec Codecs) (r *ResultReader,
 	err error) {
 	r = &ResultReader{
-		Name:    name,
-		Path:    path,
-		SrcPath: path,
+		Name: name,
+		Path: path,
 	}
 	var f *os.File
 	if f, err = os.Open(path); err == nil {
@@ -295,7 +267,7 @@ func newResultReader(name, path string, codec Codecs) (r *ResultReader,
 			continue
 		}
 		r.Codec = c
-		r.SrcPath = f.Name()
+		r.Path = f.Name()
 		r.ReadCloser = newCmdReader(c.decodeCmd(), f)
 		return
 	}
@@ -434,7 +406,7 @@ type ResultWriter struct {
 	// correspond to the name of a file on the filesystem.
 	Name string
 
-	// Path is the resolved filesystem path to the result file, including the
+	// Path is the path to the result file actually written, including the
 	// result prefix.
 	Path string
 

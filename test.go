@@ -4,7 +4,6 @@
 package antler
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"maps"
@@ -68,13 +67,6 @@ func (i TestID) String() string {
 	}
 	fmt.Fprintf(&b, "]")
 	return b.String()
-}
-
-// do calls the given doer for this Test.
-//
-// TODO check if Test.do can be factored out
-func (t *Test) do(ctx context.Context, d doer, rst reportStack) (err error) {
-	return d.do(ctx, t, rst)
 }
 
 // DataWriter returns a WriteCloser for writing result data to the work

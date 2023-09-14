@@ -57,7 +57,7 @@ func (t *TestRun) do(ctx context.Context, d doer, rst reportStack) (
 	case len(t.Parallel) > 0:
 		err = t.Parallel.do(ctx, d, rst)
 	default:
-		err = t.Test.do(ctx, d, rst)
+		err = d.do(ctx, t.Test, rst)
 	}
 	return
 }

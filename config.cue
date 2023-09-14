@@ -224,8 +224,6 @@ Server: #Server
 //
 // Destructive, if true, indicates to remove the original file upon success, if
 // the original and destination files are not the same.
-//
-// TODO finish Encode doc
 #Encode: {
 	File: [string & !="", ...string & !=""]
 	Extension:   string

@@ -215,20 +215,21 @@ func (r resultRW) Append(prefix string) resultRW {
 }
 
 // Reader implements rwer
-func (r resultRW) Reader(name string) (io.ReadCloser, error) {
+func (r resultRW) Reader(name string) (*ResultReader, error) {
 	return newResultReader(name, r.path(name), r.codec)
 }
 
 // rwer provides methods to read and write results.
 type rwer interface {
-	// Reader returns a ReadCloser of type *ResultReader for reading the named
-	// result file.
-	Reader(name string) (io.ReadCloser, error)
+	// Reader returns a ResultReader for reading the named result file. Callers
+	// should take care to always close the returned ResultReader.
+	Reader(name string) (*ResultReader, error)
 
-	// Writer returns a WriteCloser for writing a result. If name is "-", the
+	// Writer returns a ResultWriter for writing a result. If name is "-", the
 	// result is written to stdout. Otherwise, the result is written to the
-	// named result file, and the returned WriteCloser is of type *ResultWriter.
-	Writer(name string) io.WriteCloser
+	// named result file. Callers should take care to always close the returned
+	// ResultWriter.
+	Writer(name string) *ResultWriter
 }
 
 // ResultReader reads a result file.
@@ -399,13 +400,8 @@ func (t *truncateReader) Read(p []byte) (n int, err error) {
 }
 
 // Writer implements rwer
-func (r resultRW) Writer(name string) (wc io.WriteCloser) {
-	if name == "-" {
-		wc = &stdoutWriter{}
-		return
-	}
-	wc = newResultWriter(name, r.path(name), r.codec)
-	return
+func (r resultRW) Writer(name string) *ResultWriter {
+	return newResultWriter(name, r.path(name), r.codec)
 }
 
 // ResultWriter writes a result file.
@@ -436,6 +432,11 @@ func newResultWriter(name, path string, codec Codecs) (w *ResultWriter) {
 		Name: name,
 		Path: path,
 	}
+	if name == "-" {
+		w.WriteCloser = stdoutWriter{}
+		w.initted = true
+		return
+	}
 	w.WriteCloser = newAtomicWriter(path)
 	var ok bool
 	if w.Codec, ok = codec.forName(name); !ok {
@@ -459,6 +460,9 @@ func (w *ResultWriter) Write(p []byte) (n int, err error) {
 
 // path returns the path to a results file given its name.
 func (r resultRW) path(name string) string {
+	if name == "-" {
+		return "-"
+	}
 	return filepath.Clean(r.prefix + name)
 }
 
@@ -476,7 +480,6 @@ type cmdWriter struct {
 // newCmdWriter returns a new cmdWriter, with the command started and the Writer
 // ready for use.
 func newCmdWriter(cmd *exec.Cmd, underlying io.WriteCloser) *cmdWriter {
-	// TODO lazily start cmdWriter
 	return &cmdWriter{cmd, underlying, make(chan error, 1), false, nil}
 }
 

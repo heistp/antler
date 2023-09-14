@@ -313,35 +313,29 @@ func (c *Encode) match(name string) (matched bool, err error) {
 
 // encode encodes, re-encodes or decodes the named file.
 func (c *Encode) encode(name string, rw rwer) (err error) {
-	var rc io.ReadCloser
-	var wc io.WriteCloser
 	var r *ResultReader
-	var w *ResultWriter
-	defer func() {
-		if err == nil && c.Destructive && r.Path != w.Path {
-			err = os.Remove(r.Path)
-		}
-	}()
-	if rc, err = rw.Reader(name); err != nil {
+	if r, err = rw.Reader(name); err != nil {
 		return
 	}
-	r = rc.(*ResultReader)
 	defer func() {
-		if e := rc.Close(); e != nil && err == nil {
+		if e := r.Close(); e != nil && err == nil {
 			err = e
 		}
 	}()
-	wc = rw.Writer(name + c.Extension)
-	w = wc.(*ResultWriter)
+	var w *ResultWriter
+	w = rw.Writer(name + c.Extension)
 	defer func() {
-		if e := wc.Close(); e != nil && err == nil {
+		if e := w.Close(); e != nil && err == nil {
 			err = e
 		}
 	}()
 	if !c.ReEncode && r.Codec.Equal(w.Codec) {
 		return
 	}
-	_, err = io.Copy(wc, rc)
+	_, err = io.Copy(w, r)
+	if err == nil && c.Destructive && r.Path != w.Path {
+		err = os.Remove(r.Path)
+	}
 	return
 }
 

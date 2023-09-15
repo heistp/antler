@@ -43,15 +43,11 @@ func (*VetCommand) run(context.Context) (err error) {
 
 // RunCommand runs tests and reports.
 type RunCommand struct {
-	// Filter selects which tests to run.
-	Filter TestFilter
+	// FilterCommand employs a TestFilter.
+	FilterCommand
 
 	// Running is called when a Test starts running.
 	Running func(test *Test)
-
-	// Filtered is called when a test was skipped because it was rejected by the
-	// Filter.
-	Filtered func(test *Test)
 }
 
 // run implements command
@@ -82,10 +78,7 @@ type doRun struct {
 // do implements doer
 func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
-	if u.Filter != nil && !u.Filter.Accept(test) {
-		if u.Filtered != nil {
-			u.Filtered(test)
-		}
+	if !u.accept(test) {
 		return
 	}
 	u.Running(test)
@@ -97,7 +90,7 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 		err = nil
 	}
 	var a appendData
-	p := test.During.report()
+	var p report = test.During.report()
 	if w != nil {
 		p = append(p, writeData{w})
 	} else {
@@ -150,15 +143,11 @@ func teeReport(ctx context.Context, src reporter, test *Test, rw rwer,
 
 // ReportCommand runs the After reports using the data files as the source.
 type ReportCommand struct {
-	// Filter selects which tests to run.
-	Filter TestFilter
+	// FilterCommand employs a TestFilter.
+	FilterCommand
 
 	// Reporting is called when a report starts running.
 	Reporting func(test *Test)
-
-	// Filtered is called when a report was skipped because it was rejected by
-	// the Filter.
-	Filtered func(test *Test)
 
 	// NoDataFile is called when a report was skipped because the Test's
 	// DataFile field is empty.
@@ -217,10 +206,7 @@ type doReport struct {
 // do implements doer
 func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
-	if d.Filter != nil && !d.Filter.Accept(test) {
-		if d.Filtered != nil {
-			d.Filtered(test)
-		}
+	if !d.accept(test) {
 		return
 	}
 	d.Reporting(test)
@@ -245,6 +231,27 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	}
 	err = teeReport(ctx, readData{r}, test, test.WorkRW(d.Results), rst)
 	return
+}
+
+// FilterCommand may be embedded by other commands to employ a Test filter.
+type FilterCommand struct {
+	// Filter selects which Tests to process.
+	Filter TestFilter
+
+	// Filtered is called when a Test was rejected by the Filter.
+	Filtered func(test *Test)
+}
+
+// accept checks if the Test is filtered, takes the appropriate actions, and
+// returns true if the Test is accepted.
+func (f FilterCommand) accept(test *Test) bool {
+	if f.Filter == nil || f.Filter.Accept(test) {
+		return true
+	}
+	if f.Filtered != nil {
+		f.Filtered(test)
+	}
+	return false
 }
 
 // ServerCommand runs the builtin web server.

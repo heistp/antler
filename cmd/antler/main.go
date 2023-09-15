@@ -86,12 +86,14 @@ func list() (cmd *cobra.Command) {
 // run returns the run cobra command.
 func run() (cmd *cobra.Command) {
 	r := &antler.RunCommand{
-		Filter: nil,
+		FilterCommand: antler.FilterCommand{
+			Filter: nil,
+			Filtered: func(test *antler.Test) {
+				fmt.Printf("skipping %s, filtered\n", test.ID)
+			},
+		},
 		Running: func(test *antler.Test) {
 			fmt.Printf("running %s...\n", test.ID)
-		},
-		Filtered: func(test *antler.Test) {
-			fmt.Printf("skipping %s, filtered\n", test.ID)
 		},
 	}
 	cmd = &cobra.Command{
@@ -128,12 +130,14 @@ func run() (cmd *cobra.Command) {
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
 	r := &antler.ReportCommand{
-		Filter: nil,
+		FilterCommand: antler.FilterCommand{
+			Filter: nil,
+			Filtered: func(test *antler.Test) {
+				fmt.Printf("skipping %s, filtered\n", test.ID)
+			},
+		},
 		Reporting: func(test *antler.Test) {
 			fmt.Printf("running reports for %s\n", test.ID)
-		},
-		Filtered: func(test *antler.Test) {
-			fmt.Printf("skipping %s, filtered\n", test.ID)
 		},
 		NoDataFile: func(test *antler.Test) {
 			fmt.Printf("skipping %s, DataFile field is empty\n", test.ID)

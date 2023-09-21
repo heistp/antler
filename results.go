@@ -29,7 +29,7 @@ type Results struct {
 	WorkDir         string
 	ResultDirUTC    bool
 	ResultDirFormat string
-	LatestLink      string
+	LatestSymlink   string
 	Codec           Codecs
 }
 
@@ -49,8 +49,8 @@ func (r Results) open() error {
 }
 
 // close finalizes the result by renaming WorkDir to the final result directory
-// (resultDir return parameter). If WorkDir does not exist, no error is
-// returned.
+// (resultDir return parameter), and updating the latest symlink. If WorkDir
+// does not exist, no error is returned.
 func (r Results) close() (resultDir string, err error) {
 	t := time.Now()
 	if r.ResultDirUTC {
@@ -61,11 +61,13 @@ func (r Results) close() (resultDir string, err error) {
 	if err = os.Rename(r.WorkDir, resultDir); errors.Is(err, fs.ErrNotExist) {
 		err = nil
 	}
-	l := r.LatestLink + "~"
-	if err = os.Symlink(n, l); err != nil {
-		return
+	if r.LatestSymlink != "" {
+		l := r.LatestSymlink + "~"
+		if err = os.Symlink(n, l); err != nil {
+			return
+		}
+		err = os.Rename(l, r.LatestSymlink)
 	}
-	err = os.Rename(l, r.LatestLink)
 	return
 }
 

@@ -4,6 +4,7 @@
 package antler
 
 import (
+	"encoding/gob"
 	"fmt"
 	"io"
 	"maps"
@@ -108,8 +109,65 @@ func (n NoDataFileError) Error() string {
 	return fmt.Sprintf("DataFile field is empty for: '%s'\n", n.Test.ID)
 }
 
+// DataHasError returns true if the DataFile exists and has errors. See
+// DataReader for the errors that may be returned.
+func (t *Test) DataHasError(res Results) (hasError bool, err error) {
+	var r io.ReadCloser
+	if r, err = t.DataReader(res); err != nil {
+		return
+	}
+	defer func() {
+		if e := r.Close(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	c := gob.NewDecoder(r)
+	for {
+		var a any
+		if err = c.Decode(&a); err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+		if _, ok := a.(error); ok {
+			hasError = true
+			return
+		}
+	}
+}
+
 // WorkRW returns a resultRW for reading and writing this Test's results in the
 // working directory.
 func (t *Test) WorkRW(res Results) resultRW {
 	return res.work().Append(t.ResultPrefixX)
+}
+
+// LinkPriorData creates a hard link for the result data for this Test from the
+// prior (latest) result directory, to the working directory. If there was no
+// prior result or no data file for this Test, then
+// errors.Is(err, fs.ErrNotExist) will return true.
+//
+// If DataFile is empty, NoDataFileError is returned.
+func (t *Test) LinkPriorData(res Results) (err error) {
+	if t.DataFile == "" {
+		err = NoDataFileError{t}
+		return
+	}
+	err = t.LinkPrior(res, t.DataFile)
+	return
+}
+
+// LinkPrior creates a hard link for the named result file for this Test from
+// the prior (latest) result directory, to the working directory. If there were
+// no prior results, or no prior named result file for this Test, then
+// errors.Is(err, fs.ErrNotExist) will return true.
+func (t *Test) LinkPrior(res Results, name string) (err error) {
+	var l resultRW
+	if l, err = res.prior(); err != nil {
+		return
+	}
+	l = l.Append(t.ResultPrefixX)
+	err = t.WorkRW(res).Link(l, name)
+	return
 }

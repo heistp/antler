@@ -14,11 +14,15 @@ type TestFilter interface {
 	Accept(*Test) bool
 }
 
-// AndFilter accepts a Test if each of its TestFilters accepts it.
+// AndFilter accepts a Test if each of its TestFilters accepts it. AndFilter
+// panics if it has no TestFilters.
 type AndFilter []TestFilter
 
-// Accept implements TestFilter
+// Accept implements TestFilter.
 func (a AndFilter) Accept(test *Test) bool {
+	if len(a) == 0 {
+		panic("AndFilter requires at least one TestFilter")
+	}
 	for _, f := range a {
 		if !f.Accept(test) {
 			return false
@@ -27,11 +31,15 @@ func (a AndFilter) Accept(test *Test) bool {
 	return true
 }
 
-// OrFilter accepts a Test if any of its TestFilters accepts it.
+// OrFilter accepts a Test if any of its TestFilters accepts it. OrFilter panics
+// if it has no TestFilters.
 type OrFilter []TestFilter
 
 // Accept implements TestFilter
 func (o OrFilter) Accept(test *Test) bool {
+	if len(o) == 0 {
+		panic("OrFilter requires at least one TestFilter")
+	}
 	for _, f := range o {
 		if f.Accept(test) {
 			return true
@@ -70,7 +78,7 @@ func NewRegexFilterArg(arg string) (flt *RegexFilter, err error) {
 	return
 }
 
-// Accept implements antler.TestFilter
+// Accept implements TestFilter
 func (f *RegexFilter) Accept(test *Test) bool {
 	for k, v := range test.ID {
 		if (f.Key == nil || f.Key.MatchString(k)) &&
@@ -79,4 +87,12 @@ func (f *RegexFilter) Accept(test *Test) bool {
 		}
 	}
 	return false
+}
+
+// BoolFilter is a TestFilter that accepts (if true) or rejects all Tests.
+type BoolFilter bool
+
+// Accept implements TestFilter.
+func (b BoolFilter) Accept(test *Test) bool {
+	return bool(b)
 }

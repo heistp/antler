@@ -73,6 +73,9 @@ Server: #Server
 // compliant format is used that contains sufficient precision and sorts runs
 // lexically (inspired by Apple's Time Machine).
 //
+// LatestLink is the name of the symlink that links to the latest result
+// directory.
+//
 // Codec defines some recognized file encoding (e.g. compression) formats.
 #Results: {
 	RootDir:      string & !="" | *"results"
@@ -84,6 +87,7 @@ Server: #Server
 	if ResultDirUTC {
 		ResultDirFormat: "2006-01-02-150405Z"
 	}
+	LatestLink: string & !="" | *"\(RootDir)/latest"
 	Codec: [_id=string & !=""]: #Codec & {ID: _id}
 	Codec: {
 		zstd: {

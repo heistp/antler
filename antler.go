@@ -7,12 +7,13 @@ package antler
 
 import (
 	"context"
+	"encoding/gob"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"os"
+	"time"
 
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
@@ -43,11 +44,26 @@ func (*VetCommand) run(context.Context) (err error) {
 
 // RunCommand runs tests and reports.
 type RunCommand struct {
-	// FilterCommand employs a TestFilter.
-	FilterCommand
+	// Filter selects which Tests to run. If Filter is nil, Tests which were not
+	// run before or had errors are run.
+	Filter TestFilter
+
+	// Skipped is called when a Test was skipped because it wasn't accepted by
+	// the Always Filter.
+	Skipped func(*Test)
+
+	// ReRunning is called when a Test is being re-run because the prior result
+	// contains errors.
+	ReRunning func(*Test)
+
+	// Linked is called when Test data was linked from a prior run.
+	Linked func(*Test)
 
 	// Running is called when a Test starts running.
-	Running func(test *Test)
+	Running func(*Test)
+
+	// Done is called when the RunCommand is done.
+	Done func(RunInfo)
 }
 
 // run implements command
@@ -59,12 +75,22 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 	if err = c.Results.open(); err != nil {
 		return
 	}
+	d := doRun{r, c.Results, &RunInfo{}}
 	defer func() {
-		if e := c.Results.close(); e != nil && err == nil {
-			err = e
+		d.Info.Elapsed = time.Since(d.Info.Start)
+		if d.Info.Ran == 0 {
+			if e := c.Results.abort(); e != nil && err == nil {
+				err = e
+			}
+		} else {
+			var e error
+			if d.Info.ResultDir, e = c.Results.close(); e != nil && err == nil {
+				err = e
+			}
 		}
+		r.Done(*d.Info)
 	}()
-	d := doRun{r, c.Results}
+	d.Info.Start = time.Now()
 	err = c.Run.do(ctx, d, reportStack{})
 	return
 }
@@ -73,15 +99,66 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 type doRun struct {
 	RunCommand
 	Results
+	Info *RunInfo
+}
+
+// RunInfo contains stats and info for a test run.
+type RunInfo struct {
+	Start     time.Time
+	Elapsed   time.Duration
+	Ran       int
+	Linked    int
+	ResultDir string
 }
 
 // do implements doer
 func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
-	if !u.accept(test) {
-		return
+	var s reporter
+	if u.Filter != nil {
+		if !u.Filter.Accept(test) {
+			if u.Skipped != nil {
+				u.Skipped(test)
+			}
+			return
+		}
+	} else if test.DataFile != "" {
+		if s, err = u.link(test); err != nil {
+			return
+		}
+		if s != nil {
+			var e bool
+			if e, err = test.DataHasError(u.Results); err != nil {
+				return
+			}
+			if e {
+				if u.ReRunning != nil {
+					u.ReRunning(test)
+				}
+				s = nil
+			} else {
+				if u.Linked != nil {
+					u.Linked(test)
+				}
+				u.Info.Linked++
+			}
+		}
 	}
-	u.Running(test)
+	if s == nil {
+		if u.Running != nil {
+			u.Running(test)
+		}
+		if s, err = u.run(ctx, test); err != nil {
+			return
+		}
+		u.Info.Ran++
+	}
+	err = teeReport(ctx, s, test, test.WorkRW(u.Results), rst)
+	return
+}
+
+// run runs a Test.
+func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 	var w io.WriteCloser
 	if w, err = test.DataWriter(u.Results); err != nil {
 		if _, ok := err.(NoDataFileError); !ok {
@@ -109,17 +186,57 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	if err != nil {
 		return
 	}
-	var s reporter
 	if w != nil {
 		var r io.ReadCloser
 		if r, err = test.DataReader(u.Results); err != nil {
 			return
 		}
-		s = readData{r}
+		src = readData{r}
 	} else {
-		s = rangeData(a)
+		src = rangeData(a)
 	}
-	err = teeReport(ctx, s, test, test.WorkRW(u.Results), rst)
+	return
+}
+
+// link hard links the DataFile and FileRefs from the prior Test run. If there
+// is no prior Test run or DataFile, the returned src and err are both nil.
+func (u doRun) link(test *Test) (src reporter, err error) {
+	if err = test.LinkPriorData(u.Results); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
+		return
+	}
+	var r io.ReadCloser
+	if r, err = test.DataReader(u.Results); err != nil {
+		return
+	}
+	defer func() {
+		if e := r.Close(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	c := gob.NewDecoder(r)
+	for {
+		var a any
+		if err = c.Decode(&a); err != nil {
+			if err == io.EOF {
+				err = nil
+				break
+			}
+			return
+		}
+		if l, ok := a.(FileRef); ok {
+			if err = test.LinkPrior(u.Results, l.Name); err != nil {
+				return
+			}
+		}
+	}
+	var r2 io.ReadCloser
+	if r2, err = test.DataReader(u.Results); err != nil {
+		return
+	}
+	src = readData{r2}
 	return
 }
 
@@ -143,8 +260,11 @@ func teeReport(ctx context.Context, src reporter, test *Test, rw rwer,
 
 // ReportCommand runs the After reports using the data files as the source.
 type ReportCommand struct {
-	// FilterCommand employs a TestFilter.
-	FilterCommand
+	// Filter selects which Tests to process.
+	Filter TestFilter
+
+	// Skipping is called when a Test was rejected by the Filter.
+	Skipping func(test *Test)
 
 	// Reporting is called when a report starts running.
 	Reporting func(test *Test)
@@ -164,36 +284,17 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	if err = r.workaround(&c.Results); err != nil {
-		return
-	}
 	if err = c.Results.open(); err != nil {
 		return
 	}
 	defer func() {
-		if e := c.Results.close(); e != nil && err == nil {
+		// TODO add Done func to ReportCommand and set ResultPath
+		if _, e := c.Results.close(); e != nil && err == nil {
 			err = e
 		}
 	}()
 	d := doReport{r, c.Results}
 	err = c.Run.do(ctx, d, reportStack{})
-	return
-}
-
-// workaround makes the report command work prior to the implementation of
-// incremental test runs by changing WorkDir to the latest result directory.
-//
-// TODO remove report workaround after incremental runs are working
-func (r ReportCommand) workaround(res *Results) (err error) {
-	var ii []ResultInfo
-	if ii, err = res.resultInfo(); err != nil {
-		return
-	}
-	if len(ii) == 0 {
-		err = fmt.Errorf("no results found in '%s'", res.RootDir)
-		return
-	}
-	res.WorkDir = ii[0].Path
 	return
 }
 
@@ -206,10 +307,15 @@ type doReport struct {
 // do implements doer
 func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
-	if !d.accept(test) {
+	if d.Filter != nil && !d.Filter.Accept(test) {
+		if d.Skipping != nil {
+			d.Skipping(test)
+		}
 		return
 	}
-	d.Reporting(test)
+	if d.Reporting != nil {
+		d.Reporting(test)
+	}
 	var r io.ReadCloser
 	if r, err = test.DataReader(d.Results); err != nil {
 		if _, ok := err.(NoDataFileError); ok {
@@ -231,27 +337,6 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	}
 	err = teeReport(ctx, readData{r}, test, test.WorkRW(d.Results), rst)
 	return
-}
-
-// FilterCommand may be embedded by other commands to employ a Test filter.
-type FilterCommand struct {
-	// Filter selects which Tests to process.
-	Filter TestFilter
-
-	// Filtered is called when a Test was rejected by the Filter.
-	Filtered func(test *Test)
-}
-
-// accept checks if the Test is filtered, takes the appropriate actions, and
-// returns true if the Test is accepted.
-func (f FilterCommand) accept(test *Test) bool {
-	if f.Filter == nil || f.Filter.Accept(test) {
-		return true
-	}
-	if f.Filtered != nil {
-		f.Filtered(test)
-	}
-	return false
 }
 
 // ServerCommand runs the builtin web server.

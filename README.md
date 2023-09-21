@@ -95,24 +95,32 @@ formats, and supporting platforms other than Linux.
 
 ### Version 1.0.0
 
-- add standard reports for each test:
-  - node logs and system information
-  - time series and FCT plots
-  - tables of standard flow metrics: goodput, FCT, RTT distributions, etc
-  - an HTML index of tests and results
+- undergo security audit
+- secure servers for use on the Internet
+- enhance stream server protocol to ensure streams have completed
+- add runner duration and use that to implement timeouts
+- add an antler _init_ command to create a default project
+- add support for setting arbitary sockopts
+- write documentation (in markdown)
+
+### Version 0.6.0
+
 - add support for sampling Linux socket stats via netlink (in C)
-- implement timeouts, both for runners and the node control connection
-- complete the SSH launcher, with sudo support, and add an example of its use
 - for packet flows:
   - record replies and calculate RTT
   - detect lost and late (out of order) packets
-- handle tests both with and without node-synchronized time
-- add support for setting arbitary sockopts
-- secure the servers for use on the Internet
-- add compression support for System runner FileData output
-- make UDP flood more efficient
-- add an antler _init_ command to create a default project
-- write documentation (in markdown)
+- complete the SSH launcher, with sudo support, and add an example of its use
+
+### Version 0.5.0
+
+- add an HTML index of tests and results
+- add standard reports for each test:
+  - time series and FCT plots
+  - table of standard flow metrics, including goodput, FCT and data transferred
+  - node logs
+  - system information
+  - git tags
+- add admin web UI to run a package of tests
 
 ### Version 0.4.0
 
@@ -120,8 +128,8 @@ formats, and supporting platforms other than Linux.
 
 - implement incremental test runs using hard links
 - move SCE examples into sce-tests repo and deploy to public server
-- combine examples into one package, to share common setup
-- build examples to a public server and remove from README
+- combine Antler examples into one package, to share common setup
+- build Antler examples to a public server and remove from README
 - include git tags in kernel and Antler versions, and record in results
 
 #### Bugs
@@ -132,21 +140,17 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- handle interrupts and context done in report command
+- make UDP flood more efficient
+- add node-side compression support for System runner FileData output
+- handle tests both with and without node-synchronized time
 - process pcaps to get retransmits, CE/SCE marks, TCP RTT or other stats
-- add runner duration for use in timeouts and test duration estimation
 - add test progress bar
-- improve semantics for System.Stdout and Stderr
 - add ability to save System Stdout directly to local file
 - add ability to buffer System Stdout to a tmp file before sending as FileData
 - add log command to emit LogEntry's to stdout
-- enhance stream server protocol to ensure streams have completed
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
 - abort atomic writes when ResultWriter callers fail?
-- show bandwidth for FCT distribution
-- find a better way than unions to create interface implementations from CUE
-- allow Go template syntax right in .cue files, instead of using .cue.tmpl files
 - support multiple nodes in the same namespace
 - add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
 - support MacOS
@@ -155,9 +159,10 @@ formats, and supporting platforms other than Linux.
 #### Refactoring
 
 - convert longer funcs/methods to use explicit return values
-- consistently document config in either config.cue or config structs
+- consistently document config in config.cue, with minimal doc in structs
 - replace use of chan any in conn
-- replace type switch in node.Do
+- improve semantics for System.Stdout and Stderr
+- find a better way than unions to create interface implementations from CUE
 
 ## Thanks
 

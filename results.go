@@ -20,16 +20,21 @@ import (
 
 // Results configures the behavior for reading and writing result files, which
 // include all output files and reports.
+//
+// Callers must use the open method to prepare a result for use, and either
+// close or abort to finalize the result. Use of a defer statement to call
+// one of either close or abort is strongly advised.
 type Results struct {
 	RootDir         string
 	WorkDir         string
 	ResultDirUTC    bool
 	ResultDirFormat string
+	LatestLink      string
 	Codec           Codecs
 }
 
 // open ensures the Results are ready for use. It must be called before other
-// Results methods are used.
+// Results methods are used. An error is returned if WorkDir already exists.
 func (r Results) open() error {
 	var e error
 	if _, e = os.Stat(r.WorkDir); e == nil {
@@ -43,16 +48,47 @@ func (r Results) open() error {
 	return e
 }
 
-// close finalizes the Results, and must be called after all results are
-// written. Use of a defer statement is strongly advised.
-func (r Results) close() (err error) {
+// close finalizes the result by renaming WorkDir to the final result directory
+// (resultDir return parameter). If WorkDir does not exist, no error is
+// returned.
+func (r Results) close() (resultDir string, err error) {
 	t := time.Now()
 	if r.ResultDirUTC {
 		t = t.UTC()
 	}
-	p := filepath.Join(r.RootDir, t.Format(r.ResultDirFormat))
-	if err = os.Rename(r.WorkDir, p); errors.Is(err, fs.ErrNotExist) {
+	n := t.Format(r.ResultDirFormat)
+	resultDir = filepath.Join(r.RootDir, n)
+	if err = os.Rename(r.WorkDir, resultDir); errors.Is(err, fs.ErrNotExist) {
 		err = nil
+	}
+	l := r.LatestLink + "~"
+	if err = os.Symlink(n, l); err != nil {
+		return
+	}
+	err = os.Rename(l, r.LatestLink)
+	return
+}
+
+// abort removes WorkDir and its contents, thereby aborting a result. If the
+// results directory is then empty, it is also removed.
+func (r Results) abort() (err error) {
+	if err = os.RemoveAll(r.WorkDir); err != nil {
+		return
+	}
+	var d *os.File
+	if d, err = os.Open(r.RootDir); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
+		return
+	}
+	defer func() {
+		if e := d.Close(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	if _, err = d.Readdirnames(1); err == io.EOF {
+		err = os.Remove(r.RootDir)
 	}
 	return
 }
@@ -66,6 +102,24 @@ func (r Results) root() resultRW {
 func (r Results) work() resultRW {
 	return resultRW{r.WorkDir + string(os.PathSeparator), r.Codec}
 }
+
+// prior returns a resultRW with the latest result directory as the prefix. If
+// no prior result was found, ErrNoPriorResult is returned.
+func (r Results) prior() (rw resultRW, err error) {
+	var i []ResultInfo
+	if i, err = r.resultInfo(); err != nil {
+		return
+	}
+	if len(i) == 0 {
+		err = ErrNoPriorResult
+		return
+	}
+	rw = r.root().Append(i[0].Name + string(os.PathSeparator))
+	return
+}
+
+// ErrNoPriorResult is returned by prior when no prior result was found.
+var ErrNoPriorResult = fmt.Errorf("%w: no prior results found", fs.ErrNotExist)
 
 // resultInfo returns a list of ResultInfos by reading the directory names under
 // RootDir that match ResultDirFormat. The returned ResultInfos are sorted
@@ -119,6 +173,17 @@ func (s Codecs) byEncodePrio() (cc []Codec) {
 	}
 	sort.Slice(cc, func(i, j int) bool {
 		return cc[i].EncodePriority < cc[j].EncodePriority
+	})
+	return
+}
+
+// byID returns a slice of the Codecs, sorted ascending by ID.
+func (s Codecs) byID() (cc []Codec) {
+	for _, v := range s {
+		cc = append(cc, v)
+	}
+	sort.Slice(cc, func(i, j int) bool {
+		return cc[i].ID < cc[j].ID
 	})
 	return
 }
@@ -219,6 +284,36 @@ func (r resultRW) Reader(name string) (*ResultReader, error) {
 	return newResultReader(name, r.path(name), r.codec)
 }
 
+// Link creates hard links, for all supported encodings, from the named file in
+// from, to the same named file in this resultRW.
+func (r resultRW) Link(from resultRW, name string) (err error) {
+	var xx []string
+	xx = append(xx, "")
+	for _, c := range r.codec.byID() {
+		xx = append(xx, c.Extension...)
+	}
+	f, t := from.path(name), r.path(name)
+	var ok bool
+	for _, x := range xx {
+		if err = os.MkdirAll(filepath.Dir(t), 0755); err != nil {
+			return
+		}
+		if e := os.Link(f+x, t+x); e != nil {
+			if !errors.Is(e, fs.ErrNotExist) {
+				err = e
+				return
+			}
+		} else {
+			ok = true
+		}
+	}
+	if !ok {
+		err = fmt.Errorf("%w: no files found to link from '%s' to '%s'",
+			fs.ErrNotExist, f, t)
+	}
+	return
+}
+
 // rwer provides methods to read and write results.
 type rwer interface {
 	// Reader returns a ResultReader for reading the named result file. Callers
@@ -252,7 +347,8 @@ type ResultReader struct {
 
 // newResultReader returns a new ResultReader for a result file with the given
 // name and path, transparently decoding the file if necessary. If the result
-// file could be found, errors.Is(err, fs.ErrNotExist) will return true.
+// file could be found, an os.PathError is returned, and
+// errors.Is(err, fs.ErrNotExist) will return true.
 func newResultReader(name, path string, codec Codecs) (r *ResultReader,
 	err error) {
 	r = &ResultReader{
@@ -280,7 +376,11 @@ func newResultReader(name, path string, codec Codecs) (r *ResultReader,
 		r.ReadCloser = newCmdReader(c.decodeCmd(), f)
 		return
 	}
-	err = fmt.Errorf("%w: '%s'", fs.ErrNotExist, path)
+	err = &os.PathError{
+		Op:   "reader",
+		Path: path,
+		Err:  fs.ErrNotExist,
+	}
 	return
 }
 

@@ -59,9 +59,11 @@ func list() (cmd *cobra.Command) {
 {{template "filter" "list"}}
 `),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			var f antler.TestFilter
-			if f, err = newRegexFilter(args); err != nil {
-				return
+			var f antler.TestFilter = antler.BoolFilter(true)
+			if len(args) > 0 {
+				if f, err = newRegexFilter(args); err != nil {
+					return
+				}
 			}
 			var c *antler.Config
 			if c, err = antler.LoadConfig(&load.Config{}); err != nil {
@@ -86,16 +88,30 @@ func list() (cmd *cobra.Command) {
 // run returns the run cobra command.
 func run() (cmd *cobra.Command) {
 	r := &antler.RunCommand{
-		FilterCommand: antler.FilterCommand{
-			Filter: nil,
-			Filtered: func(test *antler.Test) {
-				fmt.Printf("skipping %s, filtered\n", test.ID)
-			},
+		Filter: nil,
+		Skipped: func(test *antler.Test) {
+			fmt.Printf("skipped %s\n", test.ID)
+		},
+		ReRunning: func(test *antler.Test) {
+			fmt.Printf("re-running %s due to prior error\n", test.ID)
 		},
 		Running: func(test *antler.Test) {
 			fmt.Printf("running %s...\n", test.ID)
 		},
+		Linked: func(test *antler.Test) {
+			fmt.Printf("linked %s\n", test.ID)
+		},
+		Done: func(info antler.RunInfo) {
+			fmt.Printf("ran %d tests, linked %d, elapsed %s\n",
+				info.Ran, info.Linked, info.Elapsed)
+			if info.ResultDir == "" {
+				fmt.Printf("no tests run, result not saved\n")
+			} else {
+				fmt.Printf("result saved to: '%s'\n", info.ResultDir)
+			}
+		},
 	}
+	var a bool
 	cmd = &cobra.Command{
 		Use:   "run [filter] ...",
 		Short: "Runs tests and reports",
@@ -106,8 +122,17 @@ func run() (cmd *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			c, x := context.WithCancelCause(context.Background())
 			defer x(nil)
-			if r.Filter, err = newRegexFilter(args); err != nil {
+			if a && len(args) > 0 {
+				err = errors.New("-a/--all not compatible with arguments")
 				return
+			}
+			if len(args) > 0 {
+				if r.Filter, err = newRegexFilter(args); err != nil {
+					return
+				}
+			}
+			if a {
+				r.Filter = antler.BoolFilter(true)
 			}
 			sc := make(chan os.Signal, 1)
 			signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
@@ -124,17 +149,17 @@ func run() (cmd *cobra.Command) {
 			return
 		},
 	}
+	cmd.Flags().BoolVarP(&a, "all", "a", false,
+		"runs all tests (may not be used with filter args)")
 	return
 }
 
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
 	r := &antler.ReportCommand{
-		FilterCommand: antler.FilterCommand{
-			Filter: nil,
-			Filtered: func(test *antler.Test) {
-				fmt.Printf("skipping %s, filtered\n", test.ID)
-			},
+		Filter: nil,
+		Skipping: func(test *antler.Test) {
+			fmt.Printf("skipping %s\n", test.ID)
 		},
 		Reporting: func(test *antler.Test) {
 			fmt.Printf("running reports for %s\n", test.ID)
@@ -156,8 +181,10 @@ func report() (cmd *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			c, x := context.WithCancelCause(context.Background())
 			defer x(nil)
-			if r.Filter, err = newRegexFilter(args); err != nil {
-				return
+			if len(args) > 0 {
+				if r.Filter, err = newRegexFilter(args); err != nil {
+					return
+				}
 			}
 			err = antler.Run(c, r)
 			return

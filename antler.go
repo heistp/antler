@@ -7,7 +7,6 @@ package antler
 
 import (
 	"context"
-	"encoding/gob"
 	"errors"
 	"io"
 	"io/fs"
@@ -198,8 +197,9 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 	return
 }
 
-// link hard links the DataFile and FileRefs from the prior Test run. If there
-// is no prior Test run or DataFile, the returned src and err are both nil.
+// link hard links the DataFile and FileRefs from the prior Test run, and
+// returns a source reporter for the report pipeline. If there is no prior Test
+// run or DataFile, the returned src and err are both nil.
 func (u doRun) link(test *Test) (src reporter, err error) {
 	if err = test.LinkPriorData(u.Results); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -211,32 +211,7 @@ func (u doRun) link(test *Test) (src reporter, err error) {
 	if r, err = test.DataReader(u.Results); err != nil {
 		return
 	}
-	defer func() {
-		if e := r.Close(); e != nil && err == nil {
-			err = e
-		}
-	}()
-	c := gob.NewDecoder(r)
-	for {
-		var a any
-		if err = c.Decode(&a); err != nil {
-			if err == io.EOF {
-				err = nil
-				break
-			}
-			return
-		}
-		if l, ok := a.(FileRef); ok {
-			if err = test.LinkPrior(u.Results, l.Name); err != nil {
-				return
-			}
-		}
-	}
-	var r2 io.ReadCloser
-	if r2, err = test.DataReader(u.Results); err != nil {
-		return
-	}
-	src = readData{r2}
+	src = readData{r}
 	return
 }
 

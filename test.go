@@ -143,10 +143,11 @@ func (t *Test) WorkRW(res Results) resultRW {
 	return res.work().Append(t.ResultPrefixX)
 }
 
-// LinkPriorData creates a hard link for the result data for this Test from the
-// prior (latest) result directory, to the working directory. If there was no
-// prior result or no data file for this Test, then
-// errors.Is(err, fs.ErrNotExist) will return true.
+// LinkPriorData creates hard links for the result data for this Test from the
+// prior (latest) result directory, to the working directory. DataFile is
+// linked, along with any FileRefs it contains. If there was no prior result or
+// no data file for this Test, then errors.Is(err, fs.ErrNotExist) will return
+// true.
 //
 // If DataFile is empty, NoDataFileError is returned.
 func (t *Test) LinkPriorData(res Results) (err error) {
@@ -154,7 +155,34 @@ func (t *Test) LinkPriorData(res Results) (err error) {
 		err = NoDataFileError{t}
 		return
 	}
-	err = t.LinkPrior(res, t.DataFile)
+	if err = t.LinkPrior(res, t.DataFile); err != nil {
+		return
+	}
+	var r io.ReadCloser
+	if r, err = t.DataReader(res); err != nil {
+		return
+	}
+	defer func() {
+		if e := r.Close(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	c := gob.NewDecoder(r)
+	for {
+		var a any
+		if err = c.Decode(&a); err != nil {
+			if err == io.EOF {
+				err = nil
+				break
+			}
+			return
+		}
+		if l, ok := a.(FileRef); ok {
+			if err = t.LinkPrior(res, l.Name); err != nil {
+				return
+			}
+		}
+	}
 	return
 }
 

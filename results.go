@@ -650,13 +650,9 @@ func (w *cmdWriter) Close() (err error) {
 // The temporary file name~ is lazily created by Write. If Write is not called
 // at all, the file is never created, and nothing happens on Close.
 //
-// For safety, if any errors occur on Write, then name~ is left in place, and
-// not moved to name when Close is called.
-//
 // atomicWriter is not safe for concurrent use.
 type atomicWriter struct {
 	name string
-	err  bool
 	tmp  *os.File
 }
 
@@ -677,9 +673,7 @@ func (a *atomicWriter) Write(p []byte) (n int, err error) {
 			return
 		}
 	}
-	if n, err = a.tmp.Write(p); err != nil {
-		a.err = true
-	}
+	n, err = a.tmp.Write(p)
 	return
 }
 
@@ -689,9 +683,6 @@ func (a *atomicWriter) Close() (err error) {
 		return
 	}
 	if err = a.tmp.Close(); err != nil {
-		return
-	}
-	if a.err {
 		return
 	}
 	err = os.Rename(a.tmpName(), a.name)

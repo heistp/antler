@@ -39,7 +39,7 @@ func (r Results) open() error {
 	var e error
 	if _, e = os.Stat(r.WorkDir); e == nil {
 		return fmt.Errorf(
-			"'%s' already exists- ensure no other test is running, then move it away",
+			"'%s' exists- ensure no other test is running, then move it away",
 			r.WorkDir)
 	}
 	if errors.Is(e, fs.ErrNotExist) {
@@ -60,6 +60,7 @@ func (r Results) close() (resultDir string, err error) {
 	resultDir = filepath.Join(r.RootDir, n)
 	if err = os.Rename(r.WorkDir, resultDir); errors.Is(err, fs.ErrNotExist) {
 		err = nil
+		return
 	}
 	if r.LatestSymlink != "" {
 		l := r.LatestSymlink + "~"

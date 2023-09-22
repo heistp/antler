@@ -163,6 +163,7 @@ formats, and supporting platforms other than Linux.
 - replace use of chan any in conn
 - improve semantics for System.Stdout and Stderr
 - find a better way than unions to create interface implementations from CUE
+- programmatically allow writing results only to WorkDir
 
 ## Thanks
 

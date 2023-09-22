@@ -4,6 +4,7 @@
 package antler
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -98,12 +99,12 @@ func (r Results) abort() (err error) {
 
 // root returns a resultRW with RootDir as the prefix.
 func (r Results) root() resultRW {
-	return resultRW{r.RootDir + string(os.PathSeparator), r.Codec}
+	return resultRW{r.RootDir + string(os.PathSeparator), r}
 }
 
 // work returns a resultRW with WorkDir as the prefix.
 func (r Results) work() resultRW {
-	return resultRW{r.WorkDir + string(os.PathSeparator), r.Codec}
+	return resultRW{r.WorkDir + string(os.PathSeparator), r}
 }
 
 // prior returns a resultRW with the latest result directory as the prefix. If
@@ -117,7 +118,7 @@ func (r Results) prior() (rw resultRW, err error) {
 		err = ErrNoPriorResult
 		return
 	}
-	rw = r.root().Append(i[0].Name + string(os.PathSeparator))
+	rw = r.root().Child(i[0].Name + string(os.PathSeparator))
 	return
 }
 
@@ -273,18 +274,45 @@ type ResultInfo struct {
 // resultRW provides a rwer implementation for a given path prefix.
 type resultRW struct {
 	prefix string
-	codec  Codecs
+	Results
 }
 
-// Append returns a new resultRW by appending the given prefix to the prefix of
+// Child returns a child resultRW by appending the given prefix to the prefix of
 // this resultRW.
-func (r resultRW) Append(prefix string) resultRW {
-	return resultRW{r.prefix + prefix, r.codec}
+func (r resultRW) Child(prefix string) resultRW {
+	return resultRW{r.prefix + prefix, r.Results}
 }
 
 // Reader implements rwer
 func (r resultRW) Reader(name string) (*ResultReader, error) {
-	return newResultReader(name, r.path(name), r.codec)
+	return newResultReader(name, r.path(name), r.Codec)
+}
+
+// Writer implements rwer. The written file may be transparently encoded, if
+// name's extension belongs to a registered Codec.
+func (r resultRW) Writer(name string) (w *ResultWriter) {
+	w = &ResultWriter{
+		Name: name,
+		Path: r.path(name),
+	}
+	if name == "-" {
+		w.WriteCloser = stdoutWriter{}
+		w.initted = true
+		return
+	}
+	var p string
+	if l, e := r.prior(); e == nil {
+		p = r.path(name)
+		p = strings.TrimPrefix(p, r.WorkDir)
+		p = l.path(p)
+	}
+	w.WriteCloser = newAtomicWriter(w.Path, p)
+	var ok bool
+	if w.Codec, ok = r.Codec.forName(name); !ok {
+		return
+	}
+	w.WriteCloser = newCmdWriter(w.Codec.encodeCmd(), w.WriteCloser)
+	return
 }
 
 // Link creates hard links, for all supported encodings, from the named file in
@@ -292,7 +320,7 @@ func (r resultRW) Reader(name string) (*ResultReader, error) {
 func (r resultRW) Link(from resultRW, name string) (err error) {
 	var xx []string
 	xx = append(xx, "")
-	for _, c := range r.codec.byID() {
+	for _, c := range r.Codec.byID() {
 		xx = append(xx, c.Extension...)
 	}
 	f, t := from.path(name), r.path(name)
@@ -315,6 +343,19 @@ func (r resultRW) Link(from resultRW, name string) (err error) {
 			fs.ErrNotExist, f, t)
 	}
 	return
+}
+
+// path returns the path to a results file given its name.
+func (r resultRW) path(name string) string {
+	if name == "-" {
+		return "-"
+	}
+	return filepath.Clean(r.prefix + name)
+}
+
+// name returns the name of a results file given its path.
+func (r resultRW) name(path string) string {
+	return strings.TrimPrefix(path, r.prefix)
 }
 
 // rwer provides methods to read and write results.
@@ -504,11 +545,6 @@ func (t *truncateReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-// Writer implements rwer
-func (r resultRW) Writer(name string) *ResultWriter {
-	return newResultWriter(name, r.path(name), r.codec)
-}
-
 // ResultWriter writes a result file.
 type ResultWriter struct {
 	// Name is the name of the result file as requested. This does not
@@ -530,27 +566,6 @@ type ResultWriter struct {
 	initted bool
 }
 
-// newResultWriter returns a new ResultWriter for a result file with the given
-// name and path, transparently encoding the file if necessary.
-func newResultWriter(name, path string, codec Codecs) (w *ResultWriter) {
-	w = &ResultWriter{
-		Name: name,
-		Path: path,
-	}
-	if name == "-" {
-		w.WriteCloser = stdoutWriter{}
-		w.initted = true
-		return
-	}
-	w.WriteCloser = newAtomicWriter(path)
-	var ok bool
-	if w.Codec, ok = codec.forName(name); !ok {
-		return
-	}
-	w.WriteCloser = newCmdWriter(w.Codec.encodeCmd(), w.WriteCloser)
-	return
-}
-
 // Write implements io.Writer.
 func (w *ResultWriter) Write(p []byte) (n int, err error) {
 	if !w.initted {
@@ -561,14 +576,6 @@ func (w *ResultWriter) Write(p []byte) (n int, err error) {
 	}
 	n, err = w.WriteCloser.Write(p)
 	return
-}
-
-// path returns the path to a results file given its name.
-func (r resultRW) path(name string) string {
-	if name == "-" {
-		return "-"
-	}
-	return filepath.Clean(r.prefix + name)
 }
 
 // cmdWriter is a WriteCloser that uses a system command to filter data before
@@ -652,13 +659,14 @@ func (w *cmdWriter) Close() (err error) {
 //
 // atomicWriter is not safe for concurrent use.
 type atomicWriter struct {
-	name string
-	tmp  *os.File
+	name  string
+	prior string
+	tmp   *os.File
 }
 
 // newAtomicWriter returns a new atomicWriter, open and ready for use.
-func newAtomicWriter(name string) *atomicWriter {
-	return &atomicWriter{name: name}
+func newAtomicWriter(name, prior string) *atomicWriter {
+	return &atomicWriter{name: name, prior: prior}
 }
 
 // tmpName returns the name of the temporary file for writing.
@@ -685,7 +693,80 @@ func (a *atomicWriter) Close() (err error) {
 	if err = a.tmp.Close(); err != nil {
 		return
 	}
-	err = os.Rename(a.tmpName(), a.name)
+	var s bool
+	if s, err = a.priorSame(); s {
+		if err = os.Link(a.prior, a.name); err != nil {
+			return
+		}
+		err = os.Remove(a.tmpName())
+	} else {
+		err = os.Rename(a.tmpName(), a.name)
+	}
+	return
+}
+
+// priorSame returns true if both the prior and tmpName() files exist, and have
+// the same size and contents.
+func (a *atomicWriter) priorSame() (same bool, err error) {
+	n1 := a.prior
+	n2 := a.tmpName()
+	var i1, i2 os.FileInfo
+	if i1, err = os.Stat(n1); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
+		return
+	}
+	if i2, err = os.Stat(n2); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
+		return
+	}
+	if same = i1.Size() == i2.Size(); !same {
+		return
+	}
+	var f1, f2 *os.File
+	if f1, err = os.Open(n1); err != nil {
+		return
+	}
+	defer f1.Close()
+	if f2, err = os.Open(n2); err != nil {
+		return
+	}
+	defer f2.Close()
+	r1 := bufio.NewReaderSize(f1, 64*1024)
+	r2 := bufio.NewReaderSize(f2, 64*1024)
+	same = true
+	var d1, d2 bool
+	for {
+		var b1, b2 byte
+		if b1, err = r1.ReadByte(); err != nil {
+			if err != io.EOF {
+				return
+			}
+			d1 = true
+			err = nil
+		}
+		if b2, err = r2.ReadByte(); err != nil {
+			if err != io.EOF {
+				return
+			}
+			d2 = true
+			err = nil
+		}
+		if d1 != d2 {
+			same = false
+			return
+		}
+		if d1 && d2 {
+			return
+		}
+		if b1 != b2 {
+			same = false
+			return
+		}
+	}
 	return
 }
 

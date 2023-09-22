@@ -140,7 +140,7 @@ func (t *Test) DataHasError(res Results) (hasError bool, err error) {
 // WorkRW returns a resultRW for reading and writing this Test's results in the
 // working directory.
 func (t *Test) WorkRW(res Results) resultRW {
-	return res.work().Append(t.ResultPrefixX)
+	return res.work().Child(t.ResultPrefixX)
 }
 
 // LinkPriorData creates hard links for the result data for this Test from the
@@ -195,7 +195,7 @@ func (t *Test) LinkPrior(res Results, name string) (err error) {
 	if l, err = res.prior(); err != nil {
 		return
 	}
-	l = l.Append(t.ResultPrefixX)
+	l = l.Child(t.ResultPrefixX)
 	err = t.WorkRW(res).Link(l, name)
 	return
 }

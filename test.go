@@ -74,20 +74,7 @@ func (i TestID) String() string {
 // directory.
 //
 // If DataFile is empty, NoDataFileError is returned.
-func (t *Test) DataWriter(res Results) (wc io.WriteCloser, err error) {
-	if t.DataFile == "" {
-		err = NoDataFileError{t}
-		return
-	}
-	wc = t.WorkRW(res).Writer(t.DataFile)
-	return
-}
-
-// DataWriter2 returns a WriteCloser for writing result data to the work
-// directory.
-//
-// If DataFile is empty, NoDataFileError is returned.
-func (t *Test) DataWriter2(rw resultRW2) (wc io.WriteCloser, err error) {
+func (t *Test) DataWriter(rw resultRW) (wc io.WriteCloser, err error) {
 	if t.DataFile == "" {
 		err = NoDataFileError{t}
 		return
@@ -101,21 +88,7 @@ func (t *Test) DataWriter2(rw resultRW2) (wc io.WriteCloser, err error) {
 // If DataFile is empty, NoDataFileError is returned.
 //
 // If the data file does not exist, errors.Is(err, fs.ErrNotExist) returns true.
-func (t *Test) DataReader(res Results) (rc io.ReadCloser, err error) {
-	if t.DataFile == "" {
-		err = NoDataFileError{t}
-		return
-	}
-	rc, err = t.WorkRW(res).Reader(t.DataFile)
-	return
-}
-
-// DataReader2 returns a ReadCloser for reading result data.
-//
-// If DataFile is empty, NoDataFileError is returned.
-//
-// If the data file does not exist, errors.Is(err, fs.ErrNotExist) returns true.
-func (t *Test) DataReader2(rw resultRW2) (rc io.ReadCloser, err error) {
+func (t *Test) DataReader(rw resultRW) (rc io.ReadCloser, err error) {
 	if t.DataFile == "" {
 		err = NoDataFileError{t}
 		return
@@ -138,9 +111,9 @@ func (n NoDataFileError) Error() string {
 
 // DataHasError returns true if the DataFile exists and has errors. See
 // DataReader for the errors that may be returned.
-func (t *Test) DataHasError(res Results) (hasError bool, err error) {
+func (t *Test) DataHasError(rw resultRW) (hasError bool, err error) {
 	var r io.ReadCloser
-	if r, err = t.DataReader(res); err != nil {
+	if r, err = t.DataReader(rw); err != nil {
 		return
 	}
 	defer func() {
@@ -162,110 +135,19 @@ func (t *Test) DataHasError(res Results) (hasError bool, err error) {
 			return
 		}
 	}
-}
-
-// DataHasError2 returns true if the DataFile exists and has errors. See
-// DataReader for the errors that may be returned.
-func (t *Test) DataHasError2(rw resultRW2) (hasError bool, err error) {
-	var r io.ReadCloser
-	if r, err = t.DataReader2(rw); err != nil {
-		return
-	}
-	defer func() {
-		if e := r.Close(); e != nil && err == nil {
-			err = e
-		}
-	}()
-	c := gob.NewDecoder(r)
-	for {
-		var a any
-		if err = c.Decode(&a); err != nil {
-			if err == io.EOF {
-				err = nil
-			}
-			return
-		}
-		if _, ok := a.(error); ok {
-			hasError = true
-			return
-		}
-	}
-}
-
-// WorkRW returns a resultRW for reading and writing this Test's results in the
-// working directory.
-func (t *Test) WorkRW(res Results) resultRW {
-	return res.work().Child(t.ResultPrefixX)
 }
 
 // RW returns a child resultRW for reading and writing this Test's results.
-func (t *Test) RW(work resultRW2) resultRW2 {
+func (t *Test) RW(work resultRW) resultRW {
 	return work.Child(t.ResultPrefixX)
 }
 
-// LinkPriorData creates hard links for the result data for this Test from the
-// prior (latest) result directory, to the working directory. DataFile is
-// linked, along with any FileRefs it contains. If there was no prior result or
-// no data file for this Test, then errors.Is(err, fs.ErrNotExist) will return
-// true.
-//
-// If DataFile is empty, NoDataFileError is returned.
-func (t *Test) LinkPriorData(res Results) (err error) {
-	if t.DataFile == "" {
-		err = NoDataFileError{t}
-		return
-	}
-	if err = t.LinkPrior(res, t.DataFile); err != nil {
-		return
-	}
-	var r io.ReadCloser
-	if r, err = t.DataReader(res); err != nil {
-		return
-	}
-	defer func() {
-		if e := r.Close(); e != nil && err == nil {
-			err = e
-		}
-	}()
-	c := gob.NewDecoder(r)
-	for {
-		var a any
-		if err = c.Decode(&a); err != nil {
-			if err == io.EOF {
-				err = nil
-				break
-			}
-			return
-		}
-		if l, ok := a.(FileRef); ok {
-			if err = t.LinkPrior(res, l.Name); err != nil {
-				return
-			}
-		}
-	}
-	return
-}
-
-// LinkPrior creates a hard link for the named result file for this Test from
-// the prior (latest) result directory, to the working directory. If there were
-// no prior results, or no prior named result file for this Test, then
-// errors.Is(err, fs.ErrNotExist) will return true.
-func (t *Test) LinkPrior(res Results, name string) (err error) {
-	var l resultRW
-	if l, err = res.prior(); err != nil {
-		return
-	}
-	l = l.Child(t.ResultPrefixX)
-	err = t.WorkRW(res).Link(l, name)
-	return
-}
-
-// LinkPriorData2 creates hard links to the most recent result data for this
+// LinkPriorData creates hard links to the most recent result data for this
 // Test. DataFile is linked, along with any FileRefs it contains. If no prior
 // result for this test could be found, ok is false.
 //
 // If DataFile is empty, NoDataFileError is returned.
-func (t *Test) LinkPriorData2(rw resultRW2) (ok bool, err error) {
+func (t *Test) LinkPriorData(rw resultRW) (ok bool, err error) {
 	if t.DataFile == "" {
 		err = NoDataFileError{t}
 		return
@@ -275,7 +157,7 @@ func (t *Test) LinkPriorData2(rw resultRW2) (ok bool, err error) {
 	}
 	ok = true
 	var r io.ReadCloser
-	if r, err = t.DataReader2(rw); err != nil {
+	if r, err = t.DataReader(rw); err != nil {
 		return
 	}
 	defer func() {

@@ -157,35 +157,22 @@ func run() (cmd *cobra.Command) {
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
 	r := &antler.ReportCommand{
-		Filter: nil,
-		Skipping: func(test *antler.Test) {
-			fmt.Printf("skipping %s\n", test.ID)
-		},
 		Reporting: func(test *antler.Test) {
 			fmt.Printf("running reports for %s\n", test.ID)
 		},
 		NoDataFile: func(test *antler.Test) {
 			fmt.Printf("skipping %s, DataFile field is empty\n", test.ID)
 		},
-		NotFound: func(test *antler.Test, path string) {
-			fmt.Printf("skipping %s, '%s' not found\n", test.ID, path)
+		NotFound: func(test *antler.Test) {
+			fmt.Printf("skipping %s, data file not found\n", test.ID)
 		},
 	}
 	return &cobra.Command{
 		Use:   "report [filter] ...",
 		Short: "Re-runs reports using existing data files",
-		Long: help(`Report re-runs reports using existing data files.
-
-{{template "filter" "report"}}
-`),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			c, x := context.WithCancelCause(context.Background())
 			defer x(nil)
-			if len(args) > 0 {
-				if r.Filter, err = newRegexFilter(args); err != nil {
-					return
-				}
-			}
 			err = antler.Run(c, r)
 			return
 		},

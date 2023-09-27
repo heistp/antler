@@ -22,11 +22,8 @@ import (
 // Results configures the behavior for reading and writing result files, which
 // include all output files and reports.
 //
-// # TODO update Results doc and remove unused methods after move to resultRW2
-//
-// Callers must use the open method to prepare a result for use, and either
-// close or abort to finalize the result. Use of a defer statement to call
-// one of either close or abort is strongly advised.
+// Callers must use the open method to obtain a resultRW to read and write
+// results in WorkDir. See the doc on resultRW for more info.
 type Results struct {
 	RootDir         string
 	WorkDir         string
@@ -36,10 +33,10 @@ type Results struct {
 	Codec           Codecs
 }
 
-// open2 returns a new resultRW2 for reading and writing results to WorkDir.
+// open returns a new resultRW for reading and writing results to WorkDir.
 // The existence of WorkDir is used as a lock to prevent multiple antler
 // instances from writing results at the same time.
-func (r Results) open2() (rw resultRW2, err error) {
+func (r Results) open() (rw resultRW, err error) {
 	d := filepath.Dir(r.WorkDir)
 	if d != "." && d != ".." && d != "/" {
 		if err = os.MkdirAll(d, 0755); err != nil {
@@ -57,100 +54,9 @@ func (r Results) open2() (rw resultRW2, err error) {
 	if i, err = r.info(); err != nil {
 		return
 	}
-	rw = resultRW2{r, "", i}
+	rw = resultRW{r, "", i}
 	return
 }
-
-// open ensures the Results are ready for use. It must be called before other
-// Results methods are used. An error is returned if WorkDir already exists.
-func (r Results) open() error {
-	var e error
-	if _, e = os.Stat(r.WorkDir); e == nil {
-		return fmt.Errorf(
-			"'%s' exists- ensure no other test is running, then move it away",
-			r.WorkDir)
-	}
-	if errors.Is(e, fs.ErrNotExist) {
-		return nil
-	}
-	return e
-}
-
-// close finalizes the result by renaming WorkDir to the final result directory
-// (resultDir return parameter), and updating the latest symlink. If WorkDir
-// does not exist, no error is returned.
-func (r Results) close() (resultDir string, err error) {
-	t := time.Now()
-	if r.ResultDirUTC {
-		t = t.UTC()
-	}
-	n := t.Format(r.ResultDirFormat)
-	resultDir = filepath.Join(r.RootDir, n)
-	if err = os.Rename(r.WorkDir, resultDir); errors.Is(err, fs.ErrNotExist) {
-		err = nil
-		return
-	}
-	if r.LatestSymlink != "" {
-		l := r.LatestSymlink + "~"
-		if err = os.Symlink(n, l); err != nil {
-			return
-		}
-		err = os.Rename(l, r.LatestSymlink)
-	}
-	return
-}
-
-// abort removes WorkDir and its contents, thereby aborting a result. If the
-// results directory is then empty, it is also removed.
-func (r Results) abort() (err error) {
-	if err = os.RemoveAll(r.WorkDir); err != nil {
-		return
-	}
-	var d *os.File
-	if d, err = os.Open(r.RootDir); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			err = nil
-		}
-		return
-	}
-	defer func() {
-		if e := d.Close(); e != nil && err == nil {
-			err = e
-		}
-	}()
-	if _, err = d.Readdirnames(1); err == io.EOF {
-		err = os.Remove(r.RootDir)
-	}
-	return
-}
-
-// root returns a resultRW with RootDir as the prefix.
-func (r Results) root() resultRW {
-	return resultRW{r.RootDir + string(os.PathSeparator), r}
-}
-
-// work returns a resultRW with WorkDir as the prefix.
-func (r Results) work() resultRW {
-	return resultRW{r.WorkDir + string(os.PathSeparator), r}
-}
-
-// prior returns a resultRW with the latest result directory as the prefix. If
-// no prior result was found, ErrNoPriorResult is returned.
-func (r Results) prior() (rw resultRW, err error) {
-	var i []ResultInfo
-	if i, err = r.info(); err != nil {
-		return
-	}
-	if len(i) == 0 {
-		err = ErrNoPriorResult
-		return
-	}
-	rw = r.root().Child(i[0].Name + string(os.PathSeparator))
-	return
-}
-
-// ErrNoPriorResult is returned by prior when no prior result was found.
-var ErrNoPriorResult = fmt.Errorf("%w: no prior results found", fs.ErrNotExist)
 
 // info returns a list of ResultInfos by reading the directory names under
 // RootDir that match ResultDirFormat. The returned ResultInfos are sorted
@@ -301,16 +207,19 @@ type ResultInfo struct {
 	Path string // path to result directory
 }
 
-// resultRW provides a rwer implementation for a given path prefix.
+// resultRW provides access to read and write result files in WorkDir. When
+// callers are done, they must call either Close or Abort, to either finalize or
+// abandon the result. Use of a defer statement is strongly advised.
 type resultRW struct {
-	prefix string
 	Results
+	prefix string
+	info   []ResultInfo
 }
 
-// Child returns a child resultRW by appending the given prefix to the prefix of
-// this resultRW.
+// Child returns a child resultRW by appending the given prefix to the prefix
+// of this resultRW.
 func (r resultRW) Child(prefix string) resultRW {
-	return resultRW{r.prefix + prefix, r.Results}
+	return resultRW{r.Results, r.prefix + prefix, r.info}
 }
 
 // Reader implements rwer
@@ -330,97 +239,7 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 		w.initted = true
 		return
 	}
-	var p string
-	if l, e := r.prior(); e == nil {
-		p = r.path(name)
-		p = strings.TrimPrefix(p, r.WorkDir)
-		p = l.path(p)
-	}
-	w.WriteCloser = newAtomicWriter(w.Path, p)
-	var ok bool
-	if w.Codec, ok = r.Codec.forName(name); !ok {
-		return
-	}
-	w.WriteCloser = newCmdWriter(w.Codec.encodeCmd(), w.WriteCloser)
-	return
-}
-
-// Link creates hard links, for all supported encodings, from the named file in
-// from, to the same named file in this resultRW.
-func (r resultRW) Link(from resultRW, name string) (err error) {
-	var xx []string
-	xx = append(xx, "")
-	for _, c := range r.Codec.byID() {
-		xx = append(xx, c.Extension...)
-	}
-	f, t := from.path(name), r.path(name)
-	var ok bool
-	for _, x := range xx {
-		if err = os.MkdirAll(filepath.Dir(t), 0755); err != nil {
-			return
-		}
-		if e := os.Link(f+x, t+x); e != nil {
-			if !errors.Is(e, fs.ErrNotExist) {
-				err = e
-				return
-			}
-		} else {
-			ok = true
-		}
-	}
-	if !ok {
-		err = fmt.Errorf("%w: no files found to link from '%s' to '%s'",
-			fs.ErrNotExist, f, t)
-	}
-	return
-}
-
-// path returns the path to a results file given its name.
-func (r resultRW) path(name string) string {
-	if name == "-" {
-		return "-"
-	}
-	return filepath.Clean(r.prefix + name)
-}
-
-// name returns the name of a results file given its path.
-func (r resultRW) name(path string) string {
-	return strings.TrimPrefix(path, r.prefix)
-}
-
-// resultRW2 provides access to read and write result files in WorkDir. When
-// callers are done, they must call either Close or Abort, to either finalize or
-// abandon the result.
-type resultRW2 struct {
-	Results
-	prefix string
-	info   []ResultInfo
-}
-
-// Child returns a child resultRW2 by appending the given prefix to the prefix
-// of this resultRW2.
-func (r resultRW2) Child(prefix string) resultRW2 {
-	return resultRW2{r.Results, r.prefix + prefix, r.info}
-}
-
-// Reader implements rwer
-func (r resultRW2) Reader(name string) (*ResultReader, error) {
-	return newResultReader(name, r.path(name), r.Codec)
-}
-
-// Writer implements rwer. The written file may be transparently encoded, if
-// name's extension belongs to a registered Codec.
-func (r resultRW2) Writer(name string) (w *ResultWriter) {
-	w = &ResultWriter{
-		Name: name,
-		Path: r.path(name),
-	}
-	if name == "-" {
-		w.WriteCloser = stdoutWriter{}
-		w.initted = true
-		return
-	}
-	w.WriteCloser = newAtomicWriter2(r.prefix+name, r.WorkDir, r.info)
+	w.WriteCloser = newAtomicWriter(r.prefix+name, r.WorkDir, r.info)
 	var ok bool
 	if w.Codec, ok = r.Codec.forName(name); !ok {
 		return
@@ -432,7 +251,7 @@ func (r resultRW2) Writer(name string) (w *ResultWriter) {
 // Link creates hard links, for all encodings, for the named file from the most
 // recent prior result containing name in any encoding. If no source was found
 // to link the file, ok is false.
-func (r resultRW2) Link(name string) (ok bool, err error) {
+func (r resultRW) Link(name string) (ok bool, err error) {
 	var xx []string
 	xx = append(xx, "")
 	for _, c := range r.Codec.byID() {
@@ -465,7 +284,7 @@ func (r resultRW2) Link(name string) (ok bool, err error) {
 // Close finalizes the result by renaming WorkDir to the final result directory
 // (resultDir return parameter), and updating the latest symlink. If WorkDir
 // does not exist because no results were written, no error is returned.
-func (r resultRW2) Close() (resultDir string, err error) {
+func (r resultRW) Close() (resultDir string, err error) {
 	t := time.Now()
 	if r.ResultDirUTC {
 		t = t.UTC()
@@ -488,7 +307,7 @@ func (r resultRW2) Close() (resultDir string, err error) {
 
 // Abort removes WorkDir and its contents, thereby aborting a result. If the
 // results directory is then empty, it is also removed.
-func (r resultRW2) Abort() (err error) {
+func (r resultRW) Abort() (err error) {
 	if err = os.RemoveAll(r.WorkDir); err != nil {
 		return
 	}
@@ -511,7 +330,7 @@ func (r resultRW2) Abort() (err error) {
 }
 
 // path returns the path to a results file given its name.
-func (r resultRW2) path(name string) string {
+func (r resultRW) path(name string) string {
 	if name == "-" {
 		return "-"
 	}
@@ -810,127 +629,6 @@ func (w *cmdWriter) Close() (err error) {
 }
 
 // atomicWriter is a WriteCloser for a given named file that first writes to a
-// temporary file name~, then moves name~ to name when Close is called. It is
-// strongly suggested to call Close in a defer, and to check for any errors it
-// may return.
-//
-// The temporary file name~ is lazily created by Write. If Write is not called
-// at all, the file is never created, and nothing happens on Close.
-//
-// atomicWriter is not safe for concurrent use.
-type atomicWriter struct {
-	name  string
-	prior string
-	tmp   *os.File
-}
-
-// newAtomicWriter returns a new atomicWriter, open and ready for use.
-func newAtomicWriter(name, prior string) *atomicWriter {
-	return &atomicWriter{name: name, prior: prior}
-}
-
-// tmpName returns the name of the temporary file for writing.
-func (a *atomicWriter) tmpName() string {
-	return a.name + "~"
-}
-
-// Write implements io.Writer.
-func (a *atomicWriter) Write(p []byte) (n int, err error) {
-	if a.tmp == nil {
-		if a.tmp, err = os.Create(a.tmpName()); err != nil {
-			return
-		}
-	}
-	n, err = a.tmp.Write(p)
-	return
-}
-
-// Close implements io.Closer.
-func (a *atomicWriter) Close() (err error) {
-	if a.tmp == nil {
-		return
-	}
-	if err = a.tmp.Close(); err != nil {
-		return
-	}
-	var s bool
-	if s, err = a.priorSame(); s {
-		if err = os.Link(a.prior, a.name); err != nil {
-			return
-		}
-		err = os.Remove(a.tmpName())
-	} else {
-		err = os.Rename(a.tmpName(), a.name)
-	}
-	return
-}
-
-// priorSame returns true if both the prior and tmpName() files exist, and have
-// the same size and contents.
-func (a *atomicWriter) priorSame() (same bool, err error) {
-	n1 := a.prior
-	n2 := a.tmpName()
-	var i1, i2 os.FileInfo
-	if i1, err = os.Stat(n1); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			err = nil
-		}
-		return
-	}
-	if i2, err = os.Stat(n2); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			err = nil
-		}
-		return
-	}
-	if same = i1.Size() == i2.Size(); !same {
-		return
-	}
-	var f1, f2 *os.File
-	if f1, err = os.Open(n1); err != nil {
-		return
-	}
-	defer f1.Close()
-	if f2, err = os.Open(n2); err != nil {
-		return
-	}
-	defer f2.Close()
-	r1 := bufio.NewReaderSize(f1, 64*1024)
-	r2 := bufio.NewReaderSize(f2, 64*1024)
-	same = true
-	var d1, d2 bool
-	for {
-		var b1, b2 byte
-		if b1, err = r1.ReadByte(); err != nil {
-			if err != io.EOF {
-				return
-			}
-			d1 = true
-			err = nil
-		}
-		if b2, err = r2.ReadByte(); err != nil {
-			if err != io.EOF {
-				return
-			}
-			d2 = true
-			err = nil
-		}
-		if d1 != d2 {
-			same = false
-			return
-		}
-		if d1 && d2 {
-			return
-		}
-		if b1 != b2 {
-			same = false
-			return
-		}
-	}
-	return
-}
-
-// atomicWriter2 is a WriteCloser for a given named file that first writes to a
 // temporary file name~, then when Close is called, either hard links name from
 // a prior version if it's the same, or moves name~ to name. It is strongly
 // suggested to call Close in a defer, and to check for any errors it may
@@ -938,30 +636,30 @@ func (a *atomicWriter) priorSame() (same bool, err error) {
 //
 // The temporary file name~ is lazily created by Write. If Write is not called
 // at all, the file is never created, and nothing happens on Close.
-type atomicWriter2 struct {
+type atomicWriter struct {
 	name    string // includes prefix, but not WorkDir
 	workDir string
 	info    []ResultInfo
 	tmp     *os.File
 }
 
-// newAtomicWriter2 returns a new atomicWriter2.
-func newAtomicWriter2(name, workDir string, info []ResultInfo) *atomicWriter2 {
-	return &atomicWriter2{name: name, workDir: workDir, info: info}
+// newAtomicWriter returns a new atomicWriter.
+func newAtomicWriter(name, workDir string, info []ResultInfo) *atomicWriter {
+	return &atomicWriter{name: name, workDir: workDir, info: info}
 }
 
 // path returns the path to the file in WorkDir.
-func (a *atomicWriter2) path() string {
+func (a *atomicWriter) path() string {
 	return filepath.Join(a.workDir, a.name)
 }
 
 // tmpPath returns the path to the temporary file for writing in WorkDir.
-func (a *atomicWriter2) tmpPath() string {
+func (a *atomicWriter) tmpPath() string {
 	return filepath.Join(a.workDir, a.name+"~")
 }
 
 // Write implements io.Writer.
-func (a *atomicWriter2) Write(p []byte) (n int, err error) {
+func (a *atomicWriter) Write(p []byte) (n int, err error) {
 	if a.tmp == nil {
 		if a.tmp, err = os.Create(a.tmpPath()); err != nil {
 			return
@@ -972,7 +670,7 @@ func (a *atomicWriter2) Write(p []byte) (n int, err error) {
 }
 
 // Close implements io.Closer.
-func (a *atomicWriter2) Close() (err error) {
+func (a *atomicWriter) Close() (err error) {
 	if a.tmp == nil {
 		return
 	}
@@ -996,7 +694,7 @@ func (a *atomicWriter2) Close() (err error) {
 
 // findPrior searches for a file with the same name and contents in a prior
 // result. If not found, an empty path is returned and err is nil.
-func (a *atomicWriter2) findPrior() (path string, err error) {
+func (a *atomicWriter) findPrior() (path string, err error) {
 	for _, i := range a.info {
 		path = filepath.Join(i.Path, a.name)
 		var s bool

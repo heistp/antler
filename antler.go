@@ -71,21 +71,37 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 	if c, err = LoadConfig(&load.Config{}); err != nil {
 		return
 	}
-	if err = c.Results.open(); err != nil {
+	var rw resultRW2
+	if rw, err = c.Results.open2(); err != nil {
 		return
 	}
-	d := doRun{r, c.Results, &RunInfo{}}
+	/*
+		if rw, err = c.Results.open(); err != nil {
+			return
+		}
+	*/
+	d := doRun{r, rw, &RunInfo{}}
 	defer func() {
 		d.Info.Elapsed = time.Since(d.Info.Start)
 		if d.Info.Ran == 0 {
-			if e := c.Results.abort(); e != nil && err == nil {
+			/*
+				if e := c.Results.abort(); e != nil && err == nil {
+					err = e
+				}
+			*/
+			if e := rw.Abort(); e != nil && err == nil {
 				err = e
 			}
 		} else {
 			var e error
-			if d.Info.ResultDir, e = c.Results.close(); e != nil && err == nil {
+			if d.Info.ResultDir, e = rw.Close(); e != nil && err == nil {
 				err = e
 			}
+			/*
+				if d.Info.ResultDir, e = c.Results.close(); e != nil && err == nil {
+					err = e
+				}
+			*/
 		}
 		r.Done(*d.Info)
 	}()
@@ -97,7 +113,7 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 // doRun is a doer that runs a Test and its reports.
 type doRun struct {
 	RunCommand
-	Results
+	RW   resultRW2
 	Info *RunInfo
 }
 
@@ -113,6 +129,7 @@ type RunInfo struct {
 // do implements doer
 func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
+	rw := test.RW(u.RW)
 	var s reporter
 	if u.Filter != nil {
 		if !u.Filter.Accept(test) {
@@ -127,7 +144,7 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 		}
 		if s != nil {
 			var e bool
-			if e, err = test.DataHasError(u.Results); err != nil {
+			if e, err = test.DataHasError2(rw); err != nil {
 				return
 			}
 			if e {
@@ -152,14 +169,15 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 		}
 		u.Info.Ran++
 	}
-	err = teeReport(ctx, s, test, test.WorkRW(u.Results), rst)
+	err = teeReport(ctx, s, test, rw, rst)
 	return
 }
 
 // run runs a Test.
 func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
+	rw := test.RW(u.RW)
 	var w io.WriteCloser
-	if w, err = test.DataWriter(u.Results); err != nil {
+	if w, err = test.DataWriter2(rw); err != nil {
 		if _, ok := err.(NoDataFileError); !ok {
 			return
 		}
@@ -176,7 +194,7 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)
 	go node.Do(ctx, &test.Run, &exeSource{}, d)
-	for e := range p.pipeline(ctx, d, nil, test.WorkRW(u.Results)) {
+	for e := range p.pipeline(ctx, d, nil, rw) {
 		x(e)
 		if err == nil {
 			err = e
@@ -187,7 +205,7 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 	}
 	if w != nil {
 		var r io.ReadCloser
-		if r, err = test.DataReader(u.Results); err != nil {
+		if r, err = test.DataReader2(rw); err != nil {
 			return
 		}
 		src = readData{r}
@@ -201,14 +219,13 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 // returns a source reporter for the report pipeline. If there is no prior Test
 // run or DataFile, the returned src and err are both nil.
 func (u doRun) link(test *Test) (src reporter, err error) {
-	if err = test.LinkPriorData(u.Results); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			err = nil
-		}
+	rw := test.RW(u.RW)
+	var ok bool
+	if ok, err = test.LinkPriorData2(rw); err != nil || !ok {
 		return
 	}
 	var r io.ReadCloser
-	if r, err = test.DataReader(u.Results); err != nil {
+	if r, err = test.DataReader2(rw); err != nil {
 		return
 	}
 	src = readData{r}

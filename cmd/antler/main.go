@@ -160,7 +160,7 @@ func report() (cmd *cobra.Command) {
 		Reporting: func(test *antler.Test) {
 			fmt.Printf("running reports for %s\n", test.ID)
 		},
-		NoDataFile: func(test *antler.Test) {
+		DataFileUnset: func(test *antler.Test) {
 			fmt.Printf("skipping %s, DataFile field is empty\n", test.ID)
 		},
 		NotFound: func(test *antler.Test) {

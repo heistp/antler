@@ -73,10 +73,10 @@ func (i TestID) String() string {
 // DataWriter returns a WriteCloser for writing result data to the work
 // directory.
 //
-// If DataFile is empty, NoDataFileError is returned.
+// If DataFile is empty, DataFileUnsetError is returned.
 func (t *Test) DataWriter(rw resultRW) (wc io.WriteCloser, err error) {
 	if t.DataFile == "" {
-		err = NoDataFileError{t}
+		err = DataFileUnsetError{t}
 		return
 	}
 	wc = rw.Writer(t.DataFile)
@@ -85,27 +85,27 @@ func (t *Test) DataWriter(rw resultRW) (wc io.WriteCloser, err error) {
 
 // DataReader returns a ReadCloser for reading result data.
 //
-// If DataFile is empty, NoDataFileError is returned.
+// If DataFile is empty, DataFileUnsetError is returned.
 //
 // If the data file does not exist, errors.Is(err, fs.ErrNotExist) returns true.
 func (t *Test) DataReader(rw resultRW) (rc io.ReadCloser, err error) {
 	if t.DataFile == "" {
-		err = NoDataFileError{t}
+		err = DataFileUnsetError{t}
 		return
 	}
 	rc, err = rw.Reader(t.DataFile)
 	return
 }
 
-// NoDataFileError is returned by DataWriter or DataReader when the Test's
+// DataFileUnsetError is returned by DataWriter or DataReader when the Test's
 // DataFile field is empty, so no data may be read or written. The Test field
 // is the corresponding Test.
-type NoDataFileError struct {
+type DataFileUnsetError struct {
 	Test *Test
 }
 
 // Error implements error
-func (n NoDataFileError) Error() string {
+func (n DataFileUnsetError) Error() string {
 	return fmt.Sprintf("DataFile field is empty for: '%s'\n", n.Test.ID)
 }
 
@@ -146,10 +146,10 @@ func (t *Test) RW(work resultRW) resultRW {
 // Test. DataFile is linked, along with any FileRefs it contains. If no prior
 // result for this test could be found, ok is false.
 //
-// If DataFile is empty, NoDataFileError is returned.
+// If DataFile is empty, DataFileUnsetError is returned.
 func (t *Test) LinkPriorData(rw resultRW) (ok bool, err error) {
 	if t.DataFile == "" {
-		err = NoDataFileError{t}
+		err = DataFileUnsetError{t}
 		return
 	}
 	if ok, err = rw.Link(t.DataFile); err != nil || !ok {

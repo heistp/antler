@@ -161,7 +161,7 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 	rw := test.RW(u.RW)
 	var w io.WriteCloser
 	if w, err = test.DataWriter(rw); err != nil {
-		if _, ok := err.(NoDataFileError); !ok {
+		if _, ok := err.(DataFileUnsetError); !ok {
 			return
 		}
 		err = nil
@@ -235,9 +235,9 @@ func teeReport(ctx context.Context, src reporter, test *Test, rw rwer,
 
 // ReportCommand runs the After reports using the data files as the source.
 type ReportCommand struct {
-	// NoDataFile is called when a report was skipped because the Test's
+	// DataFileUnset is called when a report was skipped because the Test's
 	// DataFile field is empty.
-	NoDataFile func(test *Test)
+	DataFileUnset func(test *Test)
 
 	// NotFound is called when a report was skipped because the data file needed
 	// to run it doesn't exist.
@@ -281,9 +281,9 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	rw := test.RW(d.RW)
 	var ok bool
 	if ok, err = test.LinkPriorData(rw); err != nil {
-		if _, o := err.(NoDataFileError); o {
-			if d.NoDataFile != nil {
-				d.NoDataFile(test)
+		if _, o := err.(DataFileUnsetError); o {
+			if d.DataFileUnset != nil {
+				d.DataFileUnset(test)
 			}
 			err = nil
 		}

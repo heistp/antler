@@ -283,8 +283,26 @@ func (r resultRW) Link(name string) (ok bool, err error) {
 
 // Close finalizes the result by renaming WorkDir to the final result directory
 // (resultDir return parameter), and updating the latest symlink. If WorkDir
-// does not exist because no results were written, no error is returned.
+// and/or RootDir are empty because no results were written, they are removed,
+// and no error is returned as long as this succeeds.
 func (r resultRW) Close() (resultDir string, err error) {
+	var w bool
+	if w, err = dirEmpty(r.WorkDir); err != nil {
+		return
+	}
+	if w {
+		if err = os.Remove(r.WorkDir); err != nil {
+			return
+		}
+		var x bool
+		if x, err = dirEmpty(r.RootDir); err != nil {
+			return
+		}
+		if x {
+			err = os.Remove(r.RootDir)
+		}
+		return
+	}
 	t := time.Now()
 	if r.ResultDirUTC {
 		t = t.UTC()
@@ -305,17 +323,10 @@ func (r resultRW) Close() (resultDir string, err error) {
 	return
 }
 
-// Abort removes WorkDir and its contents, thereby aborting a result. If the
-// results directory is then empty, it is also removed.
-func (r resultRW) Abort() (err error) {
-	if err = os.RemoveAll(r.WorkDir); err != nil {
-		return
-	}
+// dirEmpty returns empty true if the given named directory is empty.
+func dirEmpty(name string) (empty bool, err error) {
 	var d *os.File
-	if d, err = os.Open(r.RootDir); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			err = nil
-		}
+	if d, err = os.Open(name); err != nil {
 		return
 	}
 	defer func() {
@@ -324,6 +335,23 @@ func (r resultRW) Abort() (err error) {
 		}
 	}()
 	if _, err = d.Readdirnames(1); err == io.EOF {
+		empty = true
+		err = nil
+	}
+	return
+}
+
+// Abort removes WorkDir and its contents, thereby aborting a result. If RootDir
+// is then empty, it is also removed.
+func (r resultRW) Abort() (err error) {
+	if err = os.RemoveAll(r.WorkDir); err != nil {
+		return
+	}
+	var x bool
+	if x, err = dirEmpty(r.RootDir); err != nil {
+		return
+	}
+	if x {
 		err = os.Remove(r.RootDir)
 	}
 	return

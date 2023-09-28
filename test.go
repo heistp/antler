@@ -143,19 +143,19 @@ func (t *Test) RW(work resultRW) resultRW {
 }
 
 // LinkPriorData creates hard links to the most recent result data for this
-// Test. DataFile is linked, along with any FileRefs it contains. If no prior
-// result for this test could be found, ok is false.
+// Test. DataFile is linked, along with any FileRefs it contains.
 //
 // If DataFile is empty, DataFileUnsetError is returned.
-func (t *Test) LinkPriorData(rw resultRW) (ok bool, err error) {
+//
+// If no prior result data for this Test could be found, LinkError is returned.
+func (t *Test) LinkPriorData(rw resultRW) (err error) {
 	if t.DataFile == "" {
 		err = DataFileUnsetError{t}
 		return
 	}
-	if ok, err = rw.Link(t.DataFile); err != nil || !ok {
+	if err = rw.Link(t.DataFile); err != nil {
 		return
 	}
-	ok = true
 	var r io.ReadCloser
 	if r, err = t.DataReader(rw); err != nil {
 		return
@@ -176,7 +176,7 @@ func (t *Test) LinkPriorData(rw resultRW) (ok bool, err error) {
 			return
 		}
 		if l, k := a.(FileRef); k {
-			if _, err = rw.Link(l.Name); err != nil {
+			if err = rw.Link(l.Name); err != nil {
 				return
 			}
 		}

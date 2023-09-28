@@ -250,14 +250,15 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 
 // Link creates hard links, for all encodings, for the named file from the most
 // recent prior result containing name in any encoding. If no source was found
-// to link the file, ok is false.
-func (r resultRW) Link(name string) (ok bool, err error) {
+// to link the file, LinkError is returned.
+func (r resultRW) Link(name string) (err error) {
 	var xx []string
 	xx = append(xx, "")
 	for _, c := range r.Codec.byID() {
 		xx = append(xx, c.Extension...)
 	}
 	n := r.prefix + name
+	var ok bool
 	for i := 0; i < len(r.info) && !ok; i++ {
 		w := filepath.Join(r.WorkDir, n)
 		p := filepath.Join(r.info[i].Path, n)
@@ -278,7 +279,26 @@ func (r resultRW) Link(name string) (ok bool, err error) {
 			ok = true
 		}
 	}
+	if !ok {
+		err = LinkError{n}
+	}
 	return
+}
+
+// LinkError is returned by resultRW.Link when the named file could not be found
+// in any prior result.
+type LinkError struct {
+	Name string
+}
+
+// Error implements error.
+func (l LinkError) Error() string {
+	return fmt.Sprintf("prior file not found for link: '%s'", l.Name)
+}
+
+// Is makes this error an fs.ErrNotExist for the errors package.
+func (l LinkError) Is(target error) bool {
+	return target == fs.ErrNotExist
 }
 
 // Close finalizes the result by renaming WorkDir to the final result directory

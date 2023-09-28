@@ -7,7 +7,9 @@ package antler
 
 import (
 	"context"
+	"errors"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"time"
@@ -203,8 +205,10 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 // run or DataFile, the returned src and err are both nil.
 func (u doRun) link(test *Test) (src reporter, err error) {
 	rw := test.RW(u.RW)
-	var ok bool
-	if ok, err = test.LinkPriorData(rw); err != nil || !ok {
+	if err = test.LinkPriorData(rw); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
 		return
 	}
 	var r io.ReadCloser
@@ -241,7 +245,7 @@ type ReportCommand struct {
 
 	// NotFound is called when a report was skipped because the data file needed
 	// to run it doesn't exist.
-	NotFound func(test *Test)
+	NotFound func(test *Test, name string)
 
 	// Reporting is called when a report starts running.
 	Reporting func(test *Test)
@@ -279,19 +283,18 @@ type doReport struct {
 func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	err error) {
 	rw := test.RW(d.RW)
-	var ok bool
-	if ok, err = test.LinkPriorData(rw); err != nil {
-		if _, o := err.(DataFileUnsetError); o {
+	if err = test.LinkPriorData(rw); err != nil {
+		switch e := err.(type) {
+		case DataFileUnsetError:
 			if d.DataFileUnset != nil {
 				d.DataFileUnset(test)
 			}
 			err = nil
-		}
-		return
-	}
-	if !ok {
-		if d.NotFound != nil {
-			d.NotFound(test)
+		case LinkError:
+			if d.NotFound != nil {
+				d.NotFound(test, e.Name)
+			}
+			err = nil
 		}
 		return
 	}

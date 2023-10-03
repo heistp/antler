@@ -105,7 +105,7 @@ func run() (cmd *cobra.Command) {
 			fmt.Printf("ran %d tests, linked %d, elapsed %s\n",
 				info.Ran, info.Linked, info.Elapsed)
 			if info.ResultDir == "" {
-				fmt.Printf("result not saved\n")
+				fmt.Printf("no tests run or no changes made, result not saved\n")
 			} else {
 				fmt.Printf("result saved to: '%s'\n", info.ResultDir)
 			}
@@ -158,13 +158,22 @@ func run() (cmd *cobra.Command) {
 func report() (cmd *cobra.Command) {
 	r := &antler.ReportCommand{
 		Reporting: func(test *antler.Test) {
-			fmt.Printf("running reports for %s\n", test.ID)
+			fmt.Printf("reporting on %s...\n", test.ID)
 		},
 		DataFileUnset: func(test *antler.Test) {
 			fmt.Printf("skipping %s, DataFile field is empty\n", test.ID)
 		},
 		NotFound: func(test *antler.Test, name string) {
 			fmt.Printf("skipping %s, '%s' not found\n", test.ID, name)
+		},
+		Done: func(info antler.ReportInfo) {
+			fmt.Printf("reported on %d tests, elapsed %s\n",
+				info.Reported, info.Elapsed)
+			if info.ResultDir == "" {
+				fmt.Printf("no changes made, result not saved\n")
+			} else {
+				fmt.Printf("result saved to: '%s'\n", info.ResultDir)
+			}
 		},
 	}
 	return &cobra.Command{

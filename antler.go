@@ -89,7 +89,9 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 				err = e
 			}
 		}
-		r.Done(*d.Info)
+		if r.Done != nil {
+			r.Done(*d.Info)
+		}
 	}()
 	d.Info.Start = time.Now()
 	err = c.Run.do(ctx, d, reportStack{})
@@ -275,6 +277,9 @@ type ReportCommand struct {
 
 	// Reporting is called when a report starts running.
 	Reporting func(test *Test)
+
+	// Done is called when the ReportCommand is done.
+	Done func(ReportInfo)
 }
 
 // run implements command
@@ -287,14 +292,29 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 	if rw, err = c.Results.open(); err != nil {
 		return
 	}
+	d := doReport{r, rw, &ReportInfo{}}
 	defer func() {
-		// TODO add Done func to ReportCommand and set ResultPath
 		var e error
 		if _, e = rw.Close(); e != nil && err == nil {
 			err = e
 		}
+
+		d.Info.Elapsed = time.Since(d.Info.Start)
+		if d.Info.Reported == 0 {
+			if e := rw.Abort(); e != nil && err == nil {
+				err = e
+			}
+		} else {
+			var e error
+			if d.Info.ResultDir, e = rw.Close(); e != nil && err == nil {
+				err = e
+			}
+		}
+		if r.Done != nil {
+			r.Done(*d.Info)
+		}
 	}()
-	d := doReport{r, rw}
+	d.Info.Start = time.Now()
 	err = c.Run.do(ctx, d, reportStack{})
 	return
 }
@@ -302,7 +322,16 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 // doReport is a doer that runs reports.
 type doReport struct {
 	ReportCommand
-	RW resultRW
+	RW   resultRW
+	Info *ReportInfo
+}
+
+// ReportInfo contains stats and info for a report run.
+type ReportInfo struct {
+	Start     time.Time
+	Elapsed   time.Duration
+	Reported  int
+	ResultDir string
 }
 
 // do implements doer
@@ -324,11 +353,16 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 		}
 		return
 	}
+	if d.Reporting != nil {
+		d.Reporting(test)
+	}
 	var r io.ReadCloser
 	if r, err = test.DataReader(rw); err != nil {
 		return
 	}
-	err = teeReport(ctx, readData{r}, test, rw, rst)
+	if err = teeReport(ctx, readData{r}, test, rw, rst); err == nil {
+		d.Info.Reported++
+	}
 	return
 }
 

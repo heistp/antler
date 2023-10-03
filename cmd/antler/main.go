@@ -105,7 +105,7 @@ func run() (cmd *cobra.Command) {
 			fmt.Printf("ran %d tests, linked %d, elapsed %s\n",
 				info.Ran, info.Linked, info.Elapsed)
 			if info.ResultDir == "" {
-				fmt.Printf("no tests run, result not saved\n")
+				fmt.Printf("result not saved\n")
 			} else {
 				fmt.Printf("result saved to: '%s'\n", info.ResultDir)
 			}

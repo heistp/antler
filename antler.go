@@ -118,10 +118,20 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 	var s reporter
 	if u.Filter != nil {
 		if !u.Filter.Accept(test) {
-			if u.Skipped != nil {
-				u.Skipped(test)
+			if s, err = u.link(test); err != nil {
+				return
 			}
-			return
+			if s == nil {
+				if u.Skipped != nil {
+					u.Skipped(test)
+				}
+				return
+			} else {
+				if u.Linked != nil {
+					u.Linked(test)
+				}
+				u.Info.Linked++
+			}
 		}
 	} else if test.DataFile != "" {
 		if s, err = u.link(test); err != nil {

@@ -54,7 +54,7 @@ func (r Results) open() (rw resultRW, err error) {
 	if i, err = r.info(); err != nil {
 		return
 	}
-	rw = resultRW{r, "", i}
+	rw = resultRW{r, "", i, &resultStat{}}
 	return
 }
 
@@ -208,18 +208,49 @@ type ResultInfo struct {
 }
 
 // resultRW provides access to read and write result files in WorkDir. When
-// callers are done, they must call either Close or Abort, to either finalize or
-// abandon the result. Use of a defer statement is strongly advised.
+// callers are done, they must either call Close or Abort, to finalize or
+// abandon the result, respectively. Use of a defer statement is strongly
+// advised. If no unique results were written at the time of Close, Abort is
+// called automatically.
 type resultRW struct {
 	Results
 	prefix string
 	info   []ResultInfo
+	stat   *resultStat
+}
+
+// resultStat records statistics on the reading and writing of results.
+type resultStat struct {
+	sync.Mutex
+	WrittenFiles int
+	LinkedFiles  int
+}
+
+// AddWrittenFiles adds n written files.
+func (s *resultStat) AddWrittenFiles(n int) {
+	s.Lock()
+	s.WrittenFiles += n
+	s.Unlock()
+}
+
+// RemoveWrittenFiles removes n written files.
+func (s *resultStat) RemoveWrittenFiles(n int) {
+	s.Lock()
+	s.WrittenFiles -= n
+	s.Unlock()
+}
+
+// AddLinkedFiles adds n linked files.
+func (s *resultStat) AddLinkedFiles(n int) {
+	s.Lock()
+	s.LinkedFiles += n
+	s.Unlock()
 }
 
 // Child returns a child resultRW by appending the given prefix to the prefix
 // of this resultRW.
 func (r resultRW) Child(prefix string) resultRW {
-	return resultRW{r.Results, r.prefix + prefix, r.info}
+	return resultRW{r.Results, r.prefix + prefix, r.info, r.stat}
 }
 
 // Reader implements rwer
@@ -239,7 +270,7 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 		w.initted = true
 		return
 	}
-	w.WriteCloser = newAtomicWriter(r.prefix+name, r.WorkDir, r.info)
+	w.WriteCloser = newAtomicWriter(r.prefix+name, r.WorkDir, r.info, r.stat)
 	var ok bool
 	if w.Codec, ok = r.Codec.forName(name); !ok {
 		return
@@ -273,9 +304,9 @@ func (r resultRW) Link(name string) (err error) {
 				return
 			}
 			if err = os.Link(p+x, w+x); err != nil {
-				fmt.Fprintf(os.Stderr, "here's my error: %s", err)
 				return
 			}
+			r.stat.AddLinkedFiles(1)
 			ok = true
 		}
 	}
@@ -304,13 +335,18 @@ func (l LinkError) Is(target error) bool {
 // Close finalizes the result by renaming WorkDir to the final result directory
 // (resultDir return parameter), and updating the latest symlink. If WorkDir
 // and/or RootDir are empty because no results were written, they are removed,
-// and no error is returned as long as this succeeds.
+// and no error is returned as long as this succeeds. If no unique files were
+// written, Abort is called instead.
 func (r resultRW) Close() (resultDir string, err error) {
-	var w bool
-	if w, err = dirEmpty(r.WorkDir); err != nil {
+	if r.stat.WrittenFiles == 0 {
+		err = r.Abort()
 		return
 	}
-	if w {
+	var y bool
+	if y, err = dirEmpty(r.WorkDir); err != nil {
+		return
+	}
+	if y {
 		if err = os.Remove(r.WorkDir); err != nil {
 			return
 		}
@@ -511,7 +547,7 @@ func (r *cmdReader) start() (err error) {
 			close(r.errc)
 		}()
 		if _, e = io.Copy(i, r.underlying); e != nil {
-			fmt.Errorf("cmdReader io.Copy error: %w", e)
+			e = fmt.Errorf("cmdReader io.Copy error: %w", e)
 		}
 	}()
 	err = r.cmd.Start()
@@ -652,7 +688,7 @@ func (w *cmdWriter) start() (err error) {
 			close(w.errc)
 		}()
 		if _, e = io.Copy(w.underlying, o); e != nil {
-			fmt.Errorf("cmdWriter io.Copy error: %w", e)
+			e = fmt.Errorf("cmdWriter io.Copy error: %w", e)
 		}
 	}()
 	err = w.cmd.Start()
@@ -689,11 +725,13 @@ type atomicWriter struct {
 	workDir string
 	info    []ResultInfo
 	tmp     *os.File
+	stat    *resultStat
 }
 
 // newAtomicWriter returns a new atomicWriter.
-func newAtomicWriter(name, workDir string, info []ResultInfo) *atomicWriter {
-	return &atomicWriter{name: name, workDir: workDir, info: info}
+func newAtomicWriter(name, workDir string, info []ResultInfo,
+	stat *resultStat) *atomicWriter {
+	return &atomicWriter{name, workDir, info, nil, stat}
 }
 
 // path returns the path to the file in WorkDir.
@@ -712,6 +750,7 @@ func (a *atomicWriter) Write(p []byte) (n int, err error) {
 		if a.tmp, err = os.Create(a.tmpPath()); err != nil {
 			return
 		}
+		a.stat.AddWrittenFiles(1)
 	}
 	n, err = a.tmp.Write(p)
 	return
@@ -733,6 +772,8 @@ func (a *atomicWriter) Close() (err error) {
 		if err = os.Link(p, a.path()); err != nil {
 			return
 		}
+		a.stat.RemoveWrittenFiles(1)
+		a.stat.AddLinkedFiles(1)
 		err = os.Remove(a.tmpPath())
 	} else {
 		err = os.Rename(a.tmpPath(), a.path())
@@ -814,7 +855,6 @@ func compareFiles(name1, name2 string) (same bool, err error) {
 			return
 		}
 	}
-	return
 }
 
 // stdoutWriter writes to stdout, and does nothing on Close.

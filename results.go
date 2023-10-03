@@ -787,7 +787,7 @@ func (a *atomicWriter) findPrior() (path string, err error) {
 	for _, i := range a.info {
 		path = filepath.Join(i.Path, a.name)
 		var s bool
-		if s, err = compareFiles(a.path(), path); err != nil || s {
+		if s, err = compareFiles(a.tmpPath(), path); err != nil || s {
 			return
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"cuelang.org/go/cue/load"
@@ -104,11 +105,26 @@ type doRun struct {
 
 // RunInfo contains stats and info for a test run.
 type RunInfo struct {
+	sync.Mutex
 	Start     time.Time
 	Elapsed   time.Duration
 	Ran       int
 	Linked    int
 	ResultDir string
+}
+
+// ran increments the Ran field.
+func (i *RunInfo) ran() {
+	i.Lock()
+	i.Ran++
+	i.Unlock()
+}
+
+// linked increments the Linked field.
+func (i *RunInfo) linked() {
+	i.Lock()
+	i.Linked++
+	i.Unlock()
 }
 
 // do implements doer
@@ -130,7 +146,7 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 				if u.Linked != nil {
 					u.Linked(test)
 				}
-				u.Info.Linked++
+				u.Info.linked()
 			}
 		}
 	} else if test.DataFile != "" {
@@ -151,7 +167,7 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 				if u.Linked != nil {
 					u.Linked(test)
 				}
-				u.Info.Linked++
+				u.Info.linked()
 			}
 		}
 	}
@@ -162,7 +178,7 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 		if s, err = u.run(ctx, test); err != nil {
 			return
 		}
-		u.Info.Ran++
+		u.Info.ran()
 	}
 	err = teeReport(ctx, s, test, rw, rst)
 	return

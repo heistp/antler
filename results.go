@@ -771,6 +771,10 @@ func (a *atomicWriter) Close() (err error) {
 	if p, err = a.findPrior(); err != nil {
 		return
 	}
+	if e := os.Remove(a.path()); e != nil && !errors.Is(e, fs.ErrNotExist) {
+		err = e
+		return
+	}
 	if p != "" {
 		if err = os.Link(p, a.path()); err != nil {
 			return

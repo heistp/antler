@@ -126,7 +126,6 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- implement incremental test runs using hard links
 - move SCE examples into sce-tests repo and deploy to public server
 - combine Antler examples into one package, to share common setup
 - build Antler examples to a public server and remove from README
@@ -135,6 +134,7 @@ formats, and supporting platforms other than Linux.
 #### Bugs
 
 - improve poor error messages from CUE, especially under disjunctions
+- fix that no result is saved after changes to Encode Destructive field
 
 ### Inbox
 
@@ -150,7 +150,6 @@ formats, and supporting platforms other than Linux.
 - add log command to emit LogEntry's to stdout
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
-- abort atomic writes when ResultWriter callers fail?
 - support multiple nodes in the same namespace
 - add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
 - support MacOS
@@ -163,7 +162,7 @@ formats, and supporting platforms other than Linux.
 - replace use of chan any in conn
 - improve semantics for System.Stdout and Stderr
 - find a better way than unions to create interface implementations from CUE
-- programmatically allow writing results only to WorkDir
+- consider moving all FileData to gob, for consistency with encoding
 
 ## Thanks
 

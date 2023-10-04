@@ -43,7 +43,7 @@ Server: #Server
 	} | {
 		Parallel?: [#TestRun, ...#TestRun]
 	}
-	Report?: [#Report, ...#Report]
+	Report?: [...#Report]
 }
 
 // antler.Results configures the destination paths for results and reports.

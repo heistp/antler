@@ -379,10 +379,13 @@ func (r resultRW) Close() (resultDir string, err error) {
 	return
 }
 
-// dirEmpty returns empty true if the given named directory is empty.
+// dirEmpty returns empty true if the named directory is empty or does not exist.
 func dirEmpty(name string) (empty bool, err error) {
 	var d *os.File
 	if d, err = os.Open(name); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
 		return
 	}
 	defer func() {

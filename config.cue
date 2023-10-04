@@ -43,7 +43,7 @@ Server: #Server
 	} | {
 		Parallel?: [#TestRun, ...#TestRun]
 	}
-	Report?: [...#Report]
+	Report?: [#Report, ...#Report]
 }
 
 // antler.Results configures the destination paths for results and reports.
@@ -244,7 +244,7 @@ Server: #Server
 // If Sort is true, logs are first gathered, then emitted sorted by time when
 // the pipeline stage EmitLog runs in completes.
 #EmitLog: {
-	To?: [string & !="", ...]
+	To?: [string & !="", ...string & !=""]
 	Sort?: bool
 }
 

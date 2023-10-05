@@ -177,10 +177,10 @@ func (u doRun) do(ctx context.Context, test *Test, rst reportStack) (
 		if u.Running != nil {
 			u.Running(test)
 		}
+		u.Info.ran()
 		if s, err = u.run(ctx, test); err != nil {
 			return
 		}
-		u.Info.ran()
 	}
 	err = teeReport(ctx, s, test, rw, rst)
 	return
@@ -360,9 +360,8 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	if r, err = test.DataReader(rw); err != nil {
 		return
 	}
-	if err = teeReport(ctx, readData{r}, test, rw, rst); err == nil {
-		d.Info.Reported++
-	}
+	d.Info.Reported++
+	err = teeReport(ctx, readData{r}, test, rw, rst)
 	return
 }
 

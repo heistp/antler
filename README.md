@@ -125,7 +125,6 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- move SCE examples into sce-tests repo and deploy to public server
 - combine Antler examples into one package, to share common setup
 - build Antler examples to a public server and remove from README
 - include git tags in kernel and Antler versions, and record in results

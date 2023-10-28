@@ -59,7 +59,7 @@ Run: #TestRun
 	}
 }
 
-// antler.EmitLog is a report emitting and writing logs. Multiple destinations
+// antler.EmitLog is a report that emits and writes logs. Multiple destinations
 // may be listed in To, either filenames, or the '-' character for stdout.
 #EmitLog: {
 	To?: [string & !="", ...]

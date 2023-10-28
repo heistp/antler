@@ -26,32 +26,32 @@ func newAnalysis() analysis {
 func (y *analysis) add(a interface{}) {
 	switch v := a.(type) {
 	case node.StreamInfo:
-		d := y.streams.data(v.Flow)
+		s := y.streams.analysis(v.Flow)
 		if v.Server {
-			d.Server = v
+			s.Server = v
 		} else {
-			d.Client = v
+			s.Client = v
 		}
 	case node.StreamIO:
-		d := y.streams.data(v.Flow)
+		s := y.streams.analysis(v.Flow)
 		if v.Sent {
-			d.Sent = append(d.Sent, v)
+			s.Sent = append(s.Sent, v)
 		} else {
-			d.Rcvd = append(d.Rcvd, v)
+			s.Rcvd = append(s.Rcvd, v)
 		}
 	case node.PacketInfo:
-		d := y.packets.data(v.Flow)
+		p := y.packets.analysis(v.Flow)
 		if v.Server {
-			d.Server = v
+			p.Server = v
 		} else {
-			d.Client = v
+			p.Client = v
 		}
 	case node.PacketIO:
-		d := y.packets.data(v.Flow)
+		p := y.packets.analysis(v.Flow)
 		if v.Sent {
-			d.Sent = append(d.Sent, v)
+			p.Sent = append(p.Sent, v)
 		} else {
-			d.Rcvd = append(d.Rcvd, v)
+			p.Rcvd = append(p.Rcvd, v)
 		}
 	}
 }
@@ -116,8 +116,8 @@ func newStreams() streams {
 	return streams(make(map[node.Flow]*streamAnalysis))
 }
 
-// data adds streamData for the given flow if it doesn't already exist.
-func (m *streams) data(flow node.Flow) (s *streamAnalysis) {
+// analysis adds streamAnalysis for the given flow if it doesn't already exist.
+func (m *streams) analysis(flow node.Flow) (s *streamAnalysis) {
 	var ok bool
 	if s, ok = (*m)[flow]; ok {
 		return
@@ -174,7 +174,7 @@ func (m *streams) analyze() {
 	}
 }
 
-// byTime returns a slice of streamData, sorted by start time.
+// byTime returns a slice of streamAnalysis, sorted by start time.
 func (m *streams) byTime() (s []streamAnalysis) {
 	for _, d := range *m {
 		s = append(s, *d)
@@ -229,8 +229,8 @@ func newPackets() packets {
 	return packets(make(map[node.Flow]*packetAnalysis))
 }
 
-// data adds packetData for the given flow if it doesn't already exist.
-func (k *packets) data(flow node.Flow) (d *packetAnalysis) {
+// analysis adds packetAnalysis for the given flow if it doesn't already exist.
+func (k *packets) analysis(flow node.Flow) (d *packetAnalysis) {
 	var ok bool
 	if d, ok = (*k)[flow]; ok {
 		return
@@ -283,7 +283,7 @@ func (k *packets) analyze() {
 	}
 }
 
-// byTime returns a slice of packetData, sorted by start time.
+// byTime returns a slice of packetAnalysis, sorted by start time.
 func (k *packets) byTime() (d []packetAnalysis) {
 	for _, p := range *k {
 		d = append(d, *p)

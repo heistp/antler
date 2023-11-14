@@ -60,15 +60,7 @@ either this must be added to that path, or additional configuration is required.
 
 ## Installation
 
-### Using go install
-
-1. Install [Go](https://go.dev/).
-2. `go install github.com/heistp/antler@latest`
-3. `make` (builds node binaries, installs antler command)
-
-### Using git clone
-
-1. Install [Go](https://go.dev/).
+1. Install [Go](https://go.dev/) (currently 1.21 or later required).
 2. `cd`
 3. `mkdir -p go/src/github.com/heistp`
 4. `cd go/src/github.com/heistp`

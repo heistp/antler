@@ -124,7 +124,6 @@ formats, and supporting platforms other than Linux.
 #### Bugs
 
 - improve poor error messages from CUE, especially under disjunctions
-- fix that no result is saved after changes to Encode Destructive field
 
 ### Inbox
 

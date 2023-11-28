@@ -224,6 +224,7 @@ type resultStat struct {
 	sync.Mutex
 	WrittenFiles int
 	LinkedFiles  int
+	RemovedFiles int
 }
 
 // AddWrittenFiles adds n written files.
@@ -245,6 +246,21 @@ func (s *resultStat) AddLinkedFiles(n int) {
 	s.Lock()
 	s.LinkedFiles += n
 	s.Unlock()
+}
+
+// AddRemovedFiles adds n removed files.
+func (s *resultStat) AddRemovedFiles(n int) {
+	s.Lock()
+	s.RemovedFiles += n
+	s.Unlock()
+}
+
+// Changed returns true if any files were written or removed.
+func (s *resultStat) Changed() (changed bool) {
+	s.Lock()
+	changed = s.WrittenFiles > 0 || s.RemovedFiles > 0
+	s.Unlock()
+	return
 }
 
 // Child returns a child resultRW by appending the given prefix to the prefix
@@ -276,6 +292,14 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 		return
 	}
 	w.WriteCloser = newCmdWriter(w.Codec.encodeCmd(), w.WriteCloser)
+	return
+}
+
+// Remove implements rwer.
+func (r resultRW) Remove(name string) (err error) {
+	if err = os.Remove(name); err == nil {
+		r.stat.AddRemovedFiles(1)
+	}
 	return
 }
 
@@ -334,11 +358,11 @@ func (l LinkError) Is(target error) bool {
 
 // Close finalizes the result by renaming WorkDir to the final result directory
 // (resultDir return parameter), and updating the latest symlink. If WorkDir
-// and/or RootDir are empty because no results were written, they are removed,
+// and/or RootDir are empty because no results changed, they are removed,
 // and no error is returned as long as this succeeds. If no unique files were
 // written, Abort is called instead.
 func (r resultRW) Close() (resultDir string, err error) {
-	if r.stat.WrittenFiles == 0 {
+	if !r.stat.Changed() {
 		err = r.Abort()
 		return
 	}
@@ -435,6 +459,9 @@ type rwer interface {
 	// named result file. Callers should take care to always close the returned
 	// ResultWriter.
 	Writer(name string) *ResultWriter
+
+	// Remove calls os.Remove to remove the named file or directory.
+	Remove(name string) error
 }
 
 // ResultReader reads a result file.

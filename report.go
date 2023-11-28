@@ -8,7 +8,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime/debug"
 
@@ -334,7 +333,7 @@ func (c *Encode) encode(name string, rw rwer) (err error) {
 	}
 	_, err = io.Copy(w, r)
 	if err == nil && c.Destructive && r.Path != w.Path {
-		err = os.Remove(r.Path)
+		err = rw.Remove(r.Path)
 	}
 	return
 }

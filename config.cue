@@ -223,7 +223,7 @@ Server: #Server
 //
 // Extension is the new extension for the files, indicating the encoding format
 // (e.g. ".gz"), which must be supported by one of the Codecs. If blank, the
-// file is decoded.
+// files are decoded.
 //
 // ReEncode, if true, allows re-encoding from and to the same file. This could
 // be permitted, for example, to re-encode files from one compression level to

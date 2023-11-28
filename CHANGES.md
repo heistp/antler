@@ -35,6 +35,7 @@ and this project adheres to
 - Fix one second cancellation delay for Stream tests (check Context in receive)
 - Consistently cancel Contexts in defer after calling WithCancel/Cause
 - Return error if node exited with non-zero exit status
+- Fix that no result was saved after setting Encode Destructive field to true
 
 ## 0.3.0 - 2023-08-18
 

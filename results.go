@@ -815,10 +815,11 @@ func (a *atomicWriter) Close() (err error) {
 	return
 }
 
-// findPrior searches for a file with the same name and contents in a prior
+// findPrior searches for a file with the same name and contents in the prior
 // result. If not found, an empty path is returned and err is nil.
 func (a *atomicWriter) findPrior() (path string, err error) {
-	for _, i := range a.info {
+	if len(a.info) > 0 {
+		i := a.info[0]
 		path = filepath.Join(i.Path, a.name)
 		var s bool
 		if s, err = compareFiles(a.tmpPath(), path); err != nil || s {

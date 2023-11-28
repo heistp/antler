@@ -19,8 +19,9 @@ examples/fct/fct.cue
 # node/bin directory
 node/bin/
 
-# private directory
+# private directory / symlink
 .private/
+.private
 
 # OS generated files
 .DS_Store

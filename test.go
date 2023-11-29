@@ -50,9 +50,12 @@ func (i TestID) Equal(other TestID) bool {
 	return maps.Equal(i, other)
 }
 
-// String returns a canonical version of the Test ID in the form:
-// [K=V ...] with key/value pairs sorted by their keys.
+// String returns the Test ID in the form: [K=V ...] with key/value pairs
+// sorted by their keys. If TestID is empty, the string "[test]" is returned.
 func (i TestID) String() string {
+	if len(i) == 0 {
+		return "[test]"
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "[")
 	kk := make([]string, 0, len(i))

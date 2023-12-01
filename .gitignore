@@ -14,6 +14,7 @@ examples/**/*.pcap
 examples/**/*.txt
 examples/**/*.bin
 examples/**/results/
+examples/fct.cue
 examples/fct/fct.cue
 
 # node/bin directory

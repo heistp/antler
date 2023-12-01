@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: GPL-3.0
+// Copyright 2023 Pete Heist
+
+package examples
+
+// _fct runs a series of short TCP flows from the left to the right endpoint.
+// Flow arrival times use an exponential distribution, and flow lengths are
+// on a lognormal distribution with P5 of 64K and P95 of 2M. The selected flow
+// CCA alternates between TCP CUBIC and TCP BBR. The middlebox has a single
+// queue CAKE qdisc at 100 Mbps.
+_fct: {
+	// _rtt is the path RTT, in milliseconds
+	_rtt: 20
+	
+	// _qdisc is the qdisc to apply
+	_qdisc: "cake bandwidth 100Mbit flowblind"
+
+	// _ccas are the Congestion Control Algorithms
+	_ccas: {
+		"0": "cubic"
+		"1": "bbr"
+	}
+
+	Test: {
+		ID: {
+			name: "fct"
+		}
+		// NOTE: raw string constant in ResultPrefix is so we can set a Go
+		// template without it being interpreted in the conversion from .tmpl
+		// to .cue.
+		ResultPrefix: "{{`{{.name}}_`}}"
+		Serial: [
+			_rig.setup,
+			_server,
+			_do,
+		]
+	}
+
+	Report: [
+	    {Analyze: {}},
+	 	{ChartsFCT: {
+			To: ["fct.html"]
+			Series: [
+				{Name: "CUBIC", Pattern: "cubic.*"},
+				{Name: "BBR", Pattern: "bbr.*"},
+			]
+			Options: {
+				title: "CUBIC vs BBR Short Flow Competition | \(_qdisc) | \(_rtt)ms Path RTT"
+			}
+		}},
+	]
+
+	// _rig defines the dumbbell Test setup.
+	_rig: _dumbbell & {
+		serverAddr: "\(right.addr):777"
+		left: post: [
+			"sysctl -w net.ipv4.tcp_ecn=1",
+			"modprobe tcp_bbr",
+		]
+		mid: post: [
+			"tc qdisc add dev mid.l root netem delay \(_rtt/2)ms limit 1000000",
+			"ip link add dev imid.l type ifb",
+			"tc qdisc add dev imid.l root handle 1: netem delay \(_rtt/2)ms limit 1000000",
+			"tc qdisc add dev mid.l handle ffff: ingress",
+			"ip link set dev imid.l up",
+			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
+			"tc qdisc add dev mid.r root \(_qdisc)",
+		]
+		right: post: [
+		]
+	}
+
+	// _server runs StreamServer in the right namespace
+	_server: {
+		Child: {
+			Node: _rig.right.node
+			Serial: [
+				_tcpdump & {_iface:         "right.l"},
+				{StreamServer: {ListenAddr: _rig.serverAddr}},
+			]
+		}
+	}
+
+	// _do runs the test using two StreamClients
+	_do: {
+		Child: {
+			Node: _rig.left.node
+			Serial: [
+				_tcpdump & {_iface:         "left.r"},
+				{Sleep: "1s"},
+				{Schedule: {
+					Wait: {{expRandDuration "50ms" 1200 1.0}}
+					Run: [
+						for i, l in {{lognRandBytes 1200 65536 2097152}}
+							let cca = _ccas["\(i mod 2)"]
+							{StreamClient: {
+								Addr: _rig.serverAddr
+								Upload: {
+									Flow: "\(cca).\(i+1)"
+									CCA: cca
+									Length: l
+									IOSampleInterval: "\(_rtt*4)ms"
+								}
+							}}
+					]
+				}},
+				{Sleep: "1s"},
+			]
+		}
+	}
+}

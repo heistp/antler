@@ -14,5 +14,6 @@ Run: {
 		_ratedrop,
 		_iperf3,
 		_vbrudp,
+		_fct,
 	]
 }

@@ -12,5 +12,6 @@ Run: {
 	Serial: [
 		_tcpstream,
 		_ratedrop,
+		_iperf3,
 	]
 }

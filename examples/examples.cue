@@ -11,5 +11,6 @@ package examples
 Run: {
 	Serial: [
 		_tcpstream,
+		_ratedrop,
 	]
 }

@@ -7,15 +7,8 @@
 .exrc
 
 # examples output
-examples/**/*.gob
-examples/**/*.html
-examples/**/*.log
-examples/**/*.pcap
-examples/**/*.txt
-examples/**/*.bin
-examples/**/results/
+examples/results/
 examples/fct.cue
-examples/fct/fct.cue
 
 # node/bin directory
 node/bin/

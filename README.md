@@ -35,38 +35,35 @@ congestion control projects in the IETF.
   combinations, config schema definition, data validation and config reuse
 * embedded web server to serve results
 
-## Examples
-
-| Example                     | Plot            |
-| --------------------------- | --------------- |
-| [fct](examples/fct/fct.cue.tmpl) | [fct](https://www.heistp.net/downloads/antler/examples/fct/fct.html) |
-| [ratedrop](examples/ratedrop/ratedrop.cue) | [timeseries](https://www.heistp.net/downloads/antler/examples/ratedrop/timeseries.html) |
-| [tcpstream](examples/tcpstream/tcpstream.cue) | [timeseries](https://www.heistp.net/downloads/antler/examples/tcpstream/timeseries.html) |
-| [vbrudp](examples/vbrudp/vbrudp.cue) | [timeseries](https://www.heistp.net/downloads/antler/examples/vbrudp/timeseries.html) |
-
-To run the examples yourself, e.g.:
-```
-cd examples/tcpstream
-sudo antler run
-```
-
-All configuration is in the .cue or .cue.tmpl files. Root access is required for
-any examples that need to create network namespaces.
-
-The antler binary must be in your PATH, or the full path must be specified.
-Typically, you add ~/go/bin to your PATH so you can run binaries installed by
-Go. *Note:* if using sudo and the `secure_path` option is set in /etc/sudoers,
-either this must be added to that path, or additional configuration is required.
-
 ## Installation
 
-1. Install [Go](https://go.dev/) (currently 1.21 or later required).
+1. Install [Go](https://go.dev/dl) (1.21 or later required).
 2. `cd`
 3. `mkdir -p go/src/github.com/heistp`
 4. `cd go/src/github.com/heistp`
 5. `git clone https://github.com/heistp/antler`
 6. `cd antler`
 7. `make` (builds node binaries, installs antler command)
+
+The antler binary must be in your PATH, or the full path must be specified.
+Typically, you add ~/go/bin to your PATH so you can run binaries installed by
+Go. *Note:* if using sudo and the `secure_path` option is set in /etc/sudoers,
+either this must be added to that path, or additional configuration is required.
+
+## Examples
+
+The examples output is available online 
+[here](https://www.heistp.net/antler/examples/latest), where you can view the
+HTML plots and log files.
+
+To run the examples yourself (root required for network namespaces):
+```
+cd examples
+sudo antler run
+```
+
+All configuration is in the .cue or .cue.tmpl files, and the output is written
+to the results directory.
 
 ## Documentation
 

@@ -14,6 +14,6 @@ _tcpdump: {
 	System: {
 		Command:    "tcpdump -i \(_iface) -s \(_snaplen) -w -"
 		Background: true
-		Stdout:     "\(_iface).pcap"
+		Stdout:     "\(_iface).pcap.zst"
 	}
 }

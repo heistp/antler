@@ -155,12 +155,13 @@ Server: #Server
 //
 // ID is a compound identifier for the Test. It must uniquely identify the Test
 // within the package, and its keys and values must match _IDregex. ID is not
-// required for a single Test.
+// required for a single Test, as a default of {"test": "single"} is used.
 //
 // ResultPrefix is the base path for any output files. It may use Go template
 // syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
 // template as its data. Any path separators (e.g. '/') in the string generated
-// by the template will result in the creation of directories.
+// by the template will result in the creation of directories. ResultPrefix must
+// be unique for each Test, and may be empty for a single Test.
 //
 // DataFile sets the name suffix of the gob output file used to save the raw
 // result data (by default, "data.gob"). If empty, it will not be saved. In
@@ -181,9 +182,15 @@ Server: #Server
 // report command, in parallel with the pipeline in TestRun.Report.
 #Test: {
 	_IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
-	ID: [string & =~_IDregex]: string & =~_IDregex
-	ResultPrefix: string & !="" | *"{{range $v := .}}{{$v}}_{{end}}"
-	DataFile:     string | *"data.gob"
+	_DefaultID: {test: "single"}
+	ID: {
+		[string & =~_IDregex]: string & =~_IDregex
+	} | *_DefaultID
+	ResultPrefix?: string
+	if ID != _DefaultID {
+		ResultPrefix: string | *"{{range $v := .}}{{$v}}_{{end}}"
+	}
+	DataFile: string | *"data.gob"
 	#Run
 	During: [...#Report] | *[
 		{SaveFiles: {Consume: true}},

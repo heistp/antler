@@ -25,6 +25,7 @@ and this project adheres to
 - Remove conn.Close and simplify connection closure
 - Rename node.NodeID to node.ID to reduce stutter
 - Rename Test.OutputPrefix to Test.ResultPrefix
+- Make default Test ID `{"test": "single"}`
 - Move SCE tests to [sce-tests](https://github.com/heistp/sce-tests) repo
 - Combine examples into one CUE package and deploy to public server
 

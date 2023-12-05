@@ -88,7 +88,6 @@ formats, and supporting platforms other than Linux.
 - enhance stream server protocol to ensure streams have completed
 - add runner duration and use that to implement timeouts
 - add an antler _init_ command to create a default project
-- add support for setting arbitary sockopts
 - write documentation (in markdown)
 
 ### Version 0.6.0
@@ -114,9 +113,8 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- combine Antler examples into one package, to share common setup
-- build Antler examples to a public server and remove from README
 - include git tags in kernel and Antler versions, and record in results
+- add support for setting arbitrary sockopts
 
 #### Bugs
 

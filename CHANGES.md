@@ -26,6 +26,7 @@ and this project adheres to
 - Rename node.NodeID to node.ID to reduce stutter
 - Rename Test.OutputPrefix to Test.ResultPrefix
 - Move SCE tests to [sce-tests](https://github.com/heistp/sce-tests) repo
+- Combine examples into one CUE package and deploy to public server
 
 ### Fixed
 

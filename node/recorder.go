@@ -3,11 +3,6 @@
 
 package node
 
-import (
-	"fmt"
-	"time"
-)
-
 // recorder is a helper used for logging, recording data points and creating
 // Error's. recorder must be created using newRecorder, and is safe for
 // concurrent use.
@@ -15,6 +10,7 @@ type recorder struct {
 	nodeID ID
 	tag    string
 	parent *conn
+	LogFactory
 	ErrorFactory
 }
 
@@ -24,6 +20,7 @@ func newRecorder(nodeID ID, tag string, parent *conn) *recorder {
 		nodeID,
 		tag,
 		parent,
+		LogFactory{nodeID, tag},
 		ErrorFactory{nodeID, tag},
 	}
 }
@@ -34,21 +31,19 @@ func (r *recorder) WithTag(tag string) *recorder {
 		r.nodeID,
 		tag,
 		r.parent,
+		LogFactory{r.nodeID, tag},
 		ErrorFactory{r.nodeID, tag},
 	}
 }
 
 // Logf sends a LogEntry using printf style args.
 func (r *recorder) Logf(format string, a ...any) {
-	t := time.Now()
-	m := fmt.Sprintf(format, a...)
-	r.Send(LogEntry{t, r.nodeID, r.tag, m})
+	r.Send(r.NewLogEntryf(format, a...))
 }
 
 // Log sends a LogEntry with the given message.
 func (r *recorder) Log(message string) {
-	t := time.Now()
-	r.Send(LogEntry{t, r.nodeID, r.tag, message})
+	r.Send(r.NewLogEntry(message))
 }
 
 // FileData sends a FileData.

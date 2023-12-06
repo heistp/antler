@@ -49,3 +49,22 @@ func (l LogEntry) String() string {
 	return fmt.Sprintf("%s %s %s: %s", l.Time.Format(logTimeFormat),
 		l.NodeID, l.Tag, t)
 }
+
+// LogFactory provides methods to create and return LogEntry's.
+type LogFactory struct {
+	nodeID ID     // the LogEntry's NodeID
+	tag    string // the LogEntry's Tag
+}
+
+// NewLogEntry returns a new LogEntry with the given message.
+func (f LogFactory) NewLogEntry(message string) LogEntry {
+	t := time.Now()
+	return LogEntry{t, f.nodeID, f.tag, message}
+}
+
+// NewLogEntryf returns a LogEntry with its Message formatted with printf style
+// args.
+func (f LogFactory) NewLogEntryf(format string, a ...any) LogEntry {
+	t := time.Now()
+	return LogEntry{t, f.nodeID, f.tag, fmt.Sprintf(format, a...)}
+}

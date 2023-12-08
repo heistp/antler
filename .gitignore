@@ -6,8 +6,8 @@
 .tags
 .exrc
 
-# examples output
-examples/results/
+# examples and tests output
+**/results/
 examples/fct.cue
 
 # node/bin directory

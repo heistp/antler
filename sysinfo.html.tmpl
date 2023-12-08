@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  margin: 1em;
+}
+pre {
+  white-space: pre-wrap;
+}
+</style>
+</head>
+<body>
+
+<h2>System Information</h2>
+
+<p>
+<table>
+  <tr>
+    <td><i>Node ID</i></td>
+    <td>{{.NodeID}}</td>
+  </tr>
+  <tr>
+    <td><i>Hostname</i></td>
+    <td>{{.Hostname}}</td>
+  </tr>
+  <tr>
+    <td><i>Go Version</i></td>
+    <td>{{.GoVersion}}</td>
+  </tr>
+  <tr>
+    <td><i>Go OS/Arch</i></td>
+    <td>{{.GoOS}}/{{.GoArch}}</td>
+  </tr>
+  <tr>
+    <td><i>NumCPU</i></td>
+    <td>{{.NumCPU}}</td>
+  </tr>
+</table>
+</p>
+
+<h3>Commands</h3>
+{{range $k, $v := .Command}}
+<p><i># {{$v.String}}</i></p>
+<pre>{{printf "%s" $v.Out}}</pre>
+{{end}}
+
+<h3>Files</h3>
+{{range $k, $v := .File}}
+<p><u>{{$v.Name}}</u></p>
+<pre>{{printf "%s" $v.Data}}</pre>
+{{end}}
+
+{{if len .Env}}
+<h3>Environment</h3>
+<p>
+<table>
+{{range $k, $v := .Env}}
+  <tr>
+    <td><i>{{$k}}</i></td>
+    <td>{{$v}}</td>
+  </tr>
+{{end}}
+</table>
+</p>
+{{end}}
+
+{{if len .Sysctl}}
+<h3>Sysctl</h3>
+<p>
+<pre>
+{{range $k, $v := .Sysctl -}}
+{{$k}} = {{$v}}
+{{end}}
+</pre>
+</p>
+{{end}}
+
+</body>
+</html>

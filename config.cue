@@ -211,6 +211,8 @@ Server: #Server
 	} | {
 		EmitLog?: #EmitLog
 	} | {
+		EmitSysInfo?: #EmitSysInfo
+	} | {
 		ChartsTimeSeries?: #ChartsTimeSeries
 	} | {
 		ChartsFCT?: #ChartsFCT
@@ -251,8 +253,18 @@ Server: #Server
 // If Sort is true, logs are first gathered, then emitted sorted by time when
 // the pipeline stage EmitLog runs in completes.
 #EmitLog: {
-	To?: [string & !="", ...string & !=""]
+	To:    [string & !="", ...string & !=""] | *["-"]
 	Sort?: bool
+}
+
+// antler.EmitSysInfo is a report that emits system information. Multiple
+// destinations may be listed in To, either filenames, or the '-' character for
+// stdout. Filenames may contain a single %s verb, which is replaced by the
+// Node ID the system information is for.
+//
+// By default, logs are emitted to sysinfo_%s.html.
+#EmitSysInfo: {
+	To: [string & !="", ...string & !=""] | *["sysinfo_%s.html"]
 }
 
 // antler.ChartsTimeSeries runs a Go template to create a time series plot
@@ -555,6 +567,8 @@ Server: #Server
 	} | {
 		ResultStream?: #ResultStream
 	} | {
+		SysInfo?: #SysInfo
+	} | {
 		System?: #System
 	} | {
 		PacketClient?: #PacketClient
@@ -606,6 +620,30 @@ Server: #Server
 	Log?:  bool
 	Flow?: #Flow
 	All?:  bool
+}
+
+// node.SysInfo gathers system information. See the Go documentation in
+// node/sysinfo.go for explanations of each field.
+#SysInfo: {
+	Command?: [...#SysInfoCommand]
+	File?: [...#SysInfoFile]
+	Env?: [...string & !=""]
+	Sysctl?: [...string & !=""]
+}
+
+// node.SysInfoCommand contains the info needed to gather system information
+// from the output of a system command.
+#SysInfoCommand: {
+	Command?: string & !=""
+	Arg?: [string, ...string]
+	Key?: string & !=""
+}
+
+// node.SysInfoFile contains the info needed to gather system information
+// from a file.
+#SysInfoFile: {
+	Name: string & !=""
+	Key?: string & !=""
 }
 
 // node.System is a system command Runner. See the Go documentation in

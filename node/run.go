@@ -252,6 +252,7 @@ type Runners struct {
 	ResultStream *ResultStream
 	Setup        *setup
 	Sleep        *Sleep
+	SysInfo      *SysInfo
 	System       *System
 	StreamClient *StreamClient
 	StreamServer *StreamServer
@@ -268,6 +269,8 @@ func (r *Runners) runner() runner {
 		return r.Setup
 	case r.Sleep != nil:
 		return r.Sleep
+	case r.SysInfo != nil:
+		return r.SysInfo
 	case r.System != nil:
 		return r.System
 	case r.StreamClient != nil:

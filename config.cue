@@ -251,7 +251,7 @@ Server: #Server
 // listed in To, either filenames, or the '-' character for stdout.
 //
 // If Sort is true, logs are first gathered, then emitted sorted by time when
-// the pipeline stage EmitLog runs in completes.
+// the pipeline stage (that EmitLog runs in) completes.
 #EmitLog: {
 	To:    [string & !="", ...string & !=""] | *["-"]
 	Sort?: bool

@@ -27,7 +27,7 @@ type EmitLog struct {
 // report implements reporter
 func (l *EmitLog) report(ctx context.Context, in <-chan any, out chan<- any,
 	rw rwer) (err error) {
-	ww := []io.WriteCloser{stdoutWriter{}}
+	var ww []io.WriteCloser
 	defer func() {
 		for _, w := range ww {
 			if e := w.Close(); e != nil && err == nil {
@@ -35,11 +35,8 @@ func (l *EmitLog) report(ctx context.Context, in <-chan any, out chan<- any,
 			}
 		}
 	}()
-	if len(l.To) > 0 {
-		ww = ww[:0]
-		for _, s := range l.To {
-			ww = append(ww, rw.Writer(s))
-		}
+	for _, s := range l.To {
+		ww = append(ww, rw.Writer(s))
 	}
 	emit := func(y node.LogEntry) error {
 		for _, w := range ww {

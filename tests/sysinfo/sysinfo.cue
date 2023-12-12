@@ -9,14 +9,20 @@ Run: {
 	Test: {
 		// SysInfo gathers system information.
 		SysInfo: {
+			OSVersion: {
+				Command: {Command: "uname -a"}
+			}
+			KernSrcInfo: {
+				Command: {Command: "git -C /home/heistp/src/linux/sce show --summary"}
+			}
+			KernSrcVer: {
+				Command: {Command: "git -C /home/heistp/src/linux/sce show HEAD --pretty=format:%h --no-patch"}
+			}
 			Command: [
-				{Command: "uname -a"},
-				{Command: "git -C /home/heistp/src/linux/sce show --summary"},
+				{Command: "lscpu"},
 			]
 			File: [
-				{Name: "/proc/cmdline"},
-				{Name: "/proc/cpuinfo"},
-				{Name: "/proc/version"},
+				"/proc/cmdline",
 			]
 			Sysctl: [
 				"^net\\.core\\.",

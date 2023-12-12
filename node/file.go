@@ -6,6 +6,7 @@ package node
 import (
 	"encoding/gob"
 	"fmt"
+	"strings"
 )
 
 // FileData contains a chunk of binary data to be saved in a file.
@@ -27,6 +28,11 @@ func (FileData) flags() flag {
 // handle implements event
 func (f FileData) handle(node *node) {
 	node.parent.Send(f)
+}
+
+// Trim returns Data as a string, with whitespace trimmed.
+func (f FileData) Trim() string {
+	return strings.TrimSpace(string(f.Data))
 }
 
 func (f FileData) String() string {

@@ -24,6 +24,12 @@ pre {
     <td><i>Hostname</i></td>
     <td>{{.Hostname}}</td>
   </tr>
+{{if .OSVersion}}
+  <tr>
+    <td><i>OS Version</i></td>
+    <td>{{.OSVersion}}</td>
+  </tr>
+{{end}}
   <tr>
     <td><i>Go Version</i></td>
     <td>{{.GoVersion}}</td>
@@ -39,10 +45,19 @@ pre {
 </table>
 </p>
 
+{{if .KernSrcInfo}}
+<h3>Kernel Source Info</h3>
+<pre>
+{{.KernSrcInfo}}
+</pre>
+{{end}}
+
+{{if len .Command}}
 <h3>Commands</h3>
 {{range $k, $v := .Command}}
 <p><i># {{$v.String}}</i></p>
-<pre>{{printf "%s" $v.Out}}</pre>
+<pre>{{$v.Trim}}</pre>
+{{end}}
 {{end}}
 
 <h3>Files</h3>

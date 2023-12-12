@@ -625,11 +625,49 @@ Server: #Server
 // node.SysInfo gathers system information. See the Go documentation in
 // node/sysinfo.go for explanations of each field.
 #SysInfo: {
-	Command?: [...#SysInfoCommand]
-	File?: [...#SysInfoFile]
-	Env?: [...string & !=""]
-	Sysctl?: [...string & !=""]
+	OSVersion?:   #Texters
+	KernSrcInfo?: #Texters
+	KernSrcVer?:  #Texters
+	Command?: [...#Command]
+	File?: [...#File]
+	Env?:    #EnvVars
+	Sysctl?: #Sysctls
 }
+
+// node.Texters lists the available Texter implementations.
+#Texters: {
+	{} | {
+		Command?: #Command
+	} | {
+		File?: #File
+	} | {
+		EnvVar?: #EnvVar
+	} | {
+		Sysctl?: #Sysctl
+	}
+}
+
+// node.Command represents the information needed to run a system command, and
+// implements Texter.
+#Command: {
+	Command?: string & !=""
+	Arg?: [string, ...string]
+}
+
+// node.File represents a file name, and implements Texter.
+#File: string & !=""
+
+// node.EnvVar represents an environment variable name, and implements Texter.
+#EnvVar: string & !=""
+
+// node.EnvVars represents a list of patterns of environment variable names.
+#EnvVars: [...string & !=""]
+
+// node.Sysctl represents a sysctl parameter name, and implements Texter.
+#Sysctl: string & !=""
+
+// node.Sysctls represents a list of patterns of sysctl parameter names.
+#Sysctls: [...string & !=""]
 
 // node.SysInfoCommand contains the info needed to gather system information
 // from the output of a system command.

@@ -138,8 +138,7 @@ func (s *SysInfoData) gather(ctx context.Context, info SysInfo) (err error) {
 		m := c.CmdContext(ctx)
 		var o []byte
 		if o, err = m.CombinedOutput(); err != nil {
-			err = fmt.Errorf("%s: %w\n%s", m.String(), err,
-				strings.TrimSpace(string(o)))
+			err = CommandError{err, m.String(), o}
 			return
 		}
 		s.Command[m.String()] = CommandOutput{o, m.String()}
@@ -241,12 +240,31 @@ func (c Command) Param() (name string, arg []string) {
 // Text implements Texter
 func (c Command) Text(ctx context.Context) (txt string, err error) {
 	m := c.CmdContext(ctx)
-	var b []byte
-	if b, err = m.CombinedOutput(); err != nil {
+	var o []byte
+	if o, err = m.CombinedOutput(); err != nil {
+		err = CommandError{err, m.String(), o}
 		return
 	}
-	txt = strings.TrimSpace(string(b))
+	txt = strings.TrimSpace(string(o))
 	return
+}
+
+// CommandError wraps an error after executing a command to provide more
+// detailed output.
+type CommandError struct {
+	Err     error
+	Command string
+	Out     []byte
+}
+
+func (c CommandError) Error() string {
+	return fmt.Sprintf("%s: %s\n%s", c.Command, c.Err,
+		strings.TrimSpace(string(c.Out)))
+}
+
+// Unwrap returns the inner error, for errors.Is/As.
+func (c CommandError) Unwrap() error {
+	return c.Err
 }
 
 // File represents a file name, and implements Texter to retrieve its data as

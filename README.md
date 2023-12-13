@@ -113,12 +113,7 @@ formats, and supporting platforms other than Linux.
 
 #### Features
 
-- include git tags in kernel and Antler versions, and record in results
 - add support for setting arbitrary sockopts
-
-#### Bugs
-
-- improve poor error messages from CUE, especially under disjunctions
 
 ### Inbox
 
@@ -149,6 +144,10 @@ formats, and supporting platforms other than Linux.
 - improve semantics for System.Stdout and Stderr
 - find a better way than unions to create interface implementations from CUE
 - consider moving all FileData to gob, for consistency with encoding
+
+#### Bugs
+
+- improve poor error messages from CUE, especially under disjunctions
 
 ## Thanks
 

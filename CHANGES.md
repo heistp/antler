@@ -17,6 +17,8 @@ and this project adheres to
 - Write test results non-destructively and atomically
 - Validate ResultPrefixes are unique
 - Add embedded web server to serve results (`server` command)
+- Implement system information (`SysInfo`), with source code tags, commands,
+  files, environment variables and sysctls
 
 ### Changed
 

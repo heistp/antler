@@ -198,6 +198,7 @@ Server: #Server
 	]
 	Report: [...#Report] | *[
 		{EmitLog: {To: ["node.log"], Sort: true}},
+		{EmitSysInfo: {}},
 	]
 }
 

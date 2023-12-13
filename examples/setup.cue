@@ -10,6 +10,30 @@ _platform: "linux-amd64"
 // _stream selects what is streamed from nodes during tests.
 _stream: {ResultStream: Include: Log: true}
 
+// _sysinfo selects what system information is retrieved.
+_sysinfo: {
+	// SysInfo gathers system information.
+	SysInfo: {
+		OSVersion: {
+			Command: {Command: "uname -a"}
+		}
+		Command: [
+			{Command: "lscpu"},
+			{Command: "lshw -sanitize"},
+		]
+		File: [
+			"/proc/cmdline",
+			"/sys/devices/system/clocksource/clocksource0/available_clocksource",
+			"/sys/devices/system/clocksource/clocksource0/current_clocksource",
+		]
+		Sysctl: [
+			"^net\\.core\\.",
+			"^net\\.ipv4\\.tcp_",
+			"^net\\.ipv4\\.udp_",
+		]
+	}
+}
+
 // _offloads contains the ethtool arguments for offloads config.
 _offloads: "rx off tx off sg off tso off gso off gro off rxvlan off txvlan off"
 
@@ -27,6 +51,7 @@ _dumbbell: {
 	setup: {
 		Serial: [
 			_stream,
+			_sysinfo,
 			for n in [ right, mid, left] {
 				Child: {
 					Node: n.node

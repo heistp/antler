@@ -13,7 +13,10 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
+
+	"github.com/heistp/antler/version"
 )
 
 // SysInfo gathers system information.
@@ -53,19 +56,22 @@ func (s SysInfo) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 
 // SysInfoData is a data object containing system information.
 type SysInfoData struct {
-	NodeID      ID                       // the ID of the Node the data comes from
-	Hostname    string                   // hostname from os.Hostname()
-	GoVersion   string                   // Go version from runtime.Version()
-	GoOS        string                   // Go OS from runtime.GOOS
-	GoArch      string                   // Go Arch from runtime.GOARCH
-	NumCPU      int                      // number of CPUs from runtime.NumCPU()
-	OS          string                   // OS name / version
-	KernSrcInfo string                   // kernel source info
-	KernSrcVer  string                   // kernel source version
-	Command     map[string]CommandOutput // map of command key to output
-	File        map[string]FileData      // map of file key to data
-	Env         map[string]string        // map of environment var name to value
-	Sysctl      map[string]string        // map of sysctl params name to value
+	NodeID         ID                       // the ID of the Node the data comes from
+	Hostname       string                   // hostname from os.Hostname()
+	GoVersion      string                   // Go version from runtime.Version()
+	GoOS           string                   // Go OS from runtime.GOOS
+	GoArch         string                   // Go Arch from runtime.GOARCH
+	NumCPU         int                      // number of CPUs from runtime.NumCPU()
+	GoBuildVersion string                   // BuildInfo.GoVersion
+	BuildSetting   map[string]string        // BuildInfo.Setting
+	AntlerVersion  string                   // Antler version from version.Version
+	OS             string                   // OS name / version
+	KernSrcInfo    string                   // kernel source info
+	KernSrcVer     string                   // kernel source version
+	Command        map[string]CommandOutput // map of command key to output
+	File           map[string]FileData      // map of file key to data
+	Env            map[string]string        // map of environment var name to value
+	Sysctl         map[string]string        // map of sysctl params name to value
 }
 
 // CommandOutput contains the result of executing a command.
@@ -82,11 +88,12 @@ func (c CommandOutput) Trim() string {
 // newSysInfoData returns a new SysInfoData.
 func newSysInfoData(nodeID ID) SysInfoData {
 	return SysInfoData{
-		NodeID:  nodeID,
-		Command: make(map[string]CommandOutput),
-		File:    make(map[string]FileData),
-		Env:     make(map[string]string),
-		Sysctl:  make(map[string]string),
+		NodeID:       nodeID,
+		BuildSetting: make(map[string]string),
+		Command:      make(map[string]CommandOutput),
+		File:         make(map[string]FileData),
+		Env:          make(map[string]string),
+		Sysctl:       make(map[string]string),
 	}
 }
 
@@ -115,6 +122,17 @@ func (s *SysInfoData) gather(ctx context.Context, info SysInfo) (err error) {
 	s.GoOS = runtime.GOOS
 	s.GoArch = runtime.GOARCH
 	s.NumCPU = runtime.NumCPU()
+
+	// Antler info
+	s.AntlerVersion = version.Version()
+
+	// Build info
+	if i, ok := debug.ReadBuildInfo(); ok {
+		s.GoBuildVersion = i.GoVersion
+		for _, g := range i.Settings {
+			s.BuildSetting[g.Key] = g.Value
+		}
+	}
 
 	// fixed fields
 	if t := info.OS.texter(); t != nil {

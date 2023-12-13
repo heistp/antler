@@ -16,6 +16,7 @@ import (
 	"cuelang.org/go/cue/errors"
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler"
+	"github.com/heistp/antler/version"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,7 @@ func root() (cmd *cobra.Command) {
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
 	cmd.AddCommand(server())
-	cmd.Version = antler.Version
+	cmd.Version = version.Version()
 	return
 }
 

@@ -26,6 +26,10 @@ pre {
     <td>{{.OS}}</td>
   </tr>
 {{end}}
+  <tr>
+    <td><i>Antler Version</i></td>
+    <td>{{.AntlerVersion}}</td>
+  </tr>
 </table>
 </p>
 
@@ -34,18 +38,22 @@ pre {
 <ol>
   <li><a href="#Kernel_Source">Kernel Source</a></li>
   <li><a href="#Go">Go</a></li>
+  <ol type="a">
+    <li><a href="#GoRuntime">Runtime</a></li>
+    <li><a href="#GoBuild">Build</a></li>
+  </ol>
   <li><a href="#Commands">Commands</a></li>
   <ol type="a">
-{{range $v := .Command}}
-<li><a href="#command_{{$v.String}}">{{$v.String}}</a></li>
-{{end}}
+    {{range $v := .Command}}
+    <li><a href="#command_{{$v.String}}">{{$v.String}}</a></li>
+    {{end}}
   </ol>
   <li><a href="#Files">Files</a></li>
-<ol type="a">
-{{range $v := .File}}
-<li><a href="#file_{{$v.Name}}">{{$v.Name}}</a></li>
-{{end}}
-</ol>
+  <ol type="a">
+    {{range $v := .File}}
+    <li><a href="#file_{{$v.Name}}">{{$v.Name}}</a></li>
+    {{end}}
+  </ol>
   <li><a href="#Environment">Environment</a></li>
   <li><a href="#Sysctls">Sysctls</a></li>
 </ol>
@@ -56,6 +64,8 @@ pre {
 </pre>
 
 <h3 id="Go">Go</h3>
+
+<p id="GoRuntime"><u>Runtime</u></p>
 
 <p>
 <table>
@@ -73,6 +83,21 @@ pre {
   </tr>
 </table>
 </p>
+
+<p id="GoBuild"><u>Build</u></p>
+
+<table>
+  <tr>
+    <td><i>Build Version</i></td>
+    <td>{{.GoBuildVersion}}</td>
+  </tr>
+{{range $k, $v := .BuildSetting}}
+  <tr>
+    <td><i>{{$k}}</i></td>
+    <td>{{$v}}</td>
+  </tr>
+{{end}}
+</table>
 
 <h3 id="Commands">Commands</h3>
 {{range $k, $v := .Command}}

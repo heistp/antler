@@ -20,9 +20,12 @@ Run: {
 			//}
 			Command: [
 				{Command: "lscpu"},
+				{Command: "lshw -sanitize"},
 			]
 			File: [
 				"/proc/cmdline",
+				"/sys/devices/system/clocksource/clocksource0/available_clocksource",
+				"/sys/devices/system/clocksource/clocksource0/current_clocksource",
 			]
 			Sysctl: [
 				"^net\\.core\\.",

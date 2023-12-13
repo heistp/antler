@@ -626,7 +626,7 @@ Server: #Server
 // node.SysInfo gathers system information. See the Go documentation in
 // node/sysinfo.go for explanations of each field.
 #SysInfo: {
-	OSVersion?:   #Texters
+	OS?:          #Texters
 	KernSrcInfo?: #Texters
 	KernSrcVer?:  #Texters
 	Command?: [...#Command]

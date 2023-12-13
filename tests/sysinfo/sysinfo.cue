@@ -9,7 +9,7 @@ Run: {
 	Test: {
 		// SysInfo gathers system information.
 		SysInfo: {
-			OSVersion: {
+			OS: {
 				Command: {Command: "uname -a"}
 			}
 			//KernSrcInfo: {

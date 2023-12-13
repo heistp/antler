@@ -18,8 +18,8 @@ import (
 
 // SysInfo gathers system information.
 type SysInfo struct {
-	// OSVersion is a source that returns the operating system version.
-	OSVersion Texters
+	// OS is a source that returns the operating system name / version.
+	OS Texters
 
 	// KernSrcInfo returns info on the kernel source code.
 	KernSrcInfo Texters
@@ -59,7 +59,7 @@ type SysInfoData struct {
 	GoOS        string                   // Go OS from runtime.GOOS
 	GoArch      string                   // Go Arch from runtime.GOARCH
 	NumCPU      int                      // number of CPUs from runtime.NumCPU()
-	OSVersion   string                   // OS version
+	OS          string                   // OS name / version
 	KernSrcInfo string                   // kernel source info
 	KernSrcVer  string                   // kernel source version
 	Command     map[string]CommandOutput // map of command key to output
@@ -117,8 +117,8 @@ func (s *SysInfoData) gather(ctx context.Context, info SysInfo) (err error) {
 	s.NumCPU = runtime.NumCPU()
 
 	// fixed fields
-	if t := info.OSVersion.texter(); t != nil {
-		if s.OSVersion, err = t.Text(ctx); err != nil {
+	if t := info.OS.texter(); t != nil {
+		if s.OS, err = t.Text(ctx); err != nil {
 			return
 		}
 	}

@@ -11,7 +11,7 @@ Run: {
 		// System is a system command.
 		System: {
 			Command: "bash -c"
-			Args: [ "echo Hello World!"]
+			Arg: [ "echo Hello World!"]
 		}
 
 		// disable saving of gob data

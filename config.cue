@@ -674,8 +674,7 @@ Server: #Server
 // node/system.go for explanations of each field. Often the Command field is
 // all that's required.
 #System: {
-	Command?: string & !=""
-	Args?: [string, ...string]
+	#Command
 	Background?:   bool
 	IgnoreErrors?: bool
 	Stdout?:       string & !=""

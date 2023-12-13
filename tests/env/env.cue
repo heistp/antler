@@ -16,7 +16,7 @@ Run: {
 		}
 		System: {
 			Command: "bash -c"
-			Args: [
+			Arg: [
 				"echo FOO=$FOO FOO2=$FOO2",
 			]
 		}

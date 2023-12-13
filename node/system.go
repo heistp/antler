@@ -19,16 +19,8 @@ import (
 
 // System executes a system command.
 type System struct {
-	// Command is the command to run. The string is split into command name and
-	// arguments using space as a delimiter, with no support for escaping. If
-	// spaces are needed in arguments, use the Args field instead, or in
-	// addition to Command.
-	Command string
-
-	// Args is a slice of arguments for the command. If Command is empty, then
-	// Args[0] is the command name, otherwise the Args slice is appended to the
-	// slice obtained by splitting Command.
-	Args []string
+	// Command is the embedded system command.
+	Command
 
 	// Background indicates whether to run this command in the background (true)
 	// or foreground (false). If true, Run will return as soon as the command is
@@ -69,8 +61,7 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 			err = nil
 		}()
 	}
-	n, a := s.params()
-	c := exec.CommandContext(ctx, n, a...)
+	c := s.CmdContext(ctx)
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("%w (%s)", err, c)
@@ -226,11 +217,68 @@ func (s *System) file(rcl io.ReadCloser, name string, rec *recorder) {
 	}()
 }
 
-// params returns the name and args parameters for exec.
-func (s *System) params() (name string, args []string) {
-	a := strings.Fields(s.Command)
-	a = append(a, s.Args...)
-	name = a[0]
-	args = a[1:]
+// Command represents the information needed to run a system command.
+type Command struct {
+	// Command is the command to run. The string is split into command name and
+	// arguments using space as a delimiter, with no support for escaping. If
+	// spaces are needed in arguments, use the Arg field instead, or in
+	// addition to Command.
+	Command string
+
+	// Arg is a slice of arguments for the command. If Command is empty, then
+	// Arg[0] is the command name, otherwise the Arg slice is appended to the
+	// slice obtained by splitting Command.
+	Arg []string
+}
+
+// Cmd returns an exec.Cmd with name and arg obtained from param().
+func (c Command) Cmd() *exec.Cmd {
+	n, a := c.param()
+	return exec.Command(n, a...)
+}
+
+// CmdContext returns an exec.Command using exec.CommandContext, with name and
+// arg obtained from param().
+func (c Command) CmdContext(ctx context.Context) *exec.Cmd {
+	n, a := c.param()
+	return exec.CommandContext(ctx, n, a...)
+}
+
+// Text implements Texter
+func (c Command) Text(ctx context.Context) (txt string, err error) {
+	m := c.CmdContext(ctx)
+	var o []byte
+	if o, err = m.CombinedOutput(); err != nil {
+		err = CommandError{err, m.String(), o}
+		return
+	}
+	txt = strings.TrimSpace(string(o))
 	return
+}
+
+// param returns the name and arg parameters for exec.
+func (c Command) param() (name string, arg []string) {
+	a := strings.Fields(c.Command)
+	a = append(a, c.Arg...)
+	name = a[0]
+	arg = a[1:]
+	return
+}
+
+// CommandError wraps an error after executing a command to provide more
+// detailed output.
+type CommandError struct {
+	Err     error
+	Command string
+	Out     []byte
+}
+
+func (c CommandError) Error() string {
+	return fmt.Sprintf("%s: %s\n%s", c.Command, c.Err,
+		strings.TrimSpace(string(c.Out)))
+}
+
+// Unwrap returns the inner error, for errors.Is/As.
+func (c CommandError) Unwrap() error {
+	return c.Err
 }

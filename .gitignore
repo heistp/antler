@@ -9,6 +9,7 @@
 # examples and tests output
 **/results/
 examples/fct.cue
+local.cue
 
 # node/bin directory
 node/bin/

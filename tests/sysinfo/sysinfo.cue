@@ -12,12 +12,12 @@ Run: {
 			OSVersion: {
 				Command: {Command: "uname -a"}
 			}
-			KernSrcInfo: {
-				Command: {Command: "git -C /home/heistp/src/linux/sce show --summary"}
-			}
-			KernSrcVer: {
-				Command: {Command: "git -C /home/heistp/src/linux/sce show HEAD --pretty=format:%h --no-patch"}
-			}
+			//KernSrcInfo: {
+			//	Command: {Command: "git -C /usr/local/src/sce show --summary"}
+			//}
+			//KernSrcVer: {
+			//	Command: {Command: "git -C /usr/local/src/sce show HEAD --pretty=format:%h --no-patch"}
+			//}
 			Command: [
 				{Command: "lscpu"},
 			]
@@ -35,8 +35,7 @@ Run: {
 		DataFile: ""
 		// remove default report that writes node.log
 		Report: [
-			{EmitSysInfo: {
-			}},
+			{EmitSysInfo: {}},
 		]
 	}
 }

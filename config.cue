@@ -670,21 +670,6 @@ Server: #Server
 // node.Sysctls represents a list of patterns of sysctl parameter names.
 #Sysctls: [...string & !=""]
 
-// node.SysInfoCommand contains the info needed to gather system information
-// from the output of a system command.
-#SysInfoCommand: {
-	Command?: string & !=""
-	Arg?: [string, ...string]
-	Key?: string & !=""
-}
-
-// node.SysInfoFile contains the info needed to gather system information
-// from a file.
-#SysInfoFile: {
-	Name: string & !=""
-	Key?: string & !=""
-}
-
 // node.System is a system command Runner. See the Go documentation in
 // node/system.go for explanations of each field. Often the Command field is
 // all that's required.

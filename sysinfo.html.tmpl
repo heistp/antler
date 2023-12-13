@@ -12,30 +12,59 @@ pre {
 </head>
 <body>
 
-<h2>System Information</h2>
+<h2>System Information for {{.NodeID}}</h2>
 
 <p>
 <table>
-  <tr>
-    <td><i>Node ID</i></td>
-    <td>{{.NodeID}}</td>
-  </tr>
   <tr>
     <td><i>Hostname</i></td>
     <td>{{.Hostname}}</td>
   </tr>
 {{if .OSVersion}}
   <tr>
-    <td><i>OS Version</i></td>
+    <td><i>OS</i></td>
     <td>{{.OSVersion}}</td>
   </tr>
 {{end}}
+</table>
+</p>
+
+<h3>Contents</h3>
+
+<ol>
+  <li><a href="#Kernel_Source">Kernel Source</a></li>
+  <li><a href="#Go">Go</a></li>
+  <li><a href="#Commands">Commands</a></li>
+  <ol type="a">
+{{range $v := .Command}}
+<li><a href="#command_{{$v.String}}">{{$v.String}}</a></li>
+{{end}}
+  </ol>
+  <li><a href="#Files">Files</a></li>
+<ol type="a">
+{{range $v := .File}}
+<li><a href="#file_{{$v.Name}}">{{$v.Name}}</a></li>
+{{end}}
+</ol>
+  <li><a href="#Environment">Environment</a></li>
+  <li><a href="#Sysctls">Sysctls</a></li>
+</ol>
+
+<h3 id="Kernel_Source">Kernel Source</h3>
+<pre>
+{{.KernSrcInfo}}
+</pre>
+
+<h3 id="Go">Go</h3>
+
+<p>
+<table>
   <tr>
-    <td><i>Go Version</i></td>
+    <td><i>Version</i></td>
     <td>{{.GoVersion}}</td>
   </tr>
   <tr>
-    <td><i>Go OS/Arch</i></td>
+    <td><i>OS/Arch</i></td>
     <td>{{.GoOS}}/{{.GoArch}}</td>
   </tr>
   <tr>
@@ -45,29 +74,19 @@ pre {
 </table>
 </p>
 
-{{if .KernSrcInfo}}
-<h3>Kernel Source Info</h3>
-<pre>
-{{.KernSrcInfo}}
-</pre>
-{{end}}
-
-{{if len .Command}}
-<h3>Commands</h3>
+<h3 id="Commands">Commands</h3>
 {{range $k, $v := .Command}}
-<p><i># {{$v.String}}</i></p>
+<p id="command_{{$v.String}}"><i># {{$v.String}}</i></p>
 <pre>{{$v.Trim}}</pre>
 {{end}}
-{{end}}
 
-<h3>Files</h3>
+<h3 id="Files">Files</h3>
 {{range $k, $v := .File}}
-<p><u>{{$v.Name}}</u></p>
+<p id="file_{{$v.Name}}"><u>{{$v.Name}}</u></p>
 <pre>{{printf "%s" $v.Data}}</pre>
 {{end}}
 
-{{if len .Env}}
-<h3>Environment</h3>
+<h3 id="Environment">Environment</h3>
 <p>
 <table>
 {{range $k, $v := .Env}}
@@ -78,10 +97,8 @@ pre {
 {{end}}
 </table>
 </p>
-{{end}}
 
-{{if len .Sysctl}}
-<h3>Sysctl</h3>
+<h3 id="Sysctls">Sysctls</h3>
 <p>
 <pre>
 {{range $k, $v := .Sysctl -}}
@@ -89,7 +106,6 @@ pre {
 {{end}}
 </pre>
 </p>
-{{end}}
 
 </body>
 </html>

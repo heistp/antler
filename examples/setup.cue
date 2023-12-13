@@ -14,7 +14,7 @@ _stream: {ResultStream: Include: Log: true}
 _sysinfo: {
 	// SysInfo gathers system information.
 	SysInfo: {
-		OSVersion: {
+		OS: {
 			Command: {Command: "uname -a"}
 		}
 		Command: [

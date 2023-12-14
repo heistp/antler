@@ -11,22 +11,53 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// setSockoptString sets a string option on a TCP socket.
-func setTCPSockoptString(conn *net.TCPConn, level, opt int, what, value string) (
-	err error) {
+// Sockopt represents the information needed to set a socket option.
+type Sockopt struct {
+	// Type identifies the type of the option, and may be one of "string",
+	// "int" or "byte".
+	Type string
+
+	// Level is the level argument passed to setsockopt().
+	Level int
+
+	// Opt is the option argument passed to setsockopt().
+	Opt int
+
+	// Name is a label for the socket option, used only for debugging purposes.
+	Name string
+
+	// Value is the value to set. For Type string, this must be a string. For
+	// Type int or byte, this must be an int.
+	Value any
+}
+
+// setTCP sets the socket option on the given TCPConn.
+func (s Sockopt) setTCP(conn *net.TCPConn) (err error) {
 	var f *os.File
 	if f, err = conn.File(); err != nil {
 		return
 	}
 	defer f.Close()
-	err = setSockoptString(int(f.Fd()), level, opt, what, value)
+	err = s.set(int(f.Fd()))
 	return
 }
 
-// setSockoptString sets a string socket option.
-func setSockoptString(fd, level, opt int, what, value string) (err error) {
-	if err = unix.SetsockoptString(fd, level, opt, value); err != nil {
-		err = fmt.Errorf("error setting %s to '%s': %w", what, value, err)
+// set sets the socket option on the given file descriptor.
+func (s Sockopt) set(fd int) (err error) {
+	switch s.Type {
+	case "string":
+		err = unix.SetsockoptString(fd, s.Level, s.Opt, s.Value.(string))
+	case "int":
+		err = unix.SetsockoptInt(fd, s.Level, s.Opt, s.Value.(int))
+	case "byte":
+		err = unix.SetsockoptByte(fd, s.Level, s.Opt, byte(s.Value.(int)))
+	default:
+		err = fmt.Errorf("unknown Sockopt Type: '%s'", s.Type)
+	}
+	if err != nil {
+		err = fmt.Errorf(
+			"error setting sockopt %s (level=%d, opt=%d) to '%v': %w",
+			s.Name, s.Level, s.Opt, s.Value, err)
 	}
 	return
 }

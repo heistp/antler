@@ -289,10 +289,15 @@ func (d Download) handleClient(ctx context.Context, conn net.Conn,
 // handleServer implements streamer
 func (d Download) handleServer(ctx context.Context, conn net.Conn,
 	arg runArg) (err error) {
-	if d.CCA != "" {
-		if t, ok := conn.(*net.TCPConn); ok {
-			if err = setTCPSockoptString(t, unix.IPPROTO_TCP,
-				unix.TCP_CONGESTION, "CCA", d.CCA); err != nil {
+	if len(d.Sockopt) > 0 {
+		var t *net.TCPConn
+		var ok bool
+		if t, ok = conn.(*net.TCPConn); !ok {
+			err = fmt.Errorf("not a TCPConn for setting Sockopts: %T")
+			return
+		}
+		for _, o := range d.sockopt() {
+			if err = o.setTCP(t); err != nil {
 				return
 			}
 		}
@@ -324,6 +329,9 @@ type Stream struct {
 	// Direction is the client to server sense.
 	Direction Direction
 
+	// Sockopt lists the socket options to set.
+	Sockopt []Sockopt
+
 	// CCA is the sender's Congestion Control Algorithm.
 	CCA string
 }
@@ -336,6 +344,32 @@ func (s Stream) Info(server bool) StreamInfo {
 func (s Stream) String() string {
 	return fmt.Sprintf("Stream[Flow:%s Direction:%s CCA:%s]",
 		s.Flow, s.Direction, s.CCA)
+}
+
+// sockopt returns a list of both the fixed field and generic socket options.
+func (s Stream) sockopt() (opt []Sockopt) {
+	if s.CCA != "" {
+		opt = append(opt, Sockopt{"string", unix.IPPROTO_TCP,
+			unix.TCP_CONGESTION, "CCA", s.CCA})
+	}
+	opt = append(opt, s.Sockopt...)
+	return
+}
+
+// dialControl implements dialController
+func (s Stream) dialControl(network, address string, conn syscall.RawConn) (
+	err error) {
+	c := func(fd uintptr) {
+		for _, o := range s.sockopt() {
+			if err = o.set(int(fd)); err != nil {
+				return
+			}
+		}
+	}
+	if e := conn.Control(c); e != nil && err == nil {
+		err = e
+	}
+	return
 }
 
 // StreamInfo contains information for a stream flow.
@@ -389,21 +423,6 @@ type Transfer struct {
 	BufLen int
 
 	Stream
-}
-
-// dialControl implements dialController
-func (x Transfer) dialControl(network, address string, conn syscall.RawConn) (
-	err error) {
-	c := func(fd uintptr) {
-		if x.CCA != "" {
-			err = setSockoptString(int(fd), unix.IPPROTO_TCP,
-				unix.TCP_CONGESTION, "CCA", x.CCA)
-		}
-	}
-	if e := conn.Control(c); e != nil && err == nil {
-		err = e
-	}
-	return
 }
 
 const (

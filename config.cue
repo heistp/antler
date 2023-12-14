@@ -766,15 +766,34 @@ Server: #Server
 
 // node.Stream defines a stream flow. Flow and Direction are described in their
 // corresponding definitions. CCA is the Congestion Control Algorithm to use.
+// Sockopt may be used to set generic socket options.
 #Stream: {
 	Flow:      #Flow
 	Direction: #Direction
 	CCA?:      string & !=""
+	Sockopt?: [#Sockopt, ...#Sockopt]
 }
 
 // node.Direction is the sense for a Stream, either "up" (client to server) or
 // "down" (server to client).
 #Direction: "up" | "down"
+
+// node.Sockopt is a socket option. Type is the Antler-defined socket option
+// type, one of the options below. Level and Opt are the int arguments passed
+// to the underlying setsockopt() call. Name is a label used for debugging.
+// Value is the sockopt value to set.
+#Sockopt: {
+	Type:  "string" | "int" | "byte"
+	Level: int
+	Opt:   int
+	Name:  string & !=""
+	if Type == "string" {
+		Value: string & !=""
+	}
+	if Type == "int" || Type == "byte" {
+		Value: int
+	}
+}
 
 // node.StreamServer is a Runner that listens for a handles connections from
 // the StreamClient. ListenAddr is a listen address, and ListenAddrKey is a

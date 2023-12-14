@@ -109,12 +109,6 @@ formats, and supporting platforms other than Linux.
   - git tags
 - add admin web UI to run a package of tests
 
-### Version 0.4.0
-
-#### Features
-
-- add support for setting arbitrary sockopts
-
 ### Inbox
 
 #### Features

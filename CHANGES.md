@@ -19,6 +19,8 @@ and this project adheres to
 - Add embedded web server to serve results (`server` command)
 - Implement system information (`SysInfo`), with source code tags, commands,
   files, environment variables and sysctls
+- Implement generic socket options for TCP and UDP
+- Add support for setting the DS field (ToS/Traffic Class)
 
 ### Changed
 

@@ -766,11 +766,13 @@ Server: #Server
 
 // node.Stream defines a stream flow. Flow and Direction are described in their
 // corresponding definitions. CCA is the Congestion Control Algorithm to use.
-// Sockopt may be used to set generic socket options.
+// DS is the value for the DS field (ToS byte for IPv4, or Traffic Class for
+// IPv6). Sockopt may be used to set generic socket options.
 #Stream: {
 	Flow:      #Flow
 	Direction: #Direction
 	CCA?:      string & !=""
+	DS?:       int & <=0xFF
 	Sockopt?: [#Sockopt, ...#Sockopt]
 }
 

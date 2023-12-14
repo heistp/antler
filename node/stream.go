@@ -334,6 +334,9 @@ type Stream struct {
 
 	// CCA is the sender's Congestion Control Algorithm.
 	CCA string
+
+	// DS is the value to set for the entire DS (ToS/Traffic Class) byte.
+	DS int
 }
 
 // Info returns StreamInfo for this Stream.
@@ -351,6 +354,10 @@ func (s Stream) sockopt() (opt []Sockopt) {
 	if s.CCA != "" {
 		opt = append(opt, Sockopt{"string", unix.IPPROTO_TCP,
 			unix.TCP_CONGESTION, "CCA", s.CCA})
+	}
+	if s.DS != 0 {
+		opt = append(opt, Sockopt{"int", unix.IPPROTO_IP,
+			unix.IP_TOS, "ToS", s.DS})
 	}
 	opt = append(opt, s.Sockopt...)
 	return

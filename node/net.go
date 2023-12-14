@@ -30,14 +30,3 @@ func setSockoptString(fd, level, opt int, what, value string) (err error) {
 	}
 	return
 }
-
-// setCCA sets the Congestion Control Algorithm.
-/*
-func setCCA(fd int, cca string) (err error) {
-	if err = unix.SetsockoptString(fd, unix.IPPROTO_TCP, unix.TCP_CONGESTION,
-		cca); err != nil {
-		err = fmt.Errorf("error setting CCA to '%s': %w", cca, err)
-	}
-	return
-}
-*/

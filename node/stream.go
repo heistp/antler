@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/heistp/antler/node/metric"
-	"golang.org/x/sys/unix"
 )
 
 // StreamServer is the server used for stream oriented protocols.
@@ -329,14 +328,8 @@ type Stream struct {
 	// Direction is the client to server sense.
 	Direction Direction
 
-	// Sockopt lists the socket options to set.
-	Sockopt []Sockopt
-
-	// CCA is the sender's Congestion Control Algorithm.
-	CCA string
-
-	// DS is the value to set for the entire DS (ToS/Traffic Class) byte.
-	DS int
+	// Sockopts provides support for socket options.
+	Sockopts
 }
 
 // Info returns StreamInfo for this Stream.
@@ -347,36 +340,6 @@ func (s Stream) Info(server bool) StreamInfo {
 func (s Stream) String() string {
 	return fmt.Sprintf("Stream[Flow:%s Direction:%s CCA:%s]",
 		s.Flow, s.Direction, s.CCA)
-}
-
-// sockopt returns a list of both the fixed field and generic socket options.
-func (s Stream) sockopt() (opt []Sockopt) {
-	if s.CCA != "" {
-		opt = append(opt, Sockopt{"string", unix.IPPROTO_TCP,
-			unix.TCP_CONGESTION, "CCA", s.CCA})
-	}
-	if s.DS != 0 {
-		opt = append(opt, Sockopt{"int", unix.IPPROTO_IP,
-			unix.IP_TOS, "ToS", s.DS})
-	}
-	opt = append(opt, s.Sockopt...)
-	return
-}
-
-// dialControl implements dialController
-func (s Stream) dialControl(network, address string, conn syscall.RawConn) (
-	err error) {
-	c := func(fd uintptr) {
-		for _, o := range s.sockopt() {
-			if err = o.set(int(fd)); err != nil {
-				return
-			}
-		}
-	}
-	if e := conn.Control(c); e != nil && err == nil {
-		err = e
-	}
-	return
 }
 
 // StreamInfo contains information for a stream flow.

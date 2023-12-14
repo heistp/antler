@@ -689,6 +689,8 @@ Server: #Server
 	Flow:          #Flow
 	MaxPacketSize: #MaxPacketSize
 	Sender: [#PacketSenders, ...#PacketSenders]
+	DS?: int & <=0xFF
+	Sockopt?: [#Sockopt, ...#Sockopt]
 }
 
 // MaxPacketSize is the maximum size for PacketClient/PacketServer

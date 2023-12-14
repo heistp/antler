@@ -245,12 +245,15 @@ type PacketClient struct {
 	MaxPacketSize int
 
 	Sender []PacketSenders
+
+	// Sockopts provides support for socket options.
+	Sockopts
 }
 
 // Run implements runner
 func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
-	dl := net.Dialer{}
+	dl := net.Dialer{Control: c.dialControl}
 	var cn net.Conn
 	if cn, err = dl.DialContext(ctx, c.Protocol, c.Addr); err != nil {
 		return

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -58,6 +59,48 @@ func (s Sockopt) set(fd int) (err error) {
 		err = fmt.Errorf(
 			"error setting sockopt %s (level=%d, opt=%d) to '%v': %w",
 			s.Name, s.Level, s.Opt, s.Value, err)
+	}
+	return
+}
+
+// Sockopts contains the socket option fields used by streams and packets.
+type Sockopts struct {
+	// Sockopt lists the generic socket options to set.
+	Sockopt []Sockopt
+
+	// DS is the value to set for the DS (ToS/Traffic Class) byte.
+	DS int
+
+	// CCA is the sender's Congestion Control Algorithm (TCP only).
+	CCA string
+}
+
+// sockopt returns a list of both the fixed field and generic socket options.
+func (s Sockopts) sockopt() (opt []Sockopt) {
+	if s.CCA != "" {
+		opt = append(opt, Sockopt{"string", unix.IPPROTO_TCP,
+			unix.TCP_CONGESTION, "CCA", s.CCA})
+	}
+	if s.DS != 0 {
+		opt = append(opt, Sockopt{"int", unix.IPPROTO_IP,
+			unix.IP_TOS, "ToS", s.DS})
+	}
+	opt = append(opt, s.Sockopt...)
+	return
+}
+
+// dialControl is the Dialer.Control function and dialController implementation.
+func (s Sockopts) dialControl(network, address string,
+	conn syscall.RawConn) (err error) {
+	c := func(fd uintptr) {
+		for _, o := range s.sockopt() {
+			if err = o.set(int(fd)); err != nil {
+				return
+			}
+		}
+	}
+	if e := conn.Control(c); e != nil && err == nil {
+		err = e
 	}
 	return
 }

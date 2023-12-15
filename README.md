@@ -142,6 +142,7 @@ formats, and supporting platforms other than Linux.
 #### Bugs
 
 - improve poor error messages from CUE, especially under disjunctions
+- figure out why default for #EmitSysInfo:To doesn't work (default-default)
 
 ## Thanks
 

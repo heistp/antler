@@ -11,7 +11,7 @@ _tcpstream: {
 	_rtt: 80
 
 	// _duration is the test duration in seconds
-	_duration: 120
+	_duration: 10
 
 	// _qdisc is the qdisc to use
 	_qdisc: "cake bandwidth 50Mbit flowblind"
@@ -39,11 +39,17 @@ _tcpstream: {
 			Options: {
 				title: "CUBIC vs Reno / \(_rtt)ms Path RTT / \(_qdisc)"
 				series: {
+					"0": {
+						color: _dark2[0]
+					}
+					"1": {
+						color: _dark2[1]
+					}
 					"2": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.2
-						color:           "#4f9634"
+						color:           _dark2[2]
 					}
 				}
 				vAxes: {
@@ -107,6 +113,7 @@ _tcpstream: {
 								Duration: "\(_duration)s"
 							}},
 						]
+						DS: 0x28
 					}},
 					{StreamClient: {
 						Addr: _rig.serverAddr

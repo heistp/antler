@@ -48,11 +48,14 @@ _ratedrop: {
 			Options: {
 				title: "BBR Rate Drop \(_rate0) to \(_rate1) | \(_rtt)ms Path RTT | \(_qdisc) "
 				series: {
+					"0": {
+						color: _dark2[0]
+					}
 					"1": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.2
-						color:           "#4f9634"
+						color:           _dark2[1]
 					}
 				}
 				vAxes: {

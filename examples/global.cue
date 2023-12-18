@@ -3,6 +3,19 @@
 
 package examples
 
+// _dark2 is the Dark2 qualitative color scheme from colorbrewer2.org, with
+// the first blue-green color replaced by the green color, as it's too close.
+_dark2: [
+	//"#1b9e77",
+	"#66a61e",
+	"#d95f02",
+	"#7570b3",
+	"#e7298a",
+	"#e6ab02",
+	"#a6761d",
+	"#666666",
+]
+
 // tcpdump defines a Runner to run tcpdump to stdout, and save stdout to a file.
 _tcpdump: {
 	// iface defines the interface to capture on.

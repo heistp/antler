@@ -47,11 +47,17 @@ _vbrudp: {
 			Options: {
 				title: "CUBIC vs BBR | \(_rate) bottleneck | \(_rtt)ms Path RTT | \(_qdisc)"
 				series: {
+					"0": {
+						color: _dark2[0]
+					}
+					"1": {
+						color: _dark2[1]
+					}
 					"2": {
 						targetAxisIndex: 1
 						lineWidth:       0
 						pointSize:       0.2
-						color:           "#4f9634"
+						color:           _dark2[2]
 					}
 				}
 				vAxes: {

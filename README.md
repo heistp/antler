@@ -16,7 +16,7 @@ congestion control projects in the IETF.
 
 In running tests with existing tools, I found that the job for congestion
 control work tends to be time consuming and error prone, as it involves more
-than just generating traffic and emitting stats, but also includes:
+than just generating traffic and emitting stats, including:
 
 * setting up and tearing down test environments
 * orchestrating actions across multiple nodes

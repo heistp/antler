@@ -20,14 +20,14 @@ than just generating traffic and emitting stats, but also includes:
 
 * setting up and tearing down test environments
 * orchestrating actions across multiple nodes
-* running external tools to gather pcaps or other data
-* gathering results from multiple nodes into a single source of truth
 * running multiple tests with varied parameter combinations
 * re-running only some tests while retaining prior results
-* emitting results to different formats for visualization
-* saving results non-destructively so prior results aren't lost
+* running external tools to gather pcaps or other data
+* gathering results from multiple nodes into a single source of truth
+* emitting results in different formats for consumption
+* saving results non-destructively so prior work isn't lost
 * making results available on the web
-* and configuring all of the above in a common way, to avoid mistakes
+* configuring all of the above in a common way, to avoid mistakes
 
 Antler is an attempt to address the above. The test environment is set up and
 torn down before and after each test, preventing configuration mistakes and
@@ -61,7 +61,7 @@ that helps avoid config mistakes and duplication.
   across nodes, and with arbitrary scheduled timing (e.g. TCP flow introductions
   on an exponential distribution with lognormal lengths)
 * incremental test runs to run only selected tests, and hard link the rest from
-  the prior result
+  prior results
 * system runner for system commands, e.g. for setup, teardown, data collection
   such as pcaps, and mid-test config changes
 * system information gathering from commands, files, environment variables and

@@ -82,9 +82,9 @@ that helps avoid config mistakes and duplication.
 
 As of version 0.4.0, many of the core features are implemented, along with some
 basic tests and visualizations. The [Roadmap](#roadmap) shows future plans.
-Overall, more work is needed to improve the plots, gather better data (with
-Linux kernel socket stats), stabilize the config and data formats, and support
-platforms other than Linux.
+Overall, more work is needed to expand and improve the available plots, gather
+better data (with Linux kernel socket stats), stabilize the config and data
+formats, and support platforms other than Linux.
 
 ## Installation
 

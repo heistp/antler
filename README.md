@@ -67,18 +67,24 @@ that helps avoid config mistakes and duplication.
 * system information gathering from commands, files, environment variables and
   sysctls
 * parallel execution of entire tests, with nested serial and parallel test runs
-* result streaming during test (may be enabled, disabled or configured to
-  deliver only some results, e.g. just logs, but not pcaps)
 
-### Reports
+### Results/Reports
 
-* plots/reports using Go templates which may be written to target any plotting
-  package
-* included templates for time series and FCT plots using
+* time series and FCT plots using
   [Google Charts](https://developers.google.com/chart)
-* report pipeline allows reports to execute in stages, e.g. for an analysis
-  stage to pass its output to further stages for consumption
+* optional result streaming during test (may be configured to deliver only some
+  results, e.g. logs, but not pcaps)
+* plots/reports implemented with Go templates, which may eventually be
+  written by users to target any plotting package
 * embedded web server to serve results
+
+## Status
+
+As of version 0.4.0, many of the core features are implemented, along with some
+basic tests and visualizations. The [Roadmap](#roadmap) shows future plans.
+Overall, more work is needed to improve the plots, gather better data (with
+Linux kernel socket stats), stabilize the config and data formats, and support
+platforms other than Linux.
 
 ## Installation
 
@@ -100,7 +106,11 @@ configuration is required.
 
 The examples output is available online 
 [here](https://www.heistp.net/antler/examples/latest), where you can view the
-HTML plots and log files.
+HTML plots and log files. A few samples from that directory:
+
+* [CUBIC vs BBRv1 through CoDel, with VBR UDP](https://www.heistp.net/antler/examples/latest/vbrudp_timeseries.html)
+* [CUBIC vs BBRv1 FCT Competition](https://www.heistp.net/antler/examples/latest/fct_fct.html)
+* [System Info](https://www.heistp.net/antler/examples/latest/iperf3_sysinfo_antler.html)
 
 To run the examples yourself (root required for network namespaces):
 ```
@@ -118,28 +128,20 @@ comments in [config.cue](config.cue). Antler is configured using
 [CUE](https://cuelang.org/), so it helps to get familiar with the language, but
 for simple tests, it may be enough to just follow the examples.
 
-## Status
-
-As of version 0.4.0, most of the core features are implemented, along with some
-basic tests and visualizations. The [Roadmap](#roadmap) shows future plans.
-Overall, more work is needed on the tests and visualizations, stabilizing the
-config and data formats, and supporting platforms other than Linux.
-
-## A Note on Latency
+## UDP Latency Results
 
 The node and its builtin traffic generators are written in
 [Go](https://go.dev/). This comes with some system call overhead and scheduling
 jitter, which may affect the UDP latency results. The following comparison
-between ping and [irtt](https://github.com/heistp/irtt), also written in Go,
-gives some idea:
+between ping and [irtt](https://github.com/heistp/irtt) gives some idea
+(note the log scale on the vertical axis):
 
 ![Ping vs IRTT](/doc/img/ping-vs-irtt.svg "Ping vs IRTT")
 
-While the UDP results are still useful for tests at Internet RTTs, if
-microsecond level accuracy is required, external tools should be used, or the
-times may be interpreted from pcaps. In the future, the node portion of Antler
-may be rewritten in another language, or just the traffic generating portion in
-C.
+While the UDP results are useful for tests at most Internet RTTs, if microsecond
+level accuracy is required, external tools should be invoked using the System
+runner, or the times may be interpreted from pcaps. In the future, either the
+traffic generation or the entire node may be rewritten in another language.
 
 ## Roadmap
 
@@ -175,6 +177,7 @@ C.
 #### Features
 
 - implement traffic generator in C (or rewrite node in Rust)
+- allow writing custom Go templates to generate any plot/report output
 - add more context to plots (flow info, system info, zoom instructions)
 - add rm command to remove result and update latest symlink
 - add ls command to list results

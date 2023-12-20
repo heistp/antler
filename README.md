@@ -218,7 +218,8 @@ A kind thanks to sponsors:
 
 * **NLNet** and *NGI0 Core*
 * **NGI Pointer**
-  ![NGI SCE Sticker](/doc/img/ngi-sce-sticker-200x230.png "NGI SCE Sticker")
 * **RIPE NCC**
 
 and to Jonathan Morton and Rodney Grimes for advice.
+
+![NGI SCE Sticker](/doc/img/ngi-sce-sticker-200x230.png "NGI SCE Sticker")

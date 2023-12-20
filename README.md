@@ -12,27 +12,72 @@ generate reports and plots from the results. It grew out of testing needs for
 [SCE](https://datatracker.ietf.org/doc/draft-morton-tsvwg-sce/), and related
 congestion control projects in the IETF.
 
+## Why Antler?
+
+In running tests with existing tools, I found that the job for congestion
+control work tends to be time consuming and error prone, as it involves more
+than just generating traffic and emitting stats, but also includes:
+
+* setting up and tearing down test environments
+* orchestrating actions across multiple nodes
+* running external tools to gather pcaps or other data
+* gathering results from multiple nodes into a single source of truth
+* running multiple tests with varied parameter combinations
+* re-running only some tests while retaining prior results
+* emitting results to different formats for visualization
+* saving results non-destructively so prior results aren't lost
+* making results available on the web
+* and configuring all of the above in a common way, to avoid mistakes
+
+Antler is an attempt to address the above. The test environment is set up and
+torn down before and after each test, preventing configuration mistakes and
+"config bleed" from run to run. The test nodes are auto-installed and
+uninstalled before and after each test, preventing version mismatch and
+dependency problems. Tests are orchestrated using a hierarchy of serial and
+parallel actions that can be coordinated over the control connections to each
+node. Results, logs and data from all the nodes are gathered into a single data
+stream, saved non-destructively, and processed in a report pipeline to produce
+the output. Partial test runs allow re-running only some tests, while hard
+linking results from prior runs so a complete result tree is always available.
+Result may be published using an internal, embedded web server. Finally, all of
+the configuration is done using [CUE](https://cuelang.org/), a data language
+that helps avoid config mistakes and duplication.
+
 ## Features
 
-* support for tests using stream-oriented and packet-oriented protocols (for
-  now, TCP and UDP)
+### Tests
+
 * auto-installed test nodes that run either locally or via ssh, and optionally
   in Linux network namespaces
+* builtin traffic generator in Go:
+  * support for tests using stream-oriented and packet-oriented protocols (for
+    now, TCP and UDP)
+  * configurable UDP packet release times and lengths, supporting anything from
+    isochronous, to VBR or bursty traffic, or combinations in one flow
+  * support for setting arbitrary sockopts, including CCA and the DS field
+* configuration using [CUE](https://cuelang.org/), to support test parameter
+  combinations, schema definition, data validation and config reuse
 * configurable hierarchy of "runners", that may execute in serial or parallel
-  across nodes
-* runner scheduling with arbitrary timing (e.g. TCP flow introductions on an
-  exponential distribution with lognormal lengths)
-* configurable UDP packet release times and lengths, supporting from isochronous
-  to VBR or bursty traffic, or combinations in one flow
-* system runner for system commands, e.g. for setup, teardown, data collection,
-  and mid-test config changes
+  across nodes, and with arbitrary scheduled timing (e.g. TCP flow introductions
+  on an exponential distribution with lognormal lengths)
+* incremental test runs to run only selected tests, and hard link the rest from
+  the prior result
+* system runner for system commands, e.g. for setup, teardown, data collection
+  such as pcaps, and mid-test config changes
+* system information gathering from commands, files, environment variables and
+  sysctls
 * parallel execution of entire tests, with nested serial and parallel test runs
 * result streaming during test (may be enabled, disabled or configured to
   deliver only some results, e.g. just logs, but not pcaps)
-* plots/reports using Go templates, with included templates for time series and
-  FCT plots using [Google Charts](https://developers.google.com/chart)
-* configuration using [CUE](https://cuelang.org/), to support test parameter
-  combinations, config schema definition, data validation and config reuse
+
+### Reports
+
+* plots/reports using Go templates which may be written to target any plotting
+  package
+* included templates for time series and FCT plots using
+  [Google Charts](https://developers.google.com/chart)
+* report pipeline allows reports to execute in stages, e.g. for an analysis
+  stage to pass its output to further stages for consumption
 * embedded web server to serve results
 
 ## Installation
@@ -45,10 +90,11 @@ congestion control projects in the IETF.
 6. `cd antler`
 7. `make` (builds node binaries, installs antler command)
 
-The antler binary must be in your PATH, or the full path must be specified.
-Typically, you add ~/go/bin to your PATH so you can run binaries installed by
-Go. *Note:* if using sudo and the `secure_path` option is set in /etc/sudoers,
-either this must be added to that path, or additional configuration is required.
+To run antler, the binary must be in your PATH, or the full path must be
+specified. Typically, you add ~/go/bin to your PATH so you can run binaries
+installed by Go. *Note:* if using sudo and the `secure_path` option is set in
+/etc/sudoers, either this must be added to that path, or additional
+configuration is required.
 
 ## Examples
 
@@ -67,17 +113,33 @@ to the results directory.
 
 ## Documentation
 
-Antler is documented through the [examples](examples), and the comments in
-[config.cue](config.cue). Antler is configured using
+Antler is currently documented through the [examples](examples), and the
+comments in [config.cue](config.cue). Antler is configured using
 [CUE](https://cuelang.org/), so it helps to get familiar with the language, but
-for simple tests, it may be enought to just follow the examples.
+for simple tests, it may be enough to just follow the examples.
 
 ## Status
 
-As of version 0.3.0, the node is working, along with some basic tests and
-visualizations. The [Roadmap](#roadmap) shows future plans. Overall, more work
-is needed on the tests and visualizations, stabilizing the config and data
-formats, and supporting platforms other than Linux.
+As of version 0.4.0, most of the core features are implemented, along with some
+basic tests and visualizations. The [Roadmap](#roadmap) shows future plans.
+Overall, more work is needed on the tests and visualizations, stabilizing the
+config and data formats, and supporting platforms other than Linux.
+
+## A Note on Latency
+
+The node and its builtin traffic generators are written in
+[Go](https://go.dev/). This comes with some system call overhead and scheduling
+jitter, which may affect the UDP latency results. The following comparison
+between ping and [irtt](https://github.com/heistp/irtt), also written in Go,
+gives some idea:
+
+![Ping vs IRTT](/doc/img/ping-vs-irtt.svg "Ping vs IRTT")
+
+While the UDP results are still useful for tests at Internet RTTs, if
+microsecond level accuracy is required, external tools should be used, or the
+times may be interpreted from pcaps. In the future, the node portion of Antler
+may be rewritten in another language, or just the traffic generating portion in
+C.
 
 ## Roadmap
 
@@ -107,15 +169,17 @@ formats, and supporting platforms other than Linux.
   - node logs
   - system information
   - git tags
-- add admin web UI to run a package of tests
 
 ### Inbox
 
 #### Features
 
+- implement traffic generator in C (or rewrite node in Rust)
+- add more context to plots (flow info, system info, zoom instructions)
 - add rm command to remove result and update latest symlink
 - add ls command to list results
 - make UDP flood more efficient
+- add admin web UI to run a package of tests
 - add node-side compression support for System runner FileData output
 - handle tests both with and without node-synchronized time
 - process pcaps to get retransmits, CE/SCE marks, TCP RTT or other stats
@@ -146,9 +210,14 @@ formats, and supporting platforms other than Linux.
 
 ## Thanks
 
-Thanks to sponsors, and Jonathan Morton and Rodney Grimes for advice and
-patience.
+A kind thanks to sponsors:
+
+**NLNet** and *NGI0 Core*
+
+**NGI Pointer**
 
 ![NGI SCE Sticker](/doc/img/ngi-sce-sticker-200x230.png "NGI SCE Sticker")
 
 **RIPE NCC**
+
+and to Jonathan Morton and Rodney Grimes for advice.

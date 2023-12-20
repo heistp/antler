@@ -39,7 +39,7 @@ node. Results, logs and data from all the nodes are gathered into a single data
 stream, saved non-destructively, and processed in a report pipeline to produce
 the output. Partial test runs allow re-running only some tests, while hard
 linking results from prior runs so a complete result tree is always available.
-Result may be published using an internal, embedded web server. Finally, all of
+Results may be published using an internal, embedded web server. Finally, all of
 the configuration is done using [CUE](https://cuelang.org/), a data language
 that helps avoid config mistakes and duplication.
 
@@ -128,7 +128,7 @@ comments in [config.cue](config.cue). Antler is configured using
 [CUE](https://cuelang.org/), so it helps to get familiar with the language, but
 for simple tests, it may be enough to just follow the examples.
 
-## UDP Latency Results
+## UDP Latency Accuracy Limits
 
 The node and its builtin traffic generators are written in
 [Go](https://go.dev/). This comes with some system call overhead and scheduling
@@ -141,7 +141,8 @@ between ping and [irtt](https://github.com/heistp/irtt) gives some idea
 While the UDP results are useful for tests at most Internet RTTs, if microsecond
 level accuracy is required, external tools should be invoked using the System
 runner, or the times may be interpreted from pcaps. In the future, either the
-traffic generation or the entire node may be rewritten in another language.
+traffic generation or the entire node may be rewritten in another language, if
+required.
 
 ## Roadmap
 
@@ -215,12 +216,9 @@ traffic generation or the entire node may be rewritten in another language.
 
 A kind thanks to sponsors:
 
-**NLNet** and *NGI0 Core*
-
-**NGI Pointer**
-
-![NGI SCE Sticker](/doc/img/ngi-sce-sticker-200x230.png "NGI SCE Sticker")
-
-**RIPE NCC**
+* **NLNet** and *NGI0 Core*
+* **NGI Pointer**
+  ![NGI SCE Sticker](/doc/img/ngi-sce-sticker-200x230.png "NGI SCE Sticker")
+* **RIPE NCC**
 
 and to Jonathan Morton and Rodney Grimes for advice.

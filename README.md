@@ -72,10 +72,10 @@ that helps avoid config mistakes and duplication.
 
 * time series and FCT plots using
   [Google Charts](https://developers.google.com/chart)
-* optional result streaming during test (may be configured to deliver only some
-  results, e.g. logs, but not pcaps)
 * plots/reports implemented with Go templates, which may eventually be
   written by users to target any plotting package
+* optional result streaming during test (may be configured to deliver only some
+  results, e.g. logs, but not pcaps)
 * embedded web server to serve results
 
 ## Status
@@ -132,17 +132,18 @@ for simple tests, it may be enough to just follow the examples.
 
 The node and its builtin traffic generators are written in
 [Go](https://go.dev/). This comes with some system call overhead and scheduling
-jitter, which may affect the UDP latency results. The following comparison
-between ping and [irtt](https://github.com/heistp/irtt) gives some idea
-(note the log scale on the vertical axis):
+jitter, which reduces the accuracy of the UDP latency results somewhat relative
+to C/C++, or better yet timings obtained from the kernel or network. The
+following comparison between ping and [irtt](https://github.com/heistp/irtt)
+gives some idea (note the log scale on the vertical axis):
 
 ![Ping vs IRTT](/doc/img/ping-vs-irtt.svg "Ping vs IRTT")
 
-While the UDP results are useful for tests at most Internet RTTs, if microsecond
-level accuracy is required, external tools should be invoked using the System
-runner, or the times may be interpreted from pcaps. In the future, either the
-traffic generation or the entire node may be rewritten in another language, if
-required.
+While the UDP results are still useful for tests at most Internet RTTs, if
+microsecond level accuracy is required, external tools should be invoked using
+the System runner, or the times may be interpreted from pcaps instead. In the
+future, either the traffic generation or the entire node may be rewritten in
+another language, if required.
 
 ## Roadmap
 

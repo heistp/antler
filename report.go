@@ -341,7 +341,9 @@ func (c *Encode) encode(name string, rw rwer) (err error) {
 	return
 }
 
-// expects to be the first stage in a pipeline, so "in" is first discarded.
+// readData is an internal reporter that reads data items from the ReadCloser
+// that reads a gob file, and sends them to the out channel. readData expects to
+// be the first stage in a pipeline, so any input is first discarded.
 //
 // If a decoding error occurs, the error is returned immediately.
 //
@@ -376,8 +378,9 @@ func (r readData) report(ctx context.Context, in <-chan any, out chan<- any,
 	}
 }
 
-// writeData is a WriteCloser and reporter that writes data using gob. writeData
-// expects to be the final stage in a pipeline, so all data is consumed.
+// writeData is a WriteCloser and internal reporter that writes data using gob.
+// writeData expects to be the final stage in a pipeline, so all data is
+// consumed.
 //
 // If an encoding error occurs, the error is returned immediately.
 //
@@ -408,8 +411,9 @@ func (w writeData) report(ctx context.Context, in <-chan any, out chan<- any,
 	return
 }
 
-// rangeData is a reporter that sends data from its slice to out. rangeData
-// expects to be the first stage in a pipeline, so "in" is first discarded.
+// rangeData is an internal reporter that sends data from its slice to out.
+// rangeData expects to be the first stage in a pipeline, so "in" is first
+// discarded.
 //
 // If the Context is canceled, sending is stopped and the error from
 // context.Cause() is returned.
@@ -432,8 +436,8 @@ func (r rangeData) report(ctx context.Context, in <-chan any, out chan<- any,
 	return
 }
 
-// appendData is a reporter that buffers data in its slice. appendData expects
-// to be the final stage in a pipeline, so all data is consumed.
+// appendData is an internal reporter that buffers data in its slice. appendData
+// expects to be the final stage in a pipeline, so all data is consumed.
 //
 // If the data includes any errors, the first error is returned after reading
 // and buffering all the data.

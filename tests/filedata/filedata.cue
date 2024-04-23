@@ -44,8 +44,8 @@ Run: {
 	Test: {
 		// disable saving of gob data
 		DataFile: ""
-		// remove default reporter that writes node.log
-		Report: []
+		// remove default reporters to skip writing node.log
+		AfterDefault: []
 	}
 
 	// add report to compress random.bin to random.bin.gz.

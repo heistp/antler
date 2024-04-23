@@ -30,11 +30,11 @@ type Test struct {
 	// Run is the top-level Run instance.
 	node.Run
 
-	// During contains Reports to be run while the Test is run.
-	During Report
+	// DuringDefault contains default reporters to be run while the Test is run.
+	DuringDefault Report
 
-	// Report contains Reports to be run after the Test is run.
-	Report Report
+	// ReportDefault contains default reporters to be run after the Test is run.
+	ReportDefault Report
 
 	// ResultPrefixX contains the output of the executed ResultPrefix template.
 	ResultPrefixX string

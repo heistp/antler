@@ -197,7 +197,7 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 		err = nil
 	}
 	var a appendData
-	var p report = test.During.report()
+	var p report = test.DuringDefault.report()
 	if w != nil {
 		p = append(p, writeData{w})
 	} else {
@@ -252,7 +252,7 @@ func (u doRun) link(test *Test) (src reporter, err error) {
 func teeReport(ctx context.Context, src reporter, test *Test, rw rwer,
 	rst reportStack) (err error) {
 	var r []report
-	r = append(r, test.Report.report())
+	r = append(r, test.ReportDefault.report())
 	r = append(r, rst.report())
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)

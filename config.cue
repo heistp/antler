@@ -171,15 +171,15 @@ Server: #Server
 //
 // Run defines the Run hierarchy, and is documented in more detail in #Run.
 //
-// During is a pipeline of Reports that runs during the Test. Since these
-// Reports only run during the Test, they may not be used to generate reports
-// from result data, otherwise those reports would be lost during incremental
-// test runs. If the antler nodes are running on the same machine as antler,
-// then this pipeline should not be resource intensive, so as not to perturb
-// the test.
+// During and DuringDefault are pipelines of Reports that run during the Test.
+// Since these Reports only run during the Test, they may not be used to
+// generate reports from result data, otherwise those reports would be lost
+// during incremental test runs. If the antler nodes are running on the same
+// machine as antler, then this pipeline should not be resource intensive, so
+// as not to perturb the test.
 //
-// Report is a pipeline of Reports that is run after the Test, and by the
-// report command, in parallel with the pipeline in TestRun.Report.
+// After and AfterDefault are pipelines of Reports that are run after the Test,
+// and by the report command.
 #Test: {
 	_IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	_DefaultID: {test: "single"}
@@ -192,13 +192,15 @@ Server: #Server
 	}
 	DataFile: string | *"data.gob"
 	#Run
-	During: [...#Report] | *[
-		{SaveFiles: {Consume: true}},
-		{EmitLog: {To: ["-"]}},
+	During?: [...#Report]
+	DuringDefault: [...#Report] | *[
+			{SaveFiles: {Consume: true}},
+			{EmitLog: {To: ["-"]}},
 	]
-	Report: [...#Report] | *[
-		{EmitLog: {To: ["node.log"], Sort: true}},
-		{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
+	After?: [...#Report]
+	AfterDefault: [...#Report] | *[
+			{EmitLog: {To: ["node.log"], Sort: true}},
+			{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
 	]
 }
 

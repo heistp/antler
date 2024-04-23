@@ -36,8 +36,8 @@ Run: {
 
 		// disable saving of gob data
 		DataFile: ""
-		// remove default report that writes node.log
-		Report: [
+		// remove default reporters to skip writing node.log, and emit sysinfo
+		AfterDefault: [
 			{EmitSysInfo: {}},
 		]
 	}

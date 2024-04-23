@@ -25,7 +25,7 @@ Run: {
 	Test: {
 		// disable saving of gob data
 		DataFile: ""
-		// remove default report that writes node.log
-		Report: []
+		// remove default reporters to skip writing node.log
+		AfterDefault: []
 	}
 }

@@ -13,6 +13,7 @@ and this project adheres to
 - Rename Test.During to Test.DuringDefault
 - Rename Test.Report to Test.AfterDefault
 - Make Analyze reporter concurrent-safe
+- Log background command context cancellations as exited command
 
 ## 0.4.0 - 2023-12-20
 

@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -94,7 +95,11 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 		e := c.Wait()
 		if s.Background {
 			if e != nil {
-				arg.rec.Logf("background error: %s (%s)", e, c)
+				if errors.Is(e, context.Canceled) {
+					arg.rec.Logf("exited: %s", c)
+				} else {
+					arg.rec.Logf("background error: %s (%s)", e, c)
+				}
 			}
 			return nil
 		}

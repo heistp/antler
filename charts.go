@@ -62,11 +62,11 @@ func (g *ChartsTimeSeries) report(ctx context.Context, in <-chan any,
 	if t, err = t.Parse(chartsTemplate); err != nil {
 		return
 	}
-	var a Analyze
+	var a analysis
 	for d := range in {
 		out <- d
 		switch v := d.(type) {
-		case Analyze:
+		case analysis:
 			a = v
 		}
 	}
@@ -170,11 +170,11 @@ func (g *ChartsFCT) report(ctx context.Context, in <-chan any, out chan<- any,
 	if t, err = t.Parse(chartsTemplate); err != nil {
 		return
 	}
-	var a Analyze
+	var a analysis
 	for d := range in {
 		out <- d
 		switch v := d.(type) {
-		case Analyze:
+		case analysis:
 			a = v
 		}
 	}

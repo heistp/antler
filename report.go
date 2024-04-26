@@ -37,6 +37,8 @@ import (
 // usual, unless they are certain to be the last stage in the pipeline.
 //
 // Reporters may read or write results using the given 'rwer'.
+//
+// Reporters should be concurrent safe.
 type reporter interface {
 	report(ctx context.Context, in <-chan any, out chan<- any, rw rwer) error
 }

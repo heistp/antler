@@ -46,12 +46,19 @@ Server: #Server
 // syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
 // template as its data. ResultPrefix must be unique for each Test in the
 // Group, and may be empty for a single Test.
+//
+// After and AfterDefault are pipelines of MultiReports that are run after all
+// Tests in the Group, and by the report command.
 #Group: {
 	_NameRegex: "[a-zA-Z0-9.][a-zA-Z0-9._-]*"
 	Name:       string & =~_NameRegex
 	Test?: [...#Test]
 	Group?: [...#Group]
 	ResultPrefix: string | *"{{range $v := .}}{{$v}}_{{end}}"
+	After?: [...#MultiReport]
+	AfterDefault: [...#MultiReport] | *[
+			{Index: {}},
+	]
 }
 
 // antler.TestRun is used to orchestrate the execution of Tests. Each TestRun
@@ -476,6 +483,20 @@ Server: #Server
 // true, FileData items are not forwarded to the next stage in the pipeline.
 #SaveFiles: {
 	Consume: bool | *true
+}
+
+// antler.MultiReport defines one MultiReport for execution in a Group.
+// MultiReports are documented in more detail in their individual types.
+#MultiReport: {
+	{} | {
+		Index?: #Index
+	}
+}
+
+// antler.Index is a MultiReport that generates an index page for the Tests in
+// a Group.
+#Index: {
+	Name: string & !="" | *"index.html"
 }
 
 //

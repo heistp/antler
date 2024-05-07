@@ -14,6 +14,12 @@ import (
 // and associated Reports. It is the only field that test packages must define.
 Run: #TestRun
 
+// Root is the top-level antler.Group for the hierarchy of Groups containing
+// Tests and Reports. Test packages add their Tests and Groups to Root.
+Root: #Group & {
+	Name: "."
+}
+
 // Results configures the destination paths for results and reports.
 Results: #Results
 
@@ -26,8 +32,7 @@ Server: #Server
 
 // antler.Group is used to form a hierarchy of Tests. Each Group is a node in
 // the hierarchy containing a list of Tests, and a list of sub-Groups.  The
-// Tests in each Group are generally related, and share the same keys in their
-// ID.
+// Tests in each Group share the same keys in their ID.
 //
 // Name is the name of the Group, and is used as the name of the directory
 // containing the results for the Group.
@@ -42,7 +47,7 @@ Server: #Server
 // template as its data. ResultPrefix must be unique for each Test in the
 // Group, and may be empty for a single Test.
 #Group: {
-	_NameRegex: "[a-zA-Z0-9\\.][a-zA-Z0-9_-\\.]*"
+	_NameRegex: "[a-zA-Z0-9.][a-zA-Z0-9._-]*"
 	Name:       string & =~_NameRegex
 	Test?: [...#Test]
 	Group?: [...#Group]

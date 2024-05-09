@@ -14,10 +14,10 @@ import (
 	"github.com/heistp/antler/node"
 )
 
-// A reporter can process data items from the node. It is run in a pipeline,
-// where data items are received on the in channel, and sent on the out channel.
-// Reporters may consume, emit or forward data items. Reporters should forward
-// any unrecognized or unhandled items.
+// A reporter can process data items from the node. It is run as a stage in a
+// pipeline, where data items are received on the in channel, and sent on the
+// out channel. Reporters may consume, emit or forward data items. Reporters
+// should forward any unrecognized or unhandled items.
 //
 // Reporters may return at any time, with or without an error. Any remaining
 // data on their in channel will be forwarded to the out channel.

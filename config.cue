@@ -31,8 +31,8 @@ Server: #Server
 //
 
 // antler.Group is used to form a hierarchy of Tests. Each Group is a node in
-// the hierarchy containing a list of Tests, and a list of sub-Groups.  The
-// Tests in each Group share the same keys in their ID.
+// the hierarchy containing a list of Tests with the same ID keys, and a list
+// of sub-Groups.
 //
 // Name is the name of the Group, and is used as the name of the directory
 // containing the results for the Group.

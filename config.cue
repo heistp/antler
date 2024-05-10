@@ -31,8 +31,8 @@ Server: #Server
 //
 
 // antler.Group is used to form a hierarchy of Tests. Each Group is a node in
-// the hierarchy containing a list of Tests with the same ID keys, and a list
-// of sub-Groups.
+// the hierarchy containing a list of Tests, and a list of sub-Groups. Each
+// Test in a Group must have the same keys in its ID.  
 //
 // Name is the name of the Group, and is used as the name of the directory
 // containing the results for the Group.
@@ -42,22 +42,32 @@ Server: #Server
 //
 // Group lists any sub-Groups of the Group.
 //
-// ResultPrefix is the base path for any output files. It may use Go template
-// syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
-// template as its data. ResultPrefix must be unique for each Test in the
-// Group, and may be empty for a single Test.
+// After and AfterDefault are pipelines of Reports that are run after the
+// Group's Tests are run, and by the report command. AfterDefault makes it
+// convenient to add Reports that run for all Groups, by setting it on the
+// definition for #Group.
 //
-// After and AfterDefault are pipelines of MultiReports that are run after all
-// Tests in the Group, and by the report command.
+// During and DuringDefault are analogous to After and AfterDefault, but run
+// *while* the Group's Tests are run. They may not be used to generate saved
+// reports from result data, otherwise those reports would be lost during
+// incremental test runs. If the antler nodes are running on the same machine
+// as antler, then this pipeline should not be resource intensive, so as not to
+// perturb the test.
 #Group: {
 	_NameRegex: "[a-zA-Z0-9.][a-zA-Z0-9._-]*"
 	Name:       string & =~_NameRegex
 	Test?: [...#Test]
 	Group?: [...#Group]
-	ResultPrefix: string | *"{{range $v := .}}{{$v}}_{{end}}"
-	After?: [...#MultiReport]
-	AfterDefault: [...#MultiReport] | *[
+	After?: [...#Report]
+	AfterDefault: [...#Report] | *[
+			{EmitLog: {To: ["node.log"], Sort: true}},
+			{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
 			{Index: {}},
+	]
+	During?: [...#Report]
+	DuringDefault: [...#Report] | *[
+			{SaveFiles: {Consume: true}},
+			{EmitLog: {To: ["-"]}},
 	]
 }
 
@@ -485,16 +495,8 @@ Server: #Server
 	Consume: bool | *true
 }
 
-// antler.MultiReport defines one MultiReport for execution in a Group.
-// MultiReports are documented in more detail in their individual types.
-#MultiReport: {
-	{} | {
-		Index?: #Index
-	}
-}
-
-// antler.Index is a MultiReport that generates an index page for the Tests in
-// a Group.
+// antler.Index is a Report that generates an index page for the Tests in a
+// Group.
 #Index: {
 	Name: string & !="" | *"index.html"
 }

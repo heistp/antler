@@ -18,9 +18,15 @@ type Group struct {
 	// Group lists any sub-Groups of the Group.
 	Group []Group
 
-	// ResultPrefix is the base path for any output files. It may use Go
-	// template syntax (https://pkg.go.dev/text/template), with the Test ID
-	// passed to the template as its data. ResultPrefix must be unique for each
-	// Test in the Group, and may be empty for a single Test.
-	ResultPrefix string
+	// During is a pipeline of Reports run while the Test runs.
+	During Report
+
+	// DuringDefault is the default pipeline of Reports run while the Test runs.
+	DuringDefault Report
+
+	// After is a pipeline of Reports run after the Test completes.
+	After Report
+
+	// After is the default pipeline of Reports run after the Test completes.
+	AfterDefault Report
 }

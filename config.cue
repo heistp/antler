@@ -81,7 +81,7 @@ Server: #Server
 //
 // Report is a pipeline of #Reports run after the Test completes, and by the
 // report command, in parallel with the pipeline in Test.Report. See also the
-// During and Report fields in Test.
+// During and After fields in Test.
 #TestRun: {
 	{} | {
 		Test?: #Test

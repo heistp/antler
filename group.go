@@ -13,12 +13,12 @@ type Group struct {
 	// containing the results for the Group.
 	Name string
 
+	// Path is the base path for any output files.
+	Path string
+
 	// Test lists the Tests in the Group, and may be empty for Groups that only
 	// contain other Groups.
 	Test []Test
-
-	// Group lists any sub-Groups of the Group.
-	Group []Group
 
 	// During is a pipeline of Reports run while the Tests run.
 	During Report
@@ -36,7 +36,7 @@ type Group struct {
 // VisitTests calls the given visitor func for each Test in the Group
 // hierarchy. The visitor may return false to stop visiting, in which case
 // VisitTests will also return false.
-func (g *Group) VisitTests(visitor func(*Test) bool) bool {
+func (g Group) VisitTests(visitor func(*Test) bool) bool {
 	for _, t := range g.Test {
 		if !visitor(&t) {
 			return false
@@ -51,7 +51,7 @@ func (g *Group) VisitTests(visitor func(*Test) bool) bool {
 }
 
 // do runs a doer on the Tests, and recursively on the sub-Groups.
-func (g *Group) do(ctx context.Context, d doer2) (err error) {
+func (g Group) do(ctx context.Context, d doer2) (err error) {
 	for _, t := range g.Test {
 		if err = d.do(ctx, &t); err != nil {
 			return

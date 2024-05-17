@@ -13,6 +13,17 @@ type Group struct {
 	// containing the results for the Group.
 	Name string
 
+	// Path is the output path for the Group, relative to the results directory.
+	// This is assigned at Config load time.
+	Path string
+
+	// ResultPrefix is the base file name for any output files. It may use Go
+	// template syntax, and is further documented in config.cue.
+	ResultPrefix string
+
+	// IDInfo maps Test ID keys to information about the key/value pair.
+	IDInfo map[string]IDInfo
+
 	// Test lists the Tests in the Group, and may be empty for Groups that only
 	// contain other Groups.
 	Test []Test
@@ -31,6 +42,12 @@ type Group struct {
 
 	// After is the default pipeline of Reports run after the Tests complete.
 	AfterDefault Report
+}
+
+// IDInfo contains information about one key/value pair in a Test ID.
+type IDInfo struct {
+	Key   string
+	Title string
 }
 
 // VisitTests calls the given visitor func for each Test in the Group

@@ -15,7 +15,7 @@ import (
 Run: #TestRun
 
 // Default is the default, top-level antler.Group. Test packages add their Tests
-// and Groups to Group.
+// and Groups here. TODO rename Default?
 Default: #Group & {
 	Test: Test
 }
@@ -25,6 +25,9 @@ Results: #Results
 
 // Server configures the builtin web server.
 Server: #Server
+
+// _IDregex is used for text identifiers in various places.
+_IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 
 //
 // antler package
@@ -36,6 +39,15 @@ Server: #Server
 //
 // Name is the name of the Group, and of the Group's directory in the results,
 // relative to the parent Group. Name may be empty only for the default Group.
+//
+// ResultPrefix is the base file name for any output files. It may use Go
+// template syntax (https://pkg.go.dev/text/template), with the Test ID passed
+// to the template as its data. The resulting value may not contain any path
+// separators (i.e. '/' characters), as all output files for a Group must
+// reside in a single directory. ResultPrefix must be unique for each Test, and
+// may be empty for a single Test.
+//
+// IDInfo maps Test ID keys to information about the key/value pair.
 //
 // Test lists the Tests in the Group, and may be empty for Groups that only
 // contain other Groups.
@@ -54,8 +66,11 @@ Server: #Server
 // as antler, then this pipeline should not be resource intensive, so as not to
 // perturb the test.
 #Group: {
-	_NameRegex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
-	Name?:      string & =~_NameRegex
+	Name?:         string & =~_IDregex
+	ResultPrefix?: string
+	IDInfo: {
+		[string & =~_IDregex]: #IDInfo
+	}
 	Test?: [...#Test]
 	Group?: [...#Group]
 	After?: [...#Report]
@@ -69,6 +84,12 @@ Server: #Server
 			{SaveFiles: {Consume: true}},
 			{EmitLog: {To: ["-"]}},
 	]
+}
+
+// antler.IDInfo contains information about one key/value pair in a Test ID.
+#IDInfo: {
+	Key:    string & =~_IDregex
+	Title?: string
 }
 
 // antler.TestRun is used to orchestrate the execution of Tests. Each TestRun
@@ -228,7 +249,6 @@ Server: #Server
 // After and AfterDefault are pipelines of Reports that are run after the Test,
 // and by the report command.
 #Test: {
-	_IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	_DefaultID: {test: "single"}
 	ID: {
 		[string & =~_IDregex]: string & =~_IDregex

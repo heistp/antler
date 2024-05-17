@@ -14,10 +14,11 @@ import (
 // and associated Reports. It is the only field that test packages must define.
 Run: #TestRun
 
-// Group lists the antler.Groups.
-Group: [...#Group] | *[
-	{Name: "default", Path: "."},
-]
+// Default is the default, top-level antler.Group. Test packages add their Tests
+// and Groups to Group.
+Default: #Group & {
+	Test: Test
+}
 
 // Results configures the destination paths for results and reports.
 Results: #Results
@@ -29,18 +30,17 @@ Server: #Server
 // antler package
 //
 
-// antler.Group contains a list of related Tests. It may be used to save the
-// Group's results to a common location, and run reports across all the Group's
-// Tests.
+// antler.Group is used to form a hierarchy of Tests. Each Group is a node in
+// this hierarchy containing a list of Tests, and a list of sub-Groups. Each
+// Test in a Group must have the same keys in its ID.
 //
-// Name is the name of the Group.
+// Name is the name of the Group, and of the Group's directory in the results,
+// relative to the parent Group. Name may be empty only for the default Group.
 //
-// Path is the base path for any output files, and defaults to a directory with
-// the Group's Name. Any path separators (e.g. '/') will result in the creation
-// of directories. A trailing slash is required if all output files are to be
-// saved under one directory.
+// Test lists the Tests in the Group, and may be empty for Groups that only
+// contain other Groups.
 //
-// Test lists the Tests in the Group.
+// Group lists any sub-Groups of the Group.
 //
 // After and AfterDefault are pipelines of Reports that are run after the
 // Group's Tests are run, and by the report command. AfterDefault makes it
@@ -54,10 +54,10 @@ Server: #Server
 // as antler, then this pipeline should not be resource intensive, so as not to
 // perturb the test.
 #Group: {
-	_NameRegex: "[a-zA-Z0-9.][a-zA-Z0-9._-]*"
-	Name:       string & =~_NameRegex
-	Path:       string & !="" | *"\(Name)/"
+	_NameRegex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
+	Name?:      string & =~_NameRegex
 	Test?: [...#Test]
+	Group?: [...#Group]
 	After?: [...#Report]
 	AfterDefault: [...#Report] | *[
 			{EmitLog: {To: ["node.log"], Sort: true}},

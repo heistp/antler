@@ -13,12 +13,12 @@ type Group struct {
 	// containing the results for the Group.
 	Name string
 
-	// Path is the base path for any output files.
-	Path string
-
 	// Test lists the Tests in the Group, and may be empty for Groups that only
 	// contain other Groups.
 	Test []Test
+
+	// Group lists any sub-Groups of the Group.
+	Group []Group
 
 	// During is a pipeline of Reports run while the Tests run.
 	During Report
@@ -42,6 +42,11 @@ func (g Group) VisitTests(visitor func(*Test) bool) bool {
 			return false
 		}
 	}
+	for _, g := range g.Group {
+		if !g.VisitTests(visitor) {
+			return false
+		}
+	}
 	return true
 }
 
@@ -49,6 +54,11 @@ func (g Group) VisitTests(visitor func(*Test) bool) bool {
 func (g Group) do(ctx context.Context, d doer2) (err error) {
 	for _, t := range g.Test {
 		if err = d.do(ctx, &t); err != nil {
+			return
+		}
+	}
+	for _, g := range g.Group {
+		if err = g.do(ctx, d); err != nil {
 			return
 		}
 	}

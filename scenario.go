@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -148,6 +149,76 @@ type DuplicateResultPrefixError2 struct {
 func (d DuplicateResultPrefixError2) Error() string {
 	return fmt.Sprintf("scenario %s contains duplicate Test ResultPrefixes: %s",
 		d.Path, strings.Join(d.Prefix, ", "))
+}
+
+// validateTestIDs is called recursively to check that Test IDs contain the
+// fields listed in IDInfo, and that no Test IDs are duplicated in a Scenario.
+func (s *Scenario) validateTestIDs() (err error) {
+	var ii, dd []TestID
+	for _, t := range s.Test {
+		for k := range t.ID {
+			if _, ok := s.IDInfo[k]; !ok {
+				err = TestIDError{s.Path, t.ID}
+				return
+			}
+		}
+		for k := range s.IDInfo {
+			if _, ok := t.ID[k]; !ok {
+				err = TestIDError{s.Path, t.ID}
+				return
+			}
+		}
+		f := func(id TestID) bool {
+			return id.Equal(t.ID)
+		}
+		if slices.ContainsFunc(ii, f) {
+			if !slices.ContainsFunc(dd, f) {
+				dd = append(dd, t.ID)
+			}
+		} else {
+			ii = append(ii, t.ID)
+		}
+	}
+	if len(dd) > 0 {
+		err = DuplicateTestIDError2{s.Path, dd}
+		return
+	}
+	for _, c := range s.Scenario {
+		if err = c.validateTestIDs(); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// TestIDError is returned when a Test's ID does not match the Scenario's
+// IDInfo.
+type TestIDError struct {
+	Path string
+	ID   TestID
+}
+
+// Error implements error
+func (e TestIDError) Error() string {
+	return fmt.Sprintf("scenario %s contains Test with ID %s that does not "+
+		"match the scenario's IDInfo field", e.Path, e.ID)
+}
+
+// DuplicateTestIDError2 is returned when multiple Tests have the same ID.
+// TODO rename DuplicateTestIDError2 after Scenarios are in place
+type DuplicateTestIDError2 struct {
+	Path string
+	ID   []TestID
+}
+
+// Error implements error
+func (d DuplicateTestIDError2) Error() string {
+	var s []string
+	for _, i := range d.ID {
+		s = append(s, i.String())
+	}
+	return fmt.Sprintf("scenario %s contains duplicate Test IDs: %s",
+		d.Path, strings.Join(s, ", "))
 }
 
 // A doer2 takes action on a Test, visited in a Scenario hierarchy.

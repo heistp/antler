@@ -5,7 +5,10 @@ package antler
 
 import (
 	"context"
+	"fmt"
+	"html/template"
 	"path/filepath"
+	"strings"
 )
 
 // Scenario is used to form a hierarchy of Tests. Each Scenario is a node in the
@@ -93,6 +96,58 @@ func (s *Scenario) setPath(prefix string) {
 	for _, c := range s.Scenario {
 		c.setPath(s.Path)
 	}
+}
+
+// generateResultPrefixes is called recursively to execute the ResultPrefix
+// template for each Test, to set their ResultPrefixX fields.
+// TODO update generateResultPrefixes doc after ResultPrefixX -> ResultPrefix
+func (s *Scenario) generateResultPrefixes() (err error) {
+	m := template.New("ResultPrefix")
+	if m, err = m.Parse(s.ResultPrefix); err != nil {
+		return
+	}
+	pp := make(map[string]int)
+	var d []string
+	for _, t := range s.Test {
+		var b strings.Builder
+		if err = m.Execute(&b, t.ID); err != nil {
+			return
+		}
+		p := b.String()
+		t.ResultPrefixX = p
+		if v, ok := pp[p]; ok {
+			if v == 1 {
+				d = append(d, p)
+			}
+			pp[p] = v + 1
+		} else {
+			pp[p] = 1
+		}
+	}
+	if len(d) > 0 {
+		err = DuplicateResultPrefixError2{s.Path, d}
+		return
+	}
+	for _, c := range s.Scenario {
+		if err = c.generateResultPrefixes(); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// DuplicateResultPrefixError2 is returned when multiple Tests have the same
+// ResultPrefix.
+// TODO rename DuplicateResultPrefixError2 after Scenarios are in place
+type DuplicateResultPrefixError2 struct {
+	Path   string
+	Prefix []string
+}
+
+// Error implements error
+func (d DuplicateResultPrefixError2) Error() string {
+	return fmt.Sprintf("scenario %s contains duplicate Test ResultPrefixes: %s",
+		d.Path, strings.Join(d.Prefix, ", "))
 }
 
 // A doer2 takes action on a Test, visited in a Scenario hierarchy.

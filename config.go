@@ -166,18 +166,6 @@ func (c *Config) generateResultPrefixes() (err error) {
 	return
 }
 
-// DuplicateResultPrefixError is returned when multiple Tests have the same
-// ResultPrefix.
-type DuplicateResultPrefixError struct {
-	ResultPrefix []string
-}
-
-// Error implements error
-func (d DuplicateResultPrefixError) Error() string {
-	return fmt.Sprintf("duplicate Test ResultPrefixes: %s",
-		strings.Join(d.ResultPrefix, ", "))
-}
-
 // LoadConfig first executes templates in any .cue.tmpl files to create the
 // corresponding .cue files, then uses the CUE API to load and return the Antler
 // Config.
@@ -237,6 +225,18 @@ func executeConfigTemplates() (err error) {
 		}
 	}
 	return
+}
+
+// DuplicateResultPrefixError is returned when multiple Tests have the same
+// ResultPrefix.
+type DuplicateResultPrefixError struct {
+	ResultPrefix []string
+}
+
+// Error implements error
+func (d DuplicateResultPrefixError) Error() string {
+	return fmt.Sprintf("duplicate Test ResultPrefixes: %s",
+		strings.Join(d.ResultPrefix, ", "))
 }
 
 // configFunc contains the template functions for .cue.tmpl config files.

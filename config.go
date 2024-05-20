@@ -32,21 +32,23 @@ var configCUE string
 
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
-	Run     TestRun
-	Results Results
-	Server  Server
+	Run      TestRun
+	Scenario Scenario
+	Results  Results
+	Server   Server
 }
 
-// validate performs any programmatic validation on the Config that isn't
-// possible to do with the schema in config.cue.
+// validate performs any programmatic generation and validation on the Config
+// that isn't possible to do with the schema in config.cue.
 func (c *Config) validate() (err error) {
+	c.Scenario.setPath("")
 	if err = c.validateTestIDs(); err != nil {
 		return
 	}
 	if err = c.validateNodeIDs(); err != nil {
 		return
 	}
-	if err = c.validateResultPrefixes(); err != nil {
+	if err = c.generateResultPrefixes(); err != nil {
 		return
 	}
 	return
@@ -132,9 +134,9 @@ func (a AmbiguousNodeIDError) Error() string {
 	return fmt.Sprintf("ambiguous Node IDs: %s", strings.Join(s, ", "))
 }
 
-// validateResultPrefixes executes ResultPrefix for each Test and assigns the
+// generateResultPrefixes executes ResultPrefix for each Test and assigns the
 // output to the ResultPrefixX field.
-func (c *Config) validateResultPrefixes() (err error) {
+func (c *Config) generateResultPrefixes() (err error) {
 	pp := make(map[string]int)
 	var d []string
 	c.Run.VisitTests(func(t *Test) bool {

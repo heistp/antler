@@ -30,6 +30,7 @@ func root() (cmd *cobra.Command) {
 	}
 	cmd.AddCommand(vet())
 	cmd.AddCommand(list())
+	cmd.AddCommand(list2())
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
 	cmd.AddCommand(server())
@@ -78,6 +79,43 @@ func list() (cmd *cobra.Command) {
 					return true
 				}
 				fmt.Fprintf(w, "%s\t%s\n", t.ID, t.ResultPrefixX)
+				return true
+			})
+			w.Flush()
+			return
+		},
+	}
+}
+
+// list2 returns the list2 cobra command.
+func list2() (cmd *cobra.Command) {
+	return &cobra.Command{
+		Use:   "list2 [filter] ...",
+		Short: "Lists tests and their result path prefixes",
+		Long: help(`List lists tests and their result path prefixes.
+
+{{template "filter" "list2"}}
+`),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			var f antler.TestFilter = antler.BoolFilter(true)
+			if len(args) > 0 {
+				if f, err = newRegexFilter(args); err != nil {
+					return
+				}
+			}
+			var c *antler.Config
+			if c, err = antler.LoadConfig(&load.Config{}); err != nil {
+				return
+			}
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "Path\tTest ID\tResult Prefix")
+			fmt.Fprintln(w, "----\t-------\t-------------")
+			c.Group.VisitTests(func(t *antler.Test) bool {
+				if !f.Accept(t) {
+					return true
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\n", t.Group.Path, t.ID,
+					t.ResultPrefixX)
 				return true
 			})
 			w.Flush()

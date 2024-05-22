@@ -94,8 +94,18 @@ func (s *Group) do(ctx context.Context, d doer2) (err error) {
 // setPath is called recursively to set the Path fields from the Names.
 func (s *Group) setPath(prefix string) {
 	s.Path = filepath.Join(prefix, s.Name)
-	for _, c := range s.Group {
-		c.setPath(s.Path)
+	for i := range s.Group {
+		s.Group[i].setPath(s.Path)
+	}
+}
+
+// setTestGroup is called recursively to set the Group field for all Tests.
+func (s *Group) setTestGroup() {
+	for i := range s.Test {
+		s.Test[i].Group = s
+	}
+	for _, s := range s.Group {
+		s.setTestGroup()
 	}
 }
 

@@ -42,6 +42,7 @@ type Config struct {
 // that isn't possible to do with the schema in config.cue.
 func (c *Config) validate() (err error) {
 	c.Group.setPath("")
+	c.Group.setTestGroup()
 	if err = c.Group.generateResultPrefixes(); err != nil {
 		return
 	}

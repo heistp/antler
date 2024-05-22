@@ -151,23 +151,11 @@ func (d DuplicateResultPrefixError2) Error() string {
 		d.Path, strings.Join(d.Prefix, ", "))
 }
 
-// validateTestIDs is called recursively to check that Test IDs contain the
-// fields listed in IDInfo, and that no Test IDs are duplicated in a Group.
+// validateTestIDs is called recursively to check that no Test IDs are
+// duplicated in a Group.
 func (s *Group) validateTestIDs() (err error) {
 	var ii, dd []TestID
 	for _, t := range s.Test {
-		for k := range t.ID {
-			if _, ok := s.IDInfo[k]; !ok {
-				err = TestIDError{s.Path, t.ID}
-				return
-			}
-		}
-		for k := range s.IDInfo {
-			if _, ok := t.ID[k]; !ok {
-				err = TestIDError{s.Path, t.ID}
-				return
-			}
-		}
 		f := func(id TestID) bool {
 			return id.Equal(t.ID)
 		}
@@ -189,18 +177,6 @@ func (s *Group) validateTestIDs() (err error) {
 		}
 	}
 	return
-}
-
-// TestIDError is returned when a Test's ID does not match the Group's IDInfo.
-type TestIDError struct {
-	Path string
-	ID   TestID
-}
-
-// Error implements error
-func (e TestIDError) Error() string {
-	return fmt.Sprintf("Group %s contains Test with ID %s that does not "+
-		"match the group's IDInfo field", e.Path, e.ID)
 }
 
 // DuplicateTestIDError2 is returned when multiple Tests have the same ID.

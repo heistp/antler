@@ -17,12 +17,7 @@ Run?: #TestRun
 
 // Group is the default, top-level antler.Group. Test packages add their Tests
 // and sub-Groups here.
-Group: #Group & {
-	Test: Test
-}
-
-// Test is the list of Tests in the default, top-level Group.
-Test: [...#Test]
+Group?: #Group
 
 // Results configures the destination paths for results and reports.
 Results: #Results

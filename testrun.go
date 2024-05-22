@@ -35,8 +35,10 @@ func (t *TestRun) VisitTests(visitor func(*Test) bool) bool {
 		rr = t.Serial
 	case len(t.Parallel) > 0:
 		rr = t.Parallel
-	default:
+	case t.Test != nil:
 		return visitor(t.Test)
+	default:
+		return false
 	}
 	for _, r := range rr {
 		if !r.VisitTests(visitor) {
@@ -56,7 +58,7 @@ func (t *TestRun) do(ctx context.Context, d doer, rst reportStack) (
 		err = t.Serial.do(ctx, d, rst)
 	case len(t.Parallel) > 0:
 		err = t.Parallel.do(ctx, d, rst)
-	default:
+	case t.Test != nil:
 		err = d.do(ctx, t.Test, rst)
 	}
 	return

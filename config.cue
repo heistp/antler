@@ -12,13 +12,17 @@ import (
 
 // Run is the top-level antler.TestRun, and consists of a hierarchy of TestRuns
 // and associated Reports. It is the only field that test packages must define.
-Run: #TestRun
+// TODO remove Run field after Groups work- it's optional for now
+Run?: #TestRun
 
 // Group is the default, top-level antler.Group. Test packages add their Tests
 // and sub-Groups here.
 Group: #Group & {
 	Test: Test
 }
+
+// Test is the list of Tests in the default, top-level Group.
+Test: [...#Test]
 
 // Results configures the destination paths for results and reports.
 Results: #Results

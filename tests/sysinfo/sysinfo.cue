@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2023 Pete Heist
 
-// This Antler example tests gathering system information in the root node.
+// This Antler test gathers system information in the root node.
 
 package sysinfo
 

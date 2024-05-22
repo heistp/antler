@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2023 Pete Heist
 
-// This Antler example tests streaming FileData back from a node.
+// This Antler test streams FileData back from a node.
 
 package env
 

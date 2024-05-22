@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2023 Pete Heist
 
-// This Antler example tests running a node with environment variables set.
+// This Antler test runs a node with environment variables set.
 
 package env
 

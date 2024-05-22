@@ -14,9 +14,9 @@ import (
 // and associated Reports. It is the only field that test packages must define.
 Run: #TestRun
 
-// Scenario is the default, top-level antler.Scenario. Test packages add their
-// Tests and sub-Scenarios here.
-Scenario: #Scenario & {
+// Group is the default, top-level antler.Group. Test packages add their Tests
+// and sub-Groups here.
+Group: #Group & {
 	Test: Test
 }
 
@@ -33,47 +33,46 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // antler package
 //
 
-// antler.Scenario is used to form a hierarchy of Tests. Each Scenario is a
-// node in this hierarchy containing a list of Tests, and a list of
-// sub-Scenarios.  Each Test in a Scenario must have the same keys in its ID.
+// antler.Group is used to form a hierarchy of Tests. Each Group is a node in
+// this hierarchy containing a list of Tests, and a list of sub-Groups.  Each
+// Test in a Group must have the same keys in its ID.
 //
-// Name is the name of the Scenario, and of the Scenario's directory in the
-// results, relative to the parent Scenario. Name may be empty only for the
-// default Scenario.
+// Name is the name of the Group, and of the Group's directory in the results,
+// relative to the parent Group. Name may be empty only for the default Group.
 //
 // ResultPrefix is the base file name for any output files. It may use Go
 // template syntax (https://pkg.go.dev/text/template), with the Test ID passed
 // to the template as its data. The resulting value may not contain any path
-// separators (i.e. '/' characters), as all output files for a Scenario must
+// separators (i.e. '/' characters), as all output files for a Group must
 // reside in a single directory. ResultPrefix must be unique for each Test, and
 // may be empty for a single Test.
 //
 // IDInfo maps Test ID keys to information about the key/value pair.
 //
-// Test lists the Tests in the Scenario, and may be empty for Scenarios that
-// only contain other sub-Scenarios.
+// Test lists the Tests in the Group, and may be empty for Groups that only
+// contain other sub-Groups.
 //
-// Scenario lists any sub-Scenarios of the Scenario.
+// Group lists any sub-Groups of the Group.
 //
 // After and AfterDefault are pipelines of Reports that are run after the
-// Scenario's Tests are run, and by the report command. AfterDefault makes it
-// convenient to add Reports that run for all Scenarios, by setting it on the
-// definition for #Scenario.
+// Group's Tests are run, and by the report command. AfterDefault makes it
+// convenient to add Reports that run for all Groups, by setting it on the
+// definition for #Group.
 //
 // During and DuringDefault are analogous to After and AfterDefault, but run
-// *while* the Scenario's Tests are run. They may not be used to generate saved
+// *while* the Group's Tests are run. They may not be used to generate saved
 // reports from result data, otherwise those reports would be lost during
 // incremental test runs. If the antler nodes are running on the same machine
 // as antler, then this pipeline should not be resource intensive, so as not to
 // perturb the test.
-#Scenario: {
+#Group: {
 	Name?:         string & =~_IDregex
 	ResultPrefix?: string
 	IDInfo: {
 		[string & =~_IDregex]: #IDInfo
 	}
 	Test?: [...#Test]
-	Scenario?: [...#Scenario]
+	Group?: [...#Group]
 	After?: [...#Report]
 	AfterDefault: [...#Report] | *[
 			{EmitLog: {To: ["node.log"], Sort: true}},
@@ -517,7 +516,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 }
 
 // antler.Index is a Report that generates an index page for the Tests in a
-// Scenario.
+// Group.
 #Index: {
 	Name: string & !="" | *"index.html"
 }

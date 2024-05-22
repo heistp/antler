@@ -12,16 +12,16 @@ import (
 	"strings"
 )
 
-// Scenario is used to form a hierarchy of Tests. Each Scenario is a node in the
+// Group is used to form a hierarchy of Tests. Each Group is a node in the
 // hierarchy containing a list of Tests with the same ID keys, and a list of
-// sub-Scenarios.
-type Scenario struct {
-	// Name is the name of the Scenario, and is used as the name of the
-	// directory containing the results for the Scenario.
+// sub-Groups.
+type Group struct {
+	// Name is the name of the Group, and is used as the name of the directory
+	// containing the results for the Group.
 	Name string
 
-	// Path is the output path for the Scenario, relative to the results
-	// directory.  This is assigned at Config load time.
+	// Path is the output path for the Group, relative to the results directory.
+	// This is assigned at Config load time.
 	Path string
 
 	// ResultPrefix is the base file name for any output files. It may use Go
@@ -33,12 +33,12 @@ type Scenario struct {
 	// IDInfo maps Test ID keys to information about the key/value pair.
 	IDInfo map[string]IDInfo
 
-	// Test lists the Tests in the Scenario, and may be empty for Scenarios that
-	// only contain other Scenarios.
+	// Test lists the Tests in the Group, and may be empty for Groups that only
+	// contain other Groups.
 	Test []Test
 
-	// Scenario lists any sub-Scenarios.
-	Scenario []Scenario
+	// Group lists any sub-Groups.
+	Group []Group
 
 	// During is a pipeline of Reports run while the Tests run.
 	During Report
@@ -59,16 +59,16 @@ type IDInfo struct {
 	Title string
 }
 
-// VisitTests calls the given visitor func for each Test in the Scenario
-// hierarchy. The visitor may return false to stop visiting, in which case
-// VisitTests will also return false.
-func (s *Scenario) VisitTests(visitor func(*Test) bool) bool {
+// VisitTests calls the given visitor func for each Test in the Group hierarchy.
+// The visitor may return false to stop visiting, in which case VisitTests will
+// also return false.
+func (s *Group) VisitTests(visitor func(*Test) bool) bool {
 	for _, t := range s.Test {
 		if !visitor(&t) {
 			return false
 		}
 	}
-	for _, s := range s.Scenario {
+	for _, s := range s.Group {
 		if !s.VisitTests(visitor) {
 			return false
 		}
@@ -76,14 +76,14 @@ func (s *Scenario) VisitTests(visitor func(*Test) bool) bool {
 	return true
 }
 
-// do runs a doer on the Tests, and recursively on the sub-Scenarios.
-func (s *Scenario) do(ctx context.Context, d doer2) (err error) {
+// do runs a doer on the Tests, and recursively on the sub-Groups.
+func (s *Group) do(ctx context.Context, d doer2) (err error) {
 	for _, t := range s.Test {
 		if err = d.do(ctx, &t); err != nil {
 			return
 		}
 	}
-	for _, s := range s.Scenario {
+	for _, s := range s.Group {
 		if err = s.do(ctx, d); err != nil {
 			return
 		}
@@ -92,9 +92,9 @@ func (s *Scenario) do(ctx context.Context, d doer2) (err error) {
 }
 
 // setPath is called recursively to set the Path fields from the Names.
-func (s *Scenario) setPath(prefix string) {
+func (s *Group) setPath(prefix string) {
 	s.Path = filepath.Join(prefix, s.Name)
-	for _, c := range s.Scenario {
+	for _, c := range s.Group {
 		c.setPath(s.Path)
 	}
 }
@@ -102,7 +102,7 @@ func (s *Scenario) setPath(prefix string) {
 // generateResultPrefixes is called recursively to execute the ResultPrefix
 // template for each Test, to set their ResultPrefixX fields.
 // TODO update generateResultPrefixes doc after ResultPrefixX -> ResultPrefix
-func (s *Scenario) generateResultPrefixes() (err error) {
+func (s *Group) generateResultPrefixes() (err error) {
 	m := template.New("ResultPrefix")
 	if m, err = m.Parse(s.ResultPrefix); err != nil {
 		return
@@ -129,7 +129,7 @@ func (s *Scenario) generateResultPrefixes() (err error) {
 		err = DuplicateResultPrefixError2{s.Path, d}
 		return
 	}
-	for _, c := range s.Scenario {
+	for _, c := range s.Group {
 		if err = c.generateResultPrefixes(); err != nil {
 			return
 		}
@@ -139,7 +139,7 @@ func (s *Scenario) generateResultPrefixes() (err error) {
 
 // DuplicateResultPrefixError2 is returned when multiple Tests have the same
 // ResultPrefix.
-// TODO rename DuplicateResultPrefixError2 after Scenarios are in place
+// TODO rename DuplicateResultPrefixError2 after Groups are in place
 type DuplicateResultPrefixError2 struct {
 	Path   string
 	Prefix []string
@@ -147,13 +147,13 @@ type DuplicateResultPrefixError2 struct {
 
 // Error implements error
 func (d DuplicateResultPrefixError2) Error() string {
-	return fmt.Sprintf("scenario %s contains duplicate Test ResultPrefixes: %s",
+	return fmt.Sprintf("Group %s contains duplicate Test ResultPrefixes: %s",
 		d.Path, strings.Join(d.Prefix, ", "))
 }
 
 // validateTestIDs is called recursively to check that Test IDs contain the
-// fields listed in IDInfo, and that no Test IDs are duplicated in a Scenario.
-func (s *Scenario) validateTestIDs() (err error) {
+// fields listed in IDInfo, and that no Test IDs are duplicated in a Group.
+func (s *Group) validateTestIDs() (err error) {
 	var ii, dd []TestID
 	for _, t := range s.Test {
 		for k := range t.ID {
@@ -183,7 +183,7 @@ func (s *Scenario) validateTestIDs() (err error) {
 		err = DuplicateTestIDError2{s.Path, dd}
 		return
 	}
-	for _, c := range s.Scenario {
+	for _, c := range s.Group {
 		if err = c.validateTestIDs(); err != nil {
 			return
 		}
@@ -191,8 +191,7 @@ func (s *Scenario) validateTestIDs() (err error) {
 	return
 }
 
-// TestIDError is returned when a Test's ID does not match the Scenario's
-// IDInfo.
+// TestIDError is returned when a Test's ID does not match the Group's IDInfo.
 type TestIDError struct {
 	Path string
 	ID   TestID
@@ -200,12 +199,12 @@ type TestIDError struct {
 
 // Error implements error
 func (e TestIDError) Error() string {
-	return fmt.Sprintf("scenario %s contains Test with ID %s that does not "+
-		"match the scenario's IDInfo field", e.Path, e.ID)
+	return fmt.Sprintf("Group %s contains Test with ID %s that does not "+
+		"match the group's IDInfo field", e.Path, e.ID)
 }
 
 // DuplicateTestIDError2 is returned when multiple Tests have the same ID.
-// TODO rename DuplicateTestIDError2 after Scenarios are in place
+// TODO rename DuplicateTestIDError2 after Groups are in place
 type DuplicateTestIDError2 struct {
 	Path string
 	ID   []TestID
@@ -217,11 +216,11 @@ func (d DuplicateTestIDError2) Error() string {
 	for _, i := range d.ID {
 		s = append(s, i.String())
 	}
-	return fmt.Sprintf("scenario %s contains duplicate Test IDs: %s",
+	return fmt.Sprintf("Group %s contains duplicate Test IDs: %s",
 		d.Path, strings.Join(s, ", "))
 }
 
-// A doer2 takes action on a Test, visited in a Scenario hierarchy.
+// A doer2 takes action on a Test, visited in a Group hierarchy.
 type doer2 interface {
 	do(context.Context, *Test) error
 }

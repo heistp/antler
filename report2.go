@@ -6,8 +6,8 @@ package antler
 import "context"
 
 // A reporter2 can process data items from the node for multiple Tests in a
-// Scenario. It is run as a stage in a pipeline, where one reportData is passed
-// to the data channel for each Test.
+// Group. It is run as a stage in a pipeline, where one reportData is passed to
+// the data channel for each Test.
 //
 // Reporters should be able to handle multiple Test data streams concurrently.
 //

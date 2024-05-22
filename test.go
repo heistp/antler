@@ -19,8 +19,8 @@ type Test struct {
 	// ID uniquely identifies the Test in the test package.
 	ID TestID
 
-	// Scenario is the Scenario that this Test belongs to.
-	Scenario *Scenario
+	// Group is the Group that this Test belongs to.
+	Group *Group
 
 	// ResultPrefix is the path prefix for result files. It may use Go template
 	// syntax, and is further documented in config.cue.

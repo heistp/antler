@@ -66,7 +66,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // perturb the test.
 #Group: {
 	Name?:         string & =~_IDregex
-	ResultPrefix?: string
+	ResultPrefix?: string | *"{{range $v := .}}{{$v}}_{{end}}"
 	IDInfo: {
 		[string & =~_IDregex]: #IDInfo
 	}

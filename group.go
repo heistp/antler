@@ -43,14 +43,8 @@ type Group struct {
 	// During is a pipeline of Reports run while the Tests run.
 	During Report
 
-	// DuringDefault is the default pipeline of Reports run while the Tests run.
-	DuringDefault Report
-
 	// After is a pipeline of Reports run after the Tests complete.
 	After Report
-
-	// After is the default pipeline of Reports run after the Tests complete.
-	AfterDefault Report
 }
 
 // IDInfo contains information about one key/value pair in a Test ID.

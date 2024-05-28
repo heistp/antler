@@ -53,17 +53,22 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // Group lists any sub-Groups of the Group.
 //
-// After and AfterDefault are pipelines of Reports that are run after the
-// Group's Tests are run, and by the report command. AfterDefault makes it
-// convenient to add Reports that run for all Groups, by setting it on the
-// definition for #Group.
+// During is a pipeline of Reports that is run *while* the Group's Tests are
+// run. It may not be used to generate saved reports from result data,
+// otherwise those reports would be lost during incremental test runs. When
+// setting During, #DuringDefault should typically be prepended to the list
+// (e.g. During: #DuringDefault + [...]) so that file data is saved and
+// consumed, and logs are emitted, before the other pipeline stages are run.
 //
-// During and DuringDefault are analogous to After and AfterDefault, but run
-// *while* the Group's Tests are run. They may not be used to generate saved
-// reports from result data, otherwise those reports would be lost during
-// incremental test runs. If the antler nodes are running on the same machine
-// as antler, then this pipeline should not be resource intensive, so as not to
-// perturb the test.
+// After is analogous to during, but run *after* the Group's Tests are run.
+// This may be used to generate persistent reports from the result data. When
+// setting After, #AfterDefault may be prepended to the list to save log files,
+// system info, etc.
+//
+// Care should be taken to avoid resource intensive operations on antler test
+// nodes. If the nodes are running on a separate machine from antler, this is
+// not an issue. If on the same machine, then the During pipeline should not
+// include any resource intensive stages, so as not to perturb the test.
 #Group: {
 	Name?:         string & =~_IDregex
 	ResultPrefix?: string | *"{{range $v := .}}{{$v}}_{{end}}"
@@ -72,18 +77,26 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	}
 	Test?: [...#Test]
 	Group?: [...#Group]
-	After?: [...#Report]
-	AfterDefault: [...#Report] | *[
-			{EmitLog: {To: ["node.log"], Sort: true}},
-			{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
-			{Index: {}},
-	]
-	During?: [...#Report]
-	DuringDefault: [...#Report] | *[
-			{SaveFiles: {Consume: true}},
-			{EmitLog: {To: ["-"]}},
-	]
+	During: [...#Report] | *#DuringDefault
+	After:  [...#Report] | *#AfterDefault
 }
+
+// DuringDefault is a list of reports to run by default during a test. Here, we
+// save files and consume their FileData items first, so that large files such
+// as pcaps are removed from the data stream and gob file and saved in separate
+// files. We also emit logs to stdout as they arrive.
+#DuringDefault: [
+	{SaveFiles: {Consume: true}},
+	{EmitLog: {To: ["-"]}},
+]
+
+// AfterDefault is a list of reports to run by default after a test. Here, we
+// save log files, system information, and an index file for the Group.
+#AfterDefault: [
+	{EmitLog: {To: ["node.log"], Sort: true}},
+	{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
+	{Index: {}},
+]
 
 // antler.IDInfo contains information about one key/value pair in a Test ID.
 #IDInfo: {

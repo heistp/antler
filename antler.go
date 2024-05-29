@@ -556,6 +556,103 @@ func (d doReport) do(ctx context.Context, test *Test, rst reportStack) (
 	return
 }
 
+// Report2Command runs the After reports using the data files as the source.
+type Report2Command struct {
+	// DataFileUnset is called when a report was skipped because the Test's
+	// DataFile field is empty.
+	DataFileUnset func(test *Test)
+
+	// NotFound is called when a report was skipped because the data file needed
+	// to run it doesn't exist.
+	NotFound func(test *Test, name string)
+
+	// Reporting is called when a report starts running.
+	Reporting func(test *Test)
+
+	// Done is called when the ReportCommand is done.
+	Done func(ReportInfo)
+}
+
+// run implements command
+func (r Report2Command) run(ctx context.Context) (err error) {
+	var c *Config
+	if c, err = LoadConfig(&load.Config{}); err != nil {
+		return
+	}
+	var rw resultRW
+	if rw, err = c.Results.open(); err != nil {
+		return
+	}
+	d := doReport2{r, rw, &ReportInfo{}}
+	defer func() {
+		var e error
+		if _, e = rw.Close(); e != nil && err == nil {
+			err = e
+		}
+
+		d.Info.Elapsed = time.Since(d.Info.Start)
+		if d.Info.Reported == 0 {
+			if e := rw.Abort(); e != nil && err == nil {
+				err = e
+			}
+		} else {
+			var e error
+			if d.Info.ResultDir, e = rw.Close(); e != nil && err == nil {
+				err = e
+			}
+		}
+		if r.Done != nil {
+			r.Done(*d.Info)
+		}
+	}()
+	d.Info.Start = time.Now()
+	err = c.Group.do(ctx, d)
+	return
+}
+
+// doReport2 is a doer that runs reports.
+type doReport2 struct {
+	Report2Command
+	RW   resultRW
+	Info *ReportInfo
+}
+
+// do implements doer
+func (d doReport2) do(ctx context.Context, test *Test) (
+	err error) {
+	rw := test.RW(d.RW)
+	if err = test.LinkPriorData(rw); err != nil {
+		switch e := err.(type) {
+		case DataFileUnsetError:
+			if d.DataFileUnset != nil {
+				d.DataFileUnset(test)
+			}
+			err = nil
+		case LinkError:
+			if d.NotFound != nil {
+				d.NotFound(test, e.Name)
+			}
+			err = nil
+		}
+		return
+	}
+	if d.Reporting != nil {
+		d.Reporting(test)
+	}
+	var r io.ReadCloser
+	if r, err = test.DataReader(rw); err != nil {
+		return
+	}
+	d.Info.Reported++
+	t := report([]reporter{readData{r}}).add(test.Group.After.report())
+	for e := range t.pipeline(ctx, nil, nil, rw) {
+		if err == nil {
+			err = e
+		}
+	}
+	return
+}
+
 // ServerCommand runs the builtin web server.
 type ServerCommand struct {
 }

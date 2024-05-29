@@ -322,7 +322,7 @@ func (r Run2Command) run(ctx context.Context) (err error) {
 		}
 	}()
 	d.Info.Start = time.Now()
-	err = c.Run.do(ctx, d, reportStack{})
+	err = c.Group.do(ctx, d)
 	return
 }
 
@@ -334,7 +334,7 @@ type doRun2 struct {
 }
 
 // do implements doer
-func (u doRun2) do(ctx context.Context, test *Test, rst reportStack) (
+func (u doRun2) do(ctx context.Context, test *Test) (
 	err error) {
 	rw := test.RW(u.RW)
 	var s reporter
@@ -386,7 +386,12 @@ func (u doRun2) do(ctx context.Context, test *Test, rst reportStack) (
 			return
 		}
 	}
-	err = teeReport(ctx, s, test, rw, rst)
+	r := report([]reporter{s}).add(test.Group.After.report())
+	for e := range r.pipeline(ctx, nil, nil, rw) {
+		if err == nil {
+			err = e
+		}
+	}
 	return
 }
 
@@ -401,7 +406,7 @@ func (u doRun2) run(ctx context.Context, test *Test) (src reporter, err error) {
 		err = nil
 	}
 	var a appendData
-	var p report = test.DuringDefault.report()
+	var p report = test.Group.During.report()
 	if w != nil {
 		p = append(p, writeData{w})
 	} else {

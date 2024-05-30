@@ -63,6 +63,7 @@ type reporters struct {
 	ChartsTimeSeries *ChartsTimeSeries
 	SaveFiles        *SaveFiles
 	Encode           *Encode
+	Index            *Index
 }
 
 // reporter returns the only non-nil reporter implementation.
@@ -82,6 +83,8 @@ func (r *reporters) reporter() reporter {
 		return r.SaveFiles
 	case r.Encode != nil:
 		return r.Encode
+	case r.Index != nil:
+		return r.Index
 	default:
 		panic("no reporter set in reporters union")
 	}

@@ -5,31 +5,26 @@
 
 package id
 
-// Run creates a Serial list of TestRuns with a list comprehension.
-Run: {
-	Serial: [
+// The default Group contains a list of Tests with a list comprehension.
+Group: {
+	Test: [
 		for a in [ "W", "X", "Y", "Z"]
 		for b in [ "1", "2", "3", "4"] {
-			{_A: a, _B: b} & _testRun
+			// ID is a compound ID with two key/value pairs.
+			ID: {A: a, B: b}
+
+			// ResultPrefix uses a directory for A, and B as the filename prefix.
+			ResultPrefix: "{{.A}}/{{.B}}-"
+
+			// Emit a and b, for testing.
+			System: Command: "echo a=\(a) b=\(b)"
+
+			// disable saving of gob data
+			DataFile: ""
 		},
 	]
-}
+	ResultPrefix: "{{.A}}/{{.B}}-"
 
-// _testRun is the abstract TestRun.
-_testRun: {
-	_A: string
-	_B: string
-	Test: {
-		// ID is a compound ID with two key/value pairs.
-		ID: {
-			A: _A
-			B: _B
-		}
-
-		// ResultPrefix uses a directory for A, and B as the filename prefix.
-		ResultPrefix: "{{.A}}/{{.B}}-"
-
-		// Emit A and B, for testing.
-		System: Command: "echo A=\(_A) B=\(_B)"
-	}
+	// remove default reporters to skip writing any files
+	After: []
 }

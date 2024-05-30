@@ -5,19 +5,14 @@
 
 package sysinfo
 
-Run: {
-	Test: {
+// The default Group contains a single Test that tests system information.
+Group: {
+	Test: [{
 		// SysInfo gathers system information.
 		SysInfo: {
 			OS: {
 				Command: {Command: "uname -a"}
 			}
-			//KernSrcInfo: {
-			//	Command: {Command: "git -C /usr/local/src/sce show --summary"}
-			//}
-			//KernSrcVer: {
-			//	Command: {Command: "git -C /usr/local/src/sce show HEAD --pretty=format:%h --no-patch"}
-			//}
 			Command: [
 				{Command: "lscpu"},
 				{Command: "lshw -sanitize"},
@@ -36,9 +31,8 @@ Run: {
 
 		// disable saving of gob data
 		DataFile: ""
-		// remove default reporters to skip writing node.log, and emit sysinfo
-		AfterDefault: [
-			{EmitSysInfo: {}},
-		]
-	}
+	}]
+	After: [
+		{EmitSysInfo: {}},
+	]
 }

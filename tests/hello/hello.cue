@@ -5,9 +5,9 @@
 
 package hello
 
-// Run contains a single Test that emits Hello World.
-Run: {
-	Test: {
+// The default Group contains a single Test that emits Hello World.
+Group: {
+	Test: [{
 		// System is a system command.
 		System: {
 			Command: "bash -c"
@@ -16,7 +16,7 @@ Run: {
 
 		// disable saving of gob data
 		DataFile: ""
-		// remove default reporters to skip writing node.log
-		AfterDefault: []
-	}
+	}]
+	// remove default reporters to skip writing any files
+	After: []
 }

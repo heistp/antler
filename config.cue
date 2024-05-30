@@ -16,7 +16,8 @@ import (
 Run?: #TestRun
 
 // Group is the default, top-level antler.Group. Test packages add their Tests
-// and sub-Groups here.
+// and sub-Groups here. It is the only field that test packages must define.
+// TODO make Group required after groups transition
 Group?: #Group
 
 // Results configures the destination paths for results and reports.

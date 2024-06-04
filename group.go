@@ -98,8 +98,8 @@ func (s *Group) setTestGroup() {
 	for i := range s.Test {
 		s.Test[i].Group = s
 	}
-	for _, s := range s.Group {
-		s.setTestGroup()
+	for i := 0; i < len(s.Group); i++ {
+		s.Group[i].setTestGroup()
 	}
 }
 

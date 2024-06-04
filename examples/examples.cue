@@ -6,10 +6,9 @@
 
 package examples
 
-// Run lists the example Tests to run. We run the tests in serial, but
-// changing Serial to Parallel allows tests to be run concurrently.
-Run: {
-	Serial: [
+// The default Group contains no Tests itself, just sub-Groups for each example.
+Group: {
+	Group: [
 		_tcpstream,
 		_ratedrop,
 		_iperf3,

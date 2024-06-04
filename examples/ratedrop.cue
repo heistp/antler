@@ -3,10 +3,10 @@
 
 package examples
 
-// _ratedrop tests a drop in the bottleneck rate while a single BBR stream
-// runs from the left to the right endpoint. A third of the way through the
-// test, the rate drops from rate0 to rate1. Two-thirds through the test, the
-// rate returns to rate0.
+// _ratedrop tests a drop in the bottleneck rate while a single BBR stream runs
+// from the left to the right endpoint. A third of the way through the test,
+// the rate drops from rate0 to rate1. Two-thirds through the test, the rate
+// returns to rate0.
 _ratedrop: {
 	// _duration is the test duration, in seconds
 	_duration: 120
@@ -26,18 +26,18 @@ _ratedrop: {
 	// _qdisc is the qdisc to apply
 	_qdisc: "fq_codel flows 1 noecn"
 
-	Test: {
-		ID: {
-			name: "ratedrop"
-		}
-		ResultPrefix: "{{.name}}_"
+	// Name is the Group name.
+	Name: "ratedrop"
+
+	Test: [{
 		Serial: [
 			_rig.setup,
 			_server,
 			_do,
 		]
-	}
-	Report: [
+	}]
+
+	After: [
 		{Analyze: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]

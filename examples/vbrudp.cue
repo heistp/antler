@@ -24,18 +24,18 @@ _vbrudp: {
 	// _qdisc is the qdisc to apply
 	_qdisc: "codel"
 
-	Test: {
-		ID: {
-			name: "vbrudp"
-		}
-		ResultPrefix: "{{.name}}_"
+	// Name is the name of the Group.
+	Name: "vbrudp"
+
+	Test: [{
 		Serial: [
 			_rig.setup,
 			_server,
 			_do,
 		]
-	}
-	Report: [
+	}]
+
+	After: [
 		{Analyze: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]

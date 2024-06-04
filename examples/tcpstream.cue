@@ -3,9 +3,9 @@
 
 package examples
 
-// _tcpstream is a test that runs two TCP streams from the left to the right
-// endpoint of a netns dumbbell. The middlebox (mid namespace) has the cake
-// qdisc added, at a rate of 50 Mbps.
+// _tcpstream runs two TCP streams from the left to the right endpoint of a
+// netns dumbbell. The middlebox (mid namespace) has the cake qdisc added, at a
+// rate of 50 Mbps.
 _tcpstream: {
 	// _rtt is the path RTT, in milliseconds
 	_rtt: 80
@@ -16,18 +16,19 @@ _tcpstream: {
 	// _qdisc is the qdisc to use
 	_qdisc: "cake bandwidth 50Mbit flowblind"
 
-	Test: {
-		ID: {
-			name: "tcpstream"
-		}
-		ResultPrefix: "{{.name}}_"
+	// Name is the Group name.
+	Name: "tcpstream"
+
+	Test: [{
 		Serial: [
 			_rig.setup,
 			_server,
 			_do,
 		]
-	}
-	Report: [
+	}]
+
+	// After is the report pipeline for the Test.
+	After: [
 		{Analyze: {}},
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]

@@ -21,22 +21,18 @@ _fct: {
 		"1": "bbr"
 	}
 
-	Test: {
-		ID: {
-			name: "fct"
-		}
-		// NOTE: raw string constant in ResultPrefix is so we can set a Go
-		// template without it being interpreted in the conversion from .tmpl
-		// to .cue.
-		ResultPrefix: "{{`{{.name}}_`}}"
+	// Name is the name of the Group.
+	Name: "fct"
+
+	Test: [{
 		Serial: [
 			_rig.setup,
 			_server,
 			_do,
 		]
-	}
+	}]
 
-	Report: [
+	After: [
 	    {Analyze: {}},
 	 	{ChartsFCT: {
 			To: ["fct.html"]

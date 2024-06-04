@@ -45,7 +45,8 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // to the template as its data. The resulting value may not contain any path
 // separators (i.e. '/' characters), as all output files for a Group must
 // reside in a single directory. ResultPrefix must be unique for each Test, and
-// may be empty for a single Test.
+// may be empty for a single Test. See the Note on Templates section at the
+// bottom of this file for more info on escaping with the use of template files.
 //
 // IDInfo maps Test ID keys to information about the key/value pair.
 //
@@ -903,3 +904,16 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // defaults to tcp, which may use IPv4 or IPv6, depending on the given address.
 // tcp4 or tcp6 forces the use of IPv4 or IPv6, respectively.
 #StreamProtocol: *"tcp" | "tcp4" | "tcp6"
+
+//
+// Note on Templates
+//
+// When using Go template syntax in CUE, that will itself be used in a Go
+// template file (.tmpl extension), it is necessary to escape the inner template
+// similar to the following:
+//
+//     ResultPrefix: "{{`{{.name}}_`}}"
+//
+// That way, the inner template {{.name}} will not be evaluated when the outer
+// template file is evaluated.
+//

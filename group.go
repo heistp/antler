@@ -113,7 +113,8 @@ func (s *Group) generateResultPrefixes() (err error) {
 	}
 	pp := make(map[string]int)
 	var d []string
-	for _, t := range s.Test {
+	for i := 0; i < len(s.Test); i++ {
+		t := &s.Test[i]
 		var b strings.Builder
 		if err = m.Execute(&b, t.ID); err != nil {
 			return

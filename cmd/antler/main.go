@@ -112,13 +112,13 @@ func list2() (cmd *cobra.Command) {
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "Path\tTest ID\tResult Prefix")
 			fmt.Fprintln(w, "----\t-------\t-------------")
-			c.Group.VisitTests(func(t *antler.Test) bool {
+			c.Group.VisitFunc(nil, func(t *antler.Test) error {
 				if !f.Accept(t) {
-					return true
+					return nil
 				}
 				fmt.Fprintf(w, "%s\t%s\t%s\n", t.Group.Path, t.ID,
 					t.ResultPrefixX)
-				return true
+				return nil
 			})
 			w.Flush()
 			return

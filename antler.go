@@ -322,20 +322,19 @@ func (r Run2Command) run(ctx context.Context) (err error) {
 		}
 	}()
 	d.Info.Start = time.Now()
-	err = c.Group.do(ctx, d)
+	err = c.Group.Visit(ctx, d)
 	return
 }
 
-// doRun2 is a doer that runs a Test and its reports.
+// doRun2 is a Tester that runs a Test and its reports.
 type doRun2 struct {
 	Run2Command
 	RW   resultRW
 	Info *RunInfo
 }
 
-// do implements doer
-func (u doRun2) do(ctx context.Context, test *Test) (
-	err error) {
+// Test implements Tester.
+func (u doRun2) Test(ctx context.Context, test *Test) (err error) {
 	rw := test.RW(u.RW)
 	var s reporter
 	if u.Filter != nil {
@@ -606,20 +605,19 @@ func (r Report2Command) run(ctx context.Context) (err error) {
 		}
 	}()
 	d.Info.Start = time.Now()
-	err = c.Group.do(ctx, d)
+	err = c.Group.Visit(ctx, d)
 	return
 }
 
-// doReport2 is a doer that runs reports.
+// doReport2 is a Tester that runs reports.
 type doReport2 struct {
 	Report2Command
 	RW   resultRW
 	Info *ReportInfo
 }
 
-// do implements doer
-func (d doReport2) do(ctx context.Context, test *Test) (
-	err error) {
+// Test implements Tester.
+func (d doReport2) Test(ctx context.Context, test *Test) (err error) {
 	rw := test.RW(d.RW)
 	if err = test.LinkPriorData(rw); err != nil {
 		switch e := err.(type) {

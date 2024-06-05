@@ -53,36 +53,82 @@ type IDInfo struct {
 	Title string
 }
 
-// VisitTests calls the given visitor func for each Test in the Group hierarchy.
-// The visitor may return false to stop visiting, in which case VisitTests will
-// also return false.
-func (s *Group) VisitTests(visitor func(*Test) bool) bool {
-	for _, t := range s.Test {
-		if !visitor(&t) {
-			return false
-		}
-	}
-	for _, s := range s.Group {
-		if !s.VisitTests(visitor) {
-			return false
-		}
-	}
-	return true
-}
-
-// do runs a doer on the Tests, and recursively on the sub-Groups.
-func (s *Group) do(ctx context.Context, d doer2) (err error) {
-	for _, t := range s.Test {
-		if err = d.do(ctx, &t); err != nil {
+// Visit calls the given visitor for this Group, its Tests, and any sub-Groups
+// and their Tests. The given visitor may implement Grouper, Tester or both to
+// be called for the corresponding type. The Group method will be called before
+// the Test method for any Tests in a Group. If any method returns an error,
+// visiting stops and that error is returned. The given Context is passed to
+// the Group and Test methods.
+func (s *Group) Visit(ctx context.Context, visitor any) (err error) {
+	if g, ok := visitor.(Grouper); ok {
+		if err = g.Group(ctx, s); err != nil {
 			return
 		}
 	}
-	for _, s := range s.Group {
-		if err = s.do(ctx, d); err != nil {
+	if t, ok := visitor.(Tester); ok {
+		for i := range s.Test {
+			if err = t.Test(ctx, &s.Test[i]); err != nil {
+				return
+			}
+		}
+	}
+	for i := range s.Group {
+		if err = s.Group[i].Visit(ctx, visitor); err != nil {
 			return
 		}
 	}
 	return
+}
+
+// VisitFunc calls the given functions for this Group and any sub-Groups,
+// recursively, and all of their Tests. The functions are called according to
+// the Visit method. Either function may be nil, in which case it isn't called.
+// The Context in the Visitor interface is not used, and will be passed as nil.
+func (s *Group) VisitFunc(group func(*Group) error,
+	test func(*Test) error) error {
+	return s.Visit(nil, visitor{group, test})
+}
+
+// visitor is an internal Visitor used for VisitFunc.
+type visitor struct {
+	group func(*Group) error
+	test  func(*Test) error
+}
+
+// Group implements Visitor.
+func (v visitor) Group(ctx context.Context, group *Group) error {
+	if v.group == nil {
+		return nil
+	}
+	return v.group(group)
+}
+
+// Test implements Visitor.
+func (v visitor) Test(ctx context.Context, test *Test) error {
+	if v.test == nil {
+		return nil
+	}
+	return v.test(test)
+}
+
+// A Visitor is called to do something with Groups and Tests. The Group method
+// is called before the Test method for Tests in that Group. The Context is
+// the one passed to the Group.Visit method, and may be nil. If an error is
+// returned by either of the methods, the visiting stops and the Group.Visit
+// method returns that error.
+type Visitor interface {
+	Group(context.Context, *Group) error
+	Test(context.Context, *Test) error
+}
+
+// A Grouper may be called by the Visit method to do something with a Group.
+type Grouper interface {
+	Group(context.Context, *Group) error
+}
+
+// A Tester may be called by the Visit method to do something with a Test.
+type Tester interface {
+	Test(context.Context, *Test) error
 }
 
 // setPath is called recursively to set the Path fields from the Names.
@@ -98,7 +144,7 @@ func (s *Group) setTestGroup() {
 	for i := range s.Test {
 		s.Test[i].Group = s
 	}
-	for i := 0; i < len(s.Group); i++ {
+	for i := range s.Group {
 		s.Group[i].setTestGroup()
 	}
 }
@@ -113,7 +159,7 @@ func (s *Group) generateResultPrefixes() (err error) {
 	}
 	pp := make(map[string]int)
 	var d []string
-	for i := 0; i < len(s.Test); i++ {
+	for i := range s.Test {
 		t := &s.Test[i]
 		var b strings.Builder
 		if err = m.Execute(&b, t.ID); err != nil {
@@ -199,9 +245,4 @@ func (d DuplicateTestIDError2) Error() string {
 	}
 	return fmt.Sprintf("Group %s contains duplicate Test IDs: %s",
 		d.Path, strings.Join(s, ", "))
-}
-
-// A doer2 takes action on a Test, visited in a Group hierarchy.
-type doer2 interface {
-	do(context.Context, *Test) error
 }

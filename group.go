@@ -166,7 +166,11 @@ func (s *Group) generateResultPrefixes() (err error) {
 			return
 		}
 		p := b.String()
-		t.ResultPrefixX = p
+		if p != "" {
+			t.ResultPrefixX = filepath.Join(s.Path, p)
+		} else {
+			t.ResultPrefixX = s.Path + string(filepath.Separator)
+		}
 		if v, ok := pp[p]; ok {
 			if v == 1 {
 				d = append(d, p)

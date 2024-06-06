@@ -771,7 +771,7 @@ func (a *atomicWriter) path() string {
 
 // tmpPath returns the path to the temporary file for writing in WorkDir.
 func (a *atomicWriter) tmpPath() string {
-	return filepath.Join(a.workDir, a.name+"~")
+	return a.path() + "~"
 }
 
 // Write implements io.Writer.

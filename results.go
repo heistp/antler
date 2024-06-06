@@ -38,7 +38,7 @@ type Results struct {
 // instances from writing results at the same time.
 func (r Results) open() (rw resultRW, err error) {
 	d := filepath.Dir(r.WorkDir)
-	if d != "." && d != ".." && d != "/" {
+	if d != "." && d != ".." && d != string(filepath.Separator) {
 		if err = os.MkdirAll(d, 0755); err != nil {
 			return
 		}

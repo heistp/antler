@@ -33,6 +33,12 @@ type Test struct {
 	// Run is the top-level Run instance.
 	node.Run
 
+	// During is a pipeline of Reports run while the Test runs.
+	During Report
+
+	// After is a pipeline of Reports run after the Test completes.
+	After Report
+
 	// DuringDefault contains default reporters to be run while the Test is run.
 	DuringDefault Report
 

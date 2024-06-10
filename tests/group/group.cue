@@ -31,5 +31,5 @@ Root: {
 // disable saving of gob data for all Tests
 #Test: DataFile: ""
 
-// remove default reporters from all Groups to skip writing any files
-#Group: After: []
+// remove default reporters from all Tests to skip writing any files
+#Test: #After: []

@@ -54,23 +54,6 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // contain other sub-Groups.
 //
 // Sub lists any sub-Groups of the Group.
-//
-// During is a pipeline of Reports that is run *while* the Group's Tests are
-// run. It may not be used to generate saved reports from result data,
-// otherwise those reports would be lost during incremental test runs. When
-// setting During, #DuringDefault should typically be prepended to the list
-// (e.g. During: #DuringDefault + [...]) so that file data is saved and
-// consumed, and logs are emitted, before the other pipeline stages are run.
-//
-// After is analogous to during, but run *after* the Group's Tests are run.
-// This may be used to generate persistent reports from the result data. When
-// setting After, #AfterDefault may be prepended to the list to save log files,
-// system info, etc.
-//
-// Care should be taken to avoid resource intensive operations on antler test
-// nodes. If the nodes are running on a separate machine from antler, this is
-// not an issue. If on the same machine, then the During pipeline should not
-// include any resource intensive stages, so as not to perturb the test.
 #Group: {
 	Name?:         string & =~_IDregex
 	ResultPrefix?: string | *"{{range $v := .}}{{$v}}_{{end}}"
@@ -79,26 +62,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	}
 	Test?: [...#Test]
 	Sub?: [...#Group]
-	During: [...#Report] | *#DuringDefault
-	After:  [...#Report] | *#AfterDefault
 }
-
-// DuringDefault is a list of reports to run by default during a test. Here, we
-// save files and consume their FileData items first, so that large files such
-// as pcaps are removed from the data stream and gob file and saved in separate
-// files. We also emit logs to stdout as they arrive.
-#DuringDefault: [
-	{SaveFiles: {Consume: true}},
-	{EmitLog: {To: ["-"]}},
-]
-
-// AfterDefault is a list of reports to run by default after a test. Here, we
-// save log files, system information, and an index file for the Group.
-#AfterDefault: [
-	{EmitLog: {To: ["node.log"], Sort: true}},
-	{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
-	{Index: {}},
-]
 
 // antler.IDInfo contains information about one key/value pair in a Test ID.
 #IDInfo: {
@@ -253,15 +217,25 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // Run defines the Run hierarchy, and is documented in more detail in #Run.
 //
-// During and DuringDefault are pipelines of Reports that run during the Test.
-// Since these Reports only run during the Test, they may not be used to
-// generate reports from result data, otherwise those reports would be lost
-// during incremental test runs. If the antler nodes are running on the same
-// machine as antler, then this pipeline should not be resource intensive, so
-// as not to perturb the test.
+// During is a pipeline of Reports that is run *while* the Test is run. It may
+// not be used to generate saved reports from result data, otherwise those
+// reports would be lost during incremental test runs. When setting During,
+// #During should typically be prepended to the list
+// (e.g. During: #During + [...]) so that file data is saved and
+// consumed, and logs are emitted, before the other pipeline stages are run.
 //
-// After and AfterDefault are pipelines of Reports that are run after the Test,
-// and by the report command.
+// #During is a default list of reports to run during a Test. Here, we save
+// files and consume their FileData items first, so that large files such as
+// pcaps are removed from the data stream and gob file and saved in separate
+// files. We also emit logs to stdout as they arrive.
+//
+// After is analogous to During, but run *after* the Test is run.  This may be
+// used to generate persistent reports from the result data. When setting
+// After, #After may be prepended to the list to save log files, system info,
+// etc. (e.g. After: #After + [...]).
+//
+// #After is a default list of reports to run after a Test. Here, we save log
+// files and system information.
 #Test: {
 	_DefaultID: {test: "single"}
 	ID: {
@@ -273,15 +247,15 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	}
 	DataFile: string | *"data.gob"
 	#Run
-	During?: [...#Report]
-	DuringDefault: [...#Report] | *[
+	During:  [...#Report] | *#During
+	#During: [...#Report] | *[
 			{SaveFiles: {Consume: true}},
 			{EmitLog: {To: ["-"]}},
 	]
-	After?: [...#Report]
-	AfterDefault: [...#Report] | *[
-			{EmitLog: {To: ["node.log"], Sort: true}},
-			{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
+	After:  [...#Report] | *#After
+	#After: [...#Report] | *[
+		{EmitLog: {To: ["node.log"], Sort: true}},
+		{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
 	]
 }
 

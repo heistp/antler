@@ -3,7 +3,7 @@
 
 // This Antler test streams FileData back from a node.
 
-package env
+package filedata
 
 // Root contains a single Test that streams data from /dev/random and /dev/zero
 // to illustrate how data streaming and compression works.
@@ -14,38 +14,37 @@ package env
 //
 // The compression format is chosen based on the file extension. Here, we use
 // .zst and .gz, so the zstd and gzip utilities must be present.
-Root: {
-	Test: [{
-		Serial: [
-			// stream everything in root node
-			{ResultStream: Include: All: true},
-			{Child: {
-				Node: {
-					ID:       "envtest"
-					Platform: "linux-amd64"
-					Launcher: Local: {}
-				}
-				Serial: [
-					// stream everything in child node
-					{ResultStream: Include: All: true},
-					// first, transfer 64M of random data
-					{System: {
-						Command: "dd if=/dev/random bs=64K count=1000"
-						Stdout:  "random.bin"
-					}},
-					// next, transfer and compress 64M of zeroes to zstd format
-					{System: {
-						Command: "dd if=/dev/zero bs=64K count=1000"
-						Stdout:  "zero.zst"
-					}},
-				]
-			}},
-		]
-	}]
-
-	// add report to compress random.bin to random.bin.gz.
+Root: Test: [{
+	Serial: [
+		// stream everything in root node
+		{ResultStream: Include: All: true},
+		{Child: {
+			Node: {
+				ID:       "envtest"
+				Platform: "linux-amd64"
+				Launcher: Local: {}
+			}
+			Serial: [
+				// stream everything in child node
+				{ResultStream: Include: All: true},
+				// first, transfer 640K of random data
+				{System: {
+					Command: "dd if=/dev/random bs=64K count=10"
+					Stdout:  "random.bin"
+				}},
+				// next, transfer and compress 640K of zeroes and transparently
+				// save in zstd format
+				{System: {
+					Command: "dd if=/dev/zero bs=64K count=10"
+					Stdout:  "zero.zst"
+				}},
+			]
+		}},
+	]
+	// add report to compress random.bin to random.bin.gz after the fact.
 	//
-	// Since we set Destructive to true, the original is removed.
+	// Since we set Destructive to true, random.bin is removed, leaving only
+	// random.bin.gz.
 	After: [
 		{Encode: {
 			File: ["random.bin"]
@@ -53,7 +52,7 @@ Root: {
 			Destructive: true
 		}},
 	]
-}
+}]
 
 // disable saving of gob data for all Tests
 #Test: DataFile: ""

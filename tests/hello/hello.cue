@@ -6,17 +6,14 @@
 package hello
 
 // The Root Group contains a single Test that emits Hello World.
-Root: {
-	Test: [{
-		// System is a system command.
-		System: {
-			Command: "bash -c"
-			Arg: [ "echo Hello World!"]
-		}
-
-		// disable saving of gob data
-		DataFile: ""
-	}]
+Root: Test: [{
+	// System is a system command.
+	System: {
+		Command: "bash -c"
+		Arg: [ "echo Hello World!"]
+	}
+	// disable saving of gob data
+	DataFile: ""
 	// remove default reporters to skip writing any files
 	After: []
-}
+}]

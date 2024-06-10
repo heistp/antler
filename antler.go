@@ -385,7 +385,7 @@ func (u doRun2) Test(ctx context.Context, test *Test) (err error) {
 			return
 		}
 	}
-	r := report([]reporter{s}).add(test.Group.After.report())
+	r := report([]reporter{s}).add(test.After.report())
 	for e := range r.pipeline(ctx, nil, nil, rw) {
 		if err == nil {
 			err = e
@@ -405,7 +405,7 @@ func (u doRun2) run(ctx context.Context, test *Test) (src reporter, err error) {
 		err = nil
 	}
 	var a appendData
-	var p report = test.Group.During.report()
+	var p report = test.During.report()
 	if w != nil {
 		p = append(p, writeData{w})
 	} else {
@@ -642,7 +642,7 @@ func (d doReport2) Test(ctx context.Context, test *Test) (err error) {
 		return
 	}
 	d.Info.Reported++
-	t := report([]reporter{readData{r}}).add(test.Group.After.report())
+	t := report([]reporter{readData{r}}).add(test.After.report())
 	for e := range t.pipeline(ctx, nil, nil, rw) {
 		if err == nil {
 			err = e

@@ -39,12 +39,6 @@ type Group struct {
 
 	// Sub lists any sub-Groups.
 	Sub []Group
-
-	// During is a pipeline of Reports run while the Tests run.
-	During Report
-
-	// After is a pipeline of Reports run after the Tests complete.
-	After Report
 }
 
 // IDInfo contains information about one key/value pair in a Test ID.

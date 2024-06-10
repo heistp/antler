@@ -5,8 +5,8 @@
 
 package group
 
-// Test defines a single Test that emits Hello World.
-Group: {
+// The Root Group contains a single Test, and a sub-Group with another Test.
+Root: {
 	// Test lists the Tests in the default Group.
 	Test: [{
 		// System is a system command.
@@ -16,8 +16,8 @@ Group: {
 		}
 	}]
 
-	// Group adds a single sub-Group.
-	Group: [{
+	// Sub adds a single sub-Group with another Test.
+	Sub: [{
 		Name: "A"
 		Test: [{
 			System: {

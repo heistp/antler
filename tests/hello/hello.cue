@@ -5,8 +5,8 @@
 
 package hello
 
-// The default Group contains a single Test that emits Hello World.
-Group: {
+// The Root Group contains a single Test that emits Hello World.
+Root: {
 	Test: [{
 		// System is a system command.
 		System: {

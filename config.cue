@@ -15,10 +15,10 @@ import (
 // TODO remove Run field after Groups work- it's optional for now
 Run?: #TestRun
 
-// Group is the default, top-level antler.Group. Test packages add their Tests
+// Root is the default, top-level antler.Group. Test packages add their Tests
 // and sub-Groups here. It is the only field that test packages must define.
-// TODO make Group required after groups transition
-Group?: #Group
+// TODO make Root required after groups transition
+Root?: #Group
 
 // Results configures the destination paths for results and reports.
 Results: #Results
@@ -53,7 +53,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // Test lists the Tests in the Group, and may be empty for Groups that only
 // contain other sub-Groups.
 //
-// Group lists any sub-Groups of the Group.
+// Sub lists any sub-Groups of the Group.
 //
 // During is a pipeline of Reports that is run *while* the Group's Tests are
 // run. It may not be used to generate saved reports from result data,
@@ -78,7 +78,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 		[string & =~_IDregex]: #IDInfo
 	}
 	Test?: [...#Test]
-	Group?: [...#Group]
+	Sub?: [...#Group]
 	During: [...#Report] | *#DuringDefault
 	After:  [...#Report] | *#AfterDefault
 }

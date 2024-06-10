@@ -33,7 +33,7 @@ var configCUE string
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
 	Run     TestRun
-	Group   Group
+	Root    Group
 	Results Results
 	Server  Server
 }
@@ -41,12 +41,12 @@ type Config struct {
 // validate performs any programmatic generation and validation on the Config
 // that isn't possible to do with the schema in config.cue.
 func (c *Config) validate() (err error) {
-	c.Group.setPath("")
-	c.Group.setTestGroup()
-	if err = c.Group.generateResultPrefixes(); err != nil {
+	c.Root.setPath("")
+	c.Root.setTestGroup()
+	if err = c.Root.generateResultPrefixes(); err != nil {
 		return
 	}
-	if err = c.Group.validateTestIDs(); err != nil {
+	if err = c.Root.validateTestIDs(); err != nil {
 		return
 	}
 	if err = c.validateTestIDs(); err != nil {

@@ -5,8 +5,8 @@
 
 package env
 
-// The default Group contains a single Test that emits environment variables.
-Group: {
+// The Root Group contains a single Test that emits environment variables.
+Root: {
 	Test: [{
 		Child: {
 			Node: {

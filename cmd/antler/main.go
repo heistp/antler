@@ -112,7 +112,7 @@ func list2() (cmd *cobra.Command) {
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "Path\tTest ID\tResult Prefix")
 			fmt.Fprintln(w, "----\t-------\t-------------")
-			c.Group.VisitFunc(nil, func(t *antler.Test) error {
+			c.Root.VisitFunc(nil, func(t *antler.Test) error {
 				if !f.Accept(t) {
 					return nil
 				}

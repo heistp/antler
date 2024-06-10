@@ -5,8 +5,8 @@
 
 package sysinfo
 
-// The default Group contains a single Test that tests system information.
-Group: {
+// The Root Group contains a single Test that tests system information.
+Root: {
 	Test: [{
 		// SysInfo gathers system information.
 		SysInfo: {

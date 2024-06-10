@@ -322,7 +322,7 @@ func (r Run2Command) run(ctx context.Context) (err error) {
 		}
 	}()
 	d.Info.Start = time.Now()
-	err = c.Group.Visit(ctx, d)
+	err = c.Root.Visit(ctx, d)
 	return
 }
 
@@ -605,7 +605,7 @@ func (r Report2Command) run(ctx context.Context) (err error) {
 		}
 	}()
 	d.Info.Start = time.Now()
-	err = c.Group.Visit(ctx, d)
+	err = c.Root.Visit(ctx, d)
 	return
 }
 

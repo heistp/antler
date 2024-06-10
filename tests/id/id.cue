@@ -5,8 +5,8 @@
 
 package id
 
-// The default Group contains a list of Tests with a list comprehension.
-Group: {
+// The Root Group contains a list of Tests with a list comprehension.
+Root: {
 	Test: [
 		for a in [ "W", "X", "Y", "Z"]
 		for b in [ "1", "2", "3", "4"] {

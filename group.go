@@ -37,8 +37,8 @@ type Group struct {
 	// contain other Groups.
 	Test []Test
 
-	// Group lists any sub-Groups.
-	Group []Group
+	// Sub lists any sub-Groups.
+	Sub []Group
 
 	// During is a pipeline of Reports run while the Tests run.
 	During Report
@@ -72,8 +72,8 @@ func (s *Group) Visit(ctx context.Context, visitor any) (err error) {
 			}
 		}
 	}
-	for i := range s.Group {
-		if err = s.Group[i].Visit(ctx, visitor); err != nil {
+	for i := range s.Sub {
+		if err = s.Sub[i].Visit(ctx, visitor); err != nil {
 			return
 		}
 	}
@@ -134,8 +134,8 @@ type Tester interface {
 // setPath is called recursively to set the Path fields from the Names.
 func (s *Group) setPath(prefix string) {
 	s.Path = filepath.Join(prefix, s.Name)
-	for i := range s.Group {
-		s.Group[i].setPath(s.Path)
+	for i := range s.Sub {
+		s.Sub[i].setPath(s.Path)
 	}
 }
 
@@ -144,8 +144,8 @@ func (s *Group) setTestGroup() {
 	for i := range s.Test {
 		s.Test[i].Group = s
 	}
-	for i := range s.Group {
-		s.Group[i].setTestGroup()
+	for i := range s.Sub {
+		s.Sub[i].setTestGroup()
 	}
 }
 
@@ -184,7 +184,7 @@ func (s *Group) generateResultPrefixes() (err error) {
 		err = DuplicateResultPrefixError2{s.Path, d}
 		return
 	}
-	for _, c := range s.Group {
+	for _, c := range s.Sub {
 		if err = c.generateResultPrefixes(); err != nil {
 			return
 		}
@@ -226,7 +226,7 @@ func (s *Group) validateTestIDs() (err error) {
 		err = DuplicateTestIDError2{s.Path, dd}
 		return
 	}
-	for _, c := range s.Group {
+	for _, c := range s.Sub {
 		if err = c.validateTestIDs(); err != nil {
 			return
 		}

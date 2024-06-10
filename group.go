@@ -30,21 +30,12 @@ type Group struct {
 	// and the results stored in Test.
 	ResultPrefix string
 
-	// IDInfo maps Test ID keys to information about the key/value pair.
-	IDInfo map[string]IDInfo
-
 	// Test lists the Tests in the Group, and may be empty for Groups that only
 	// contain other Groups.
 	Test []Test
 
 	// Sub lists any sub-Groups.
 	Sub []Group
-}
-
-// IDInfo contains information about one key/value pair in a Test ID.
-type IDInfo struct {
-	Key   string
-	Title string
 }
 
 // Visit calls the given visitor for this Group, its Tests, and any sub-Groups

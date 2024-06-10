@@ -48,8 +48,6 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // may be empty for a single Test. See the Note on Templates section at the
 // bottom of this file for more info on escaping with the use of template files.
 //
-// IDInfo maps Test ID keys to information about the key/value pair.
-//
 // Test lists the Tests in the Group, and may be empty for Groups that only
 // contain other sub-Groups.
 //
@@ -57,17 +55,8 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 #Group: {
 	Name?:         string & =~_IDregex
 	ResultPrefix?: string | *"{{range $v := .}}{{$v}}_{{end}}"
-	IDInfo: {
-		[string & =~_IDregex]: #IDInfo
-	}
 	Test?: [...#Test]
 	Sub?: [...#Group]
-}
-
-// antler.IDInfo contains information about one key/value pair in a Test ID.
-#IDInfo: {
-	Key:    string & =~_IDregex
-	Title?: string
 }
 
 // antler.TestRun is used to orchestrate the execution of Tests. Each TestRun

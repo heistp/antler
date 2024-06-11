@@ -239,9 +239,9 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // TODO remove unused fields and doc from #Test after flat Test changes
 #Test: {
 	_DefaultID: {test: "single"}
-	ID: {
+	ID?: {
 		[string & =~_IDregex]: string & =~_IDregex
-	} | *_DefaultID
+	} // | *_DefaultID
 	Path:          string | *"{{range $v := .}}{{$v}}_{{end}}"
 	ResultPrefix?: string
 	if ID != _DefaultID {

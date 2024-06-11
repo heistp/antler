@@ -6,13 +6,11 @@
 
 package examples
 
-// The default Group contains no Tests itself, just sub-Groups for each example.
-Group: {
-	Group: [
-		_tcpstream,
-		_ratedrop,
-		_iperf3,
-		_vbrudp,
-		_fct,
-	]
-}
+// Test lists the examples Tests.
+Test: [
+	_tcpstream,
+	_ratedrop,
+	_iperf3,
+	_vbrudp,
+	_fct,
+]

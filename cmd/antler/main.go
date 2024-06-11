@@ -93,8 +93,8 @@ func list() (cmd *cobra.Command) {
 func list2() (cmd *cobra.Command) {
 	return &cobra.Command{
 		Use:   "list2 [filter] ...",
-		Short: "Lists tests and their result path prefixes",
-		Long: help(`List lists tests and their result path prefixes.
+		Short: "Lists tests",
+		Long: help(`List lists tests.
 
 {{template "filter" "list2"}}
 `),
@@ -110,16 +110,14 @@ func list2() (cmd *cobra.Command) {
 				return
 			}
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "Path\tTest ID\tResult Prefix")
-			fmt.Fprintln(w, "----\t-------\t-------------")
-			c.Root.VisitFunc(nil, func(t *antler.Test) error {
-				if !f.Accept(t) {
-					return nil
+			fmt.Fprintln(w, "Test ID\tPath")
+			fmt.Fprintln(w, "-------\t----")
+			for _, t := range c.Test {
+				if !f.Accept(&t) {
+					continue
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\n", t.Group.Path, t.ID,
-					t.ResultPrefixX)
-				return nil
-			})
+				fmt.Fprintf(w, "%s\t%s\n", t.ID, t.Path)
+			}
 			w.Flush()
 			return
 		},

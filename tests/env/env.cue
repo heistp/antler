@@ -5,8 +5,8 @@
 
 package env
 
-// The Root Group contains a single Test that emits environment variables.
-Root: Test: [{
+// Test contains a single Test that emits environment variables.
+Test: [{
 	Child: {
 		Node: {
 			ID:       "envtest"

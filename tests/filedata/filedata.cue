@@ -5,7 +5,7 @@
 
 package filedata
 
-// Root contains a single Test that streams data from /dev/random and /dev/zero
+// Test contains a single Test that streams data from /dev/random and /dev/zero
 // to illustrate how data streaming and compression works.
 //
 // Because all data is streamed, it's transferred from the child node to the
@@ -14,7 +14,7 @@ package filedata
 //
 // The compression format is chosen based on the file extension. Here, we use
 // .zst and .gz, so the zstd and gzip utilities must be present.
-Root: Test: [{
+Test: [{
 	Serial: [
 		// stream everything in root node
 		{ResultStream: Include: All: true},

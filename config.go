@@ -34,12 +34,15 @@ var configCUE string
 type Config struct {
 	Run     TestRun
 	Root    Group
+	Test    Tests
 	Results Results
 	Server  Server
 }
 
 // validate performs any programmatic generation and validation on the Config
 // that isn't possible to do with the schema in config.cue.
+//
+// TODO remove excess validation after Groups removal
 func (c *Config) validate() (err error) {
 	c.Root.setPath("")
 	c.Root.setTestGroup()
@@ -50,6 +53,12 @@ func (c *Config) validate() (err error) {
 		return
 	}
 	if err = c.validateTestIDs(); err != nil {
+		return
+	}
+	if err = c.Test.validateTestIDs(); err != nil {
+		return
+	}
+	if err = c.Test.generatePaths(); err != nil {
 		return
 	}
 	if err = c.validateNodeIDs(); err != nil {
@@ -143,6 +152,8 @@ func (a AmbiguousNodeIDError) Error() string {
 
 // generateResultPrefixes executes ResultPrefix for each Test and assigns the
 // output to the ResultPrefixX field.
+//
+// TODO remove generateResultPrefixes after TestRun removal
 func (c *Config) generateResultPrefixes() (err error) {
 	pp := make(map[string]int)
 	var d []string

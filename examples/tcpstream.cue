@@ -16,16 +16,14 @@ _tcpstream: {
 	// _qdisc is the qdisc to use
 	_qdisc: "cake bandwidth 50Mbit flowblind"
 
-	// Name is the Group name.
-	Name: "tcpstream"
+	// ID is the Test ID.
+	ID: name: "tcpstream"
 
-	Test: [{
-		Serial: [
-			_rig.setup,
-			_server,
-			_do,
-		]
-	}]
+	Serial: [
+		_rig.setup,
+		_server,
+		_do,
+	]
 
 	// After is the report pipeline for the Test.
 	After: [

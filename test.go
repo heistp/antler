@@ -6,8 +6,10 @@ package antler
 import (
 	"encoding/gob"
 	"fmt"
+	"html/template"
 	"io"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -21,6 +23,9 @@ type Test struct {
 
 	// Group is the Group that this Test belongs to.
 	Group *Group
+
+	// Path is the path prefix for result files.
+	Path string
 
 	// ResultPrefix is the path prefix for result files. It may use Go template
 	// syntax, and is further documented in config.cue.
@@ -191,4 +196,89 @@ func (t *Test) LinkPriorData(rw resultRW) (err error) {
 		}
 	}
 	return
+}
+
+// Tests wraps a list of Tests to add functionality.
+type Tests []Test
+
+// validateTestIDs returns an error if any Test IDs are duplicated.
+func (s Tests) validateTestIDs() (err error) {
+	var ii, dd []TestID
+	for _, t := range s {
+		f := func(id TestID) bool {
+			return id.Equal(t.ID)
+		}
+		if slices.ContainsFunc(ii, f) {
+			if !slices.ContainsFunc(dd, f) {
+				dd = append(dd, t.ID)
+			}
+		} else {
+			ii = append(ii, t.ID)
+		}
+	}
+	if len(dd) > 0 {
+		err = DuplicateTestIDError3{dd}
+		return
+	}
+	return
+}
+
+// DuplicateTestIDError3 is returned when multiple Tests have the same ID.
+//
+// TODO rename DuplicateTestIDError3 after Group removal
+type DuplicateTestIDError3 struct {
+	ID []TestID
+}
+
+// Error implements error
+func (d DuplicateTestIDError3) Error() string {
+	var s []string
+	for _, i := range d.ID {
+		s = append(s, i.String())
+	}
+	return fmt.Sprintf("duplicate Test IDs: %s", strings.Join(s, ", "))
+}
+
+// generatePaths expands any Path fields that use Go templates, and returns an
+// error if any Paths are duplicated.
+func (s Tests) generatePaths() (err error) {
+	pp := make(map[string]int)
+	var d []string
+	for i := range s {
+		t := &s[i]
+		pt := template.New("Path")
+		if pt, err = pt.Parse(t.Path); err != nil {
+			return
+		}
+		var pb strings.Builder
+		if err = pt.Execute(&pb, t.ID); err != nil {
+			return
+		}
+		p := pb.String()
+		t.Path = p
+		// TODO set Test.Path only after Groups and TestRuns are removed
+		t.ResultPrefixX = p
+		if v, ok := pp[p]; ok {
+			if v == 1 {
+				d = append(d, p)
+			}
+			pp[p] = v + 1
+		} else {
+			pp[p] = 1
+		}
+	}
+	if len(d) > 0 {
+		err = DuplicatePathError{d}
+	}
+	return
+}
+
+// DuplicatePathError is returned when multiple Tests have the same Path.
+type DuplicatePathError struct {
+	Path []string
+}
+
+// Error implements error
+func (d DuplicatePathError) Error() string {
+	return fmt.Sprintf("duplicate Test Paths: %s", strings.Join(d.Path, ", "))
 }

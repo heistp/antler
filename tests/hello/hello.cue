@@ -5,8 +5,8 @@
 
 package hello
 
-// The Root Group contains a single Test that emits Hello World.
-Root: Test: [{
+// Test contains a single Test that emits Hello World.
+Test: [{
 	// System is a system command.
 	System: {
 		Command: "bash -c"

@@ -5,8 +5,8 @@
 
 package sysinfo
 
-// The Root Group contains a single Test that tests system information.
-Root: Test: [{
+// Test contains a single Test that tests system information.
+Test: [{
 	// SysInfo gathers system information.
 	SysInfo: {
 		OS: {

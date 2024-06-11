@@ -13,16 +13,14 @@ _iperf3: {
 	// _rate is the bitrate, in Mbps
 	_rate: 50
 
-	// Name is the name of the Group.
-	Name: "iperf3"
+	// ID is the Test ID.
+	ID: name: "iperf3"
 
-	Test: [{
-		Serial: [
-			_rig.setup,
-			_server,
-			_do,
-		]
-	}]
+	Serial: [
+		_rig.setup,
+		_server,
+		_do,
+	]
 
 	// _rig defines the dumbbell Test setup.
 	_rig: _dumbbell & {

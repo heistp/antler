@@ -21,16 +21,14 @@ _fct: {
 		"1": "bbr"
 	}
 
-	// Name is the name of the Group.
-	Name: "fct"
+	// ID is the Test ID.
+	ID: name: "fct"
 
-	Test: [{
-		Serial: [
-			_rig.setup,
-			_server,
-			_do,
-		]
-	}]
+	Serial: [
+		_rig.setup,
+		_server,
+		_do,
+	]
 
 	After: [
 	    {Analyze: {}},

@@ -17,8 +17,12 @@ Run?: #TestRun
 
 // Root is the default, top-level antler.Group. Test packages add their Tests
 // and sub-Groups here. It is the only field that test packages must define.
-// TODO make Root required after groups transition
+// TODO remove Root field after flat Test list transition
 Root?: #Group
+
+// Test is the list of Tests to run. Test packages must set this field to run
+// Tests.
+Test?: [...#Test]
 
 // Results configures the destination paths for results and reports.
 Results: #Results
@@ -192,6 +196,12 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // within the package, and its keys and values must match _IDregex. ID is not
 // required for a single Test, as a default of {"test": "single"} is used.
 //
+// Path is the base path prefix for any output files. It may use Go template
+// syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
+// template as its data. Any path separators (e.g. '/') in the string generated
+// by the template will result in the creation of directories. Path must be
+// unique for each Test, and may be empty for a single Test.
+//
 // ResultPrefix is the base path for any output files. It may use Go template
 // syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
 // template as its data. Any path separators (e.g. '/') in the string generated
@@ -225,11 +235,14 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // #After is a default list of reports to run after a Test. Here, we save log
 // files and system information.
+//
+// TODO remove unused fields and doc from #Test after flat Test changes
 #Test: {
 	_DefaultID: {test: "single"}
 	ID: {
 		[string & =~_IDregex]: string & =~_IDregex
 	} | *_DefaultID
+	Path:          string | *"{{range $v := .}}{{$v}}_{{end}}"
 	ResultPrefix?: string
 	if ID != _DefaultID {
 		ResultPrefix: string | *"{{range $v := .}}{{$v}}_{{end}}"
@@ -875,8 +888,10 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // template file (.tmpl extension), it is necessary to escape the inner template
 // similar to the following:
 //
-//     ResultPrefix: "{{`{{.name}}_`}}"
+//     Path: "{{`{{.name}}_`}}"
 //
 // That way, the inner template {{.name}} will not be evaluated when the outer
-// template file is evaluated.
+// template file is evaluated. Alternatively, and preferably, any templated
+// CUE files will only contain the values that need generation, so as not to
+// interfere with other CUE syntax.
 //

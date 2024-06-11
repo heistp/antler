@@ -24,16 +24,14 @@ _vbrudp: {
 	// _qdisc is the qdisc to apply
 	_qdisc: "codel"
 
-	// Name is the name of the Group.
-	Name: "vbrudp"
+	// ID is the Test ID.
+	ID: name: "vbrudp"
 
-	Test: [{
-		Serial: [
-			_rig.setup,
-			_server,
-			_do,
-		]
-	}]
+	Serial: [
+		_rig.setup,
+		_server,
+		_do,
+	]
 
 	After: [
 		{Analyze: {}},

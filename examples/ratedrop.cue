@@ -26,16 +26,14 @@ _ratedrop: {
 	// _qdisc is the qdisc to apply
 	_qdisc: "fq_codel flows 1 noecn"
 
-	// Name is the Group name.
-	Name: "ratedrop"
+	// ID is the Test ID.
+	ID: name: "ratedrop"
 
-	Test: [{
-		Serial: [
-			_rig.setup,
-			_server,
-			_do,
-		]
-	}]
+	Serial: [
+		_rig.setup,
+		_server,
+		_do,
+	]
 
 	After: [
 		{Analyze: {}},

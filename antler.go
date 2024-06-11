@@ -322,7 +322,11 @@ func (r Run2Command) run(ctx context.Context) (err error) {
 		}
 	}()
 	d.Info.Start = time.Now()
-	err = c.Root.Visit(ctx, d)
+	for _, t := range c.Test {
+		if err = d.Test(ctx, &t); err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -605,7 +609,11 @@ func (r Report2Command) run(ctx context.Context) (err error) {
 		}
 	}()
 	d.Info.Start = time.Now()
-	err = c.Root.Visit(ctx, d)
+	for _, t := range c.Test {
+		if err = d.Test(ctx, &t); err != nil {
+			return
+		}
+	}
 	return
 }
 

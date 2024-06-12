@@ -10,8 +10,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"slices"
-	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -19,7 +17,6 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
-	"github.com/heistp/antler/node"
 	"github.com/heistp/antler/node/metric"
 	"gonum.org/v1/gonum/stat/distuv"
 )
@@ -32,8 +29,6 @@ var configCUE string
 
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
-	Run     TestRun
-	Root    Group
 	Test    Tests
 	Results Results
 	Server  Server
@@ -41,145 +36,15 @@ type Config struct {
 
 // validate performs any programmatic generation and validation on the Config
 // that isn't possible to do with the schema in config.cue.
-//
-// TODO remove excess validation after Groups removal
 func (c *Config) validate() (err error) {
-	c.Root.setPath("")
-	c.Root.setTestGroup()
-	if err = c.Root.generateResultPrefixes(); err != nil {
-		return
-	}
-	if err = c.Root.validateTestIDs(); err != nil {
-		return
-	}
-	if err = c.validateTestIDs(); err != nil {
-		return
-	}
 	if err = c.Test.validateTestIDs(); err != nil {
 		return
 	}
 	if err = c.Test.generatePaths(); err != nil {
 		return
 	}
-	if err = c.validateNodeIDs(); err != nil {
+	if err = c.Test.validateNodeIDs(); err != nil {
 		return
-	}
-	if err = c.generateResultPrefixes(); err != nil {
-		return
-	}
-	return
-}
-
-// validateTestIDs returns an error if any Test IDs are duplicated.
-func (c *Config) validateTestIDs() (err error) {
-	var ii, dd []TestID
-	c.Run.VisitTests(func(t *Test) bool {
-		f := func(i TestID) bool {
-			return i.Equal(t.ID)
-		}
-		if slices.ContainsFunc(ii, f) {
-			if !slices.ContainsFunc(dd, f) {
-				dd = append(dd, t.ID)
-			}
-		} else {
-			ii = append(ii, t.ID)
-		}
-		return true
-	})
-	if len(dd) > 0 {
-		err = DuplicateTestIDError{dd}
-	}
-	return
-}
-
-// DuplicateTestIDError is returned when multiple Tests have the same ID.
-type DuplicateTestIDError struct {
-	ID []TestID
-}
-
-// Error implements error
-func (d DuplicateTestIDError) Error() string {
-	var s []string
-	for _, i := range d.ID {
-		s = append(s, i.String())
-	}
-	return fmt.Sprintf("duplicate Test IDs: %s", strings.Join(s, ", "))
-}
-
-// validateNodeIDs returns an error if any Node IDs do not uniquely identify
-// their fields.
-func (c *Config) validateNodeIDs() (err error) {
-	nn := make(map[node.Node]struct{})
-	c.Run.VisitTests(func(t *Test) bool {
-		r := node.NewTree(&t.Run)
-		r.Walk(func(n node.Node) bool {
-			nn[n] = struct{}{}
-			return true
-		})
-		return true
-	})
-	ii := make(map[node.ID]struct{})
-	var aa []node.ID
-	for n := range nn {
-		if _, ok := ii[n.ID]; ok {
-			if !slices.Contains(aa, n.ID) {
-				aa = append(aa, n.ID)
-			}
-		}
-		ii[n.ID] = struct{}{}
-	}
-	if len(aa) > 0 {
-		err = AmbiguousNodeIDError{aa}
-	}
-	return
-}
-
-// AmbiguousNodeIDError is returned when multiple Nodes use the same ID but with
-// different field values.
-type AmbiguousNodeIDError struct {
-	ID []node.ID
-}
-
-// Error implements error
-func (a AmbiguousNodeIDError) Error() string {
-	var s []string
-	for _, i := range a.ID {
-		s = append(s, i.String())
-	}
-	sort.Strings(s)
-	return fmt.Sprintf("ambiguous Node IDs: %s", strings.Join(s, ", "))
-}
-
-// generateResultPrefixes executes ResultPrefix for each Test and assigns the
-// output to the ResultPrefixX field.
-//
-// TODO remove generateResultPrefixes after TestRun removal
-func (c *Config) generateResultPrefixes() (err error) {
-	pp := make(map[string]int)
-	var d []string
-	c.Run.VisitTests(func(t *Test) bool {
-		pt := template.New("ResultPrefix")
-		if pt, err = pt.Parse(t.ResultPrefix); err != nil {
-			return false
-		}
-		var pb strings.Builder
-		if err = pt.Execute(&pb, t.ID); err != nil {
-			return false
-		}
-		p := pb.String()
-		t.ResultPrefixX = p
-		if v, ok := pp[p]; ok {
-			if v == 1 {
-				d = append(d, p)
-			}
-			pp[p] = v + 1
-		} else {
-			pp[p] = 1
-		}
-		return true
-	})
-	if len(d) > 0 {
-		err = DuplicateResultPrefixError{d}
 	}
 	return
 }

@@ -203,29 +203,6 @@ func (nopReport) report(ctx context.Context, in <-chan any, out chan<- any,
 	return
 }
 
-// reportStack is a stack of reports used when running a TestRun hierarchy.
-type reportStack []report
-
-// push adds a report to the stack.
-func (s *reportStack) push(r report) {
-	*s = append(*s, r)
-}
-
-// pop pops a report from the stack.
-func (s *reportStack) pop() (r report) {
-	r = (*s)[len(*s)-1]
-	*s = (*s)[:len(*s)-1]
-	return
-}
-
-// report returns a flat list of reporters in the stack.
-func (s *reportStack) report() (rr report) {
-	for _, r := range *s {
-		rr = append(rr, r...)
-	}
-	return
-}
-
 // SaveFiles is a reporter that saves FileData. If Consume is true, FileData
 // items are not forwarded to the out channel.
 type SaveFiles struct {

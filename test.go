@@ -21,15 +21,8 @@ type Test struct {
 	// ID uniquely identifies the Test in the test package.
 	ID TestID
 
-	// Group is the Group that this Test belongs to.
-	Group *Group
-
 	// Path is the path prefix for result files.
 	Path string
-
-	// ResultPrefix is the path prefix for result files. It may use Go template
-	// syntax, and is further documented in config.cue.
-	ResultPrefix string
 
 	// DataFile is the name of the gob file containing the raw result data. If
 	// empty, raw result data is not saved for the Test.
@@ -43,15 +36,6 @@ type Test struct {
 
 	// After is a pipeline of Reports run after the Test completes.
 	After Report
-
-	// DuringDefault contains default reporters to be run while the Test is run.
-	DuringDefault Report
-
-	// ReportDefault contains default reporters to be run after the Test is run.
-	ReportDefault Report
-
-	// ResultPrefixX contains the output of the executed ResultPrefix template.
-	ResultPrefixX string
 }
 
 // TestID represents a compound Test identifier. Keys and values must match the
@@ -153,7 +137,7 @@ func (t *Test) DataHasError(rw resultRW) (hasError bool, err error) {
 
 // RW returns a child resultRW for reading and writing this Test's results.
 func (t *Test) RW(work resultRW) resultRW {
-	return work.Child(t.ResultPrefixX)
+	return work.Child(t.Path)
 }
 
 // LinkPriorData creates hard links to the most recent result data for this
@@ -217,21 +201,19 @@ func (s Tests) validateTestIDs() (err error) {
 		}
 	}
 	if len(dd) > 0 {
-		err = DuplicateTestIDError3{dd}
+		err = DuplicateTestIDError{dd}
 		return
 	}
 	return
 }
 
-// DuplicateTestIDError3 is returned when multiple Tests have the same ID.
-//
-// TODO rename DuplicateTestIDError3 after Group removal
-type DuplicateTestIDError3 struct {
+// DuplicateTestIDError is returned when multiple Tests have the same ID.
+type DuplicateTestIDError struct {
 	ID []TestID
 }
 
 // Error implements error
-func (d DuplicateTestIDError3) Error() string {
+func (d DuplicateTestIDError) Error() string {
 	var s []string
 	for _, i := range d.ID {
 		s = append(s, i.String())
@@ -256,8 +238,6 @@ func (s Tests) generatePaths() (err error) {
 		}
 		p := pb.String()
 		t.Path = p
-		// TODO set Test.Path only after Groups and TestRuns are removed
-		t.ResultPrefixX = p
 		if v, ok := pp[p]; ok {
 			if v == 1 {
 				d = append(d, p)
@@ -281,4 +261,48 @@ type DuplicatePathError struct {
 // Error implements error
 func (d DuplicatePathError) Error() string {
 	return fmt.Sprintf("duplicate Test Paths: %s", strings.Join(d.Path, ", "))
+}
+
+// validateNodeIDs returns an error if any Node IDs do not uniquely identify
+// their fields.
+func (s Tests) validateNodeIDs() (err error) {
+	nn := make(map[node.Node]struct{})
+	for i := range s {
+		t := &s[i]
+		r := node.NewTree(&t.Run)
+		r.Walk(func(n node.Node) bool {
+			nn[n] = struct{}{}
+			return true
+		})
+	}
+	ii := make(map[node.ID]struct{})
+	var aa []node.ID
+	for n := range nn {
+		if _, ok := ii[n.ID]; ok {
+			if !slices.Contains(aa, n.ID) {
+				aa = append(aa, n.ID)
+			}
+		}
+		ii[n.ID] = struct{}{}
+	}
+	if len(aa) > 0 {
+		err = AmbiguousNodeIDError{aa}
+	}
+	return
+}
+
+// AmbiguousNodeIDError is returned when multiple Nodes use the same ID but with
+// different field values.
+type AmbiguousNodeIDError struct {
+	ID []node.ID
+}
+
+// Error implements error
+func (a AmbiguousNodeIDError) Error() string {
+	var s []string
+	for _, i := range a.ID {
+		s = append(s, i.String())
+	}
+	sort.Strings(s)
+	return fmt.Sprintf("ambiguous Node IDs: %s", strings.Join(s, ", "))
 }

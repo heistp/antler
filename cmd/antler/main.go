@@ -30,11 +30,8 @@ func root() (cmd *cobra.Command) {
 	}
 	cmd.AddCommand(vet())
 	cmd.AddCommand(list())
-	cmd.AddCommand(list2())
 	cmd.AddCommand(run())
-	cmd.AddCommand(run2())
 	cmd.AddCommand(report())
-	cmd.AddCommand(report2())
 	cmd.AddCommand(server())
 	cmd.Version = version.Version()
 	return
@@ -57,46 +54,10 @@ func vet() (cmd *cobra.Command) {
 func list() (cmd *cobra.Command) {
 	return &cobra.Command{
 		Use:   "list [filter] ...",
-		Short: "Lists tests and their result path prefixes",
-		Long: help(`List lists tests and their result path prefixes.
-
-{{template "filter" "list"}}
-`),
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			var f antler.TestFilter = antler.BoolFilter(true)
-			if len(args) > 0 {
-				if f, err = newRegexFilter(args); err != nil {
-					return
-				}
-			}
-			var c *antler.Config
-			if c, err = antler.LoadConfig(&load.Config{}); err != nil {
-				return
-			}
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "Test ID\tResult Prefix")
-			fmt.Fprintln(w, "-------\t-------------")
-			c.Run.VisitTests(func(t *antler.Test) bool {
-				if !f.Accept(t) {
-					return true
-				}
-				fmt.Fprintf(w, "%s\t%s\n", t.ID, t.ResultPrefixX)
-				return true
-			})
-			w.Flush()
-			return
-		},
-	}
-}
-
-// list2 returns the list2 cobra command.
-func list2() (cmd *cobra.Command) {
-	return &cobra.Command{
-		Use:   "list2 [filter] ...",
 		Short: "Lists tests",
 		Long: help(`List lists tests.
 
-{{template "filter" "list2"}}
+{{template "filter" "list"}}
 `),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			var f antler.TestFilter = antler.BoolFilter(true)
@@ -193,112 +154,9 @@ func run() (cmd *cobra.Command) {
 	return
 }
 
-// run2 returns the run cobra command.
-func run2() (cmd *cobra.Command) {
-	r := &antler.Run2Command{
-		Filter: nil,
-		Skipped: func(test *antler.Test) {
-			fmt.Printf("skipped %s\n", test.ID)
-		},
-		ReRunning: func(test *antler.Test) {
-			fmt.Printf("re-running %s due to prior error\n", test.ID)
-		},
-		Running: func(test *antler.Test) {
-			fmt.Printf("running %s...\n", test.ID)
-		},
-		Linked: func(test *antler.Test) {
-			fmt.Printf("linked %s\n", test.ID)
-		},
-		Done: func(info antler.RunInfo) {
-			fmt.Printf("ran %d tests, linked %d, elapsed %s\n",
-				info.Ran, info.Linked, info.Elapsed)
-			if info.ResultDir == "" {
-				fmt.Printf("no tests run or no changes made, result not saved\n")
-			} else {
-				fmt.Printf("result saved to: '%s'\n", info.ResultDir)
-			}
-		},
-	}
-	var a bool
-	cmd = &cobra.Command{
-		Use:   "run2 [filter] ...",
-		Short: "Runs tests and reports",
-		Long: help(`Run runs tests and reports.
-
-{{template "filter" "run"}}
-`),
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			c, x := context.WithCancelCause(context.Background())
-			defer x(nil)
-			if a && len(args) > 0 {
-				err = errors.New("-a/--all not compatible with arguments")
-				return
-			}
-			if len(args) > 0 {
-				if r.Filter, err = newRegexFilter(args); err != nil {
-					return
-				}
-			}
-			if a {
-				r.Filter = antler.BoolFilter(true)
-			}
-			sc := make(chan os.Signal, 1)
-			signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				s := <-sc
-				fmt.Fprintf(os.Stderr,
-					"%s, canceling (one more to terminate)\n", s)
-				x(errors.New(s.String()))
-				s = <-sc
-				fmt.Fprintf(os.Stderr, "%s, exiting forcibly\n", s)
-				os.Exit(-1)
-			}()
-			err = antler.Run(c, r)
-			return
-		},
-	}
-	cmd.Flags().BoolVarP(&a, "all", "a", false,
-		"runs all tests (may not be used with filter args)")
-	return
-}
-
 // report returns the report cobra command.
 func report() (cmd *cobra.Command) {
 	r := &antler.ReportCommand{
-		Reporting: func(test *antler.Test) {
-			fmt.Printf("reporting on %s...\n", test.ID)
-		},
-		DataFileUnset: func(test *antler.Test) {
-			fmt.Printf("skipping %s, DataFile field is empty\n", test.ID)
-		},
-		NotFound: func(test *antler.Test, name string) {
-			fmt.Printf("skipping %s, '%s' not found\n", test.ID, name)
-		},
-		Done: func(info antler.ReportInfo) {
-			fmt.Printf("reported on %d tests, elapsed %s\n",
-				info.Reported, info.Elapsed)
-			if info.ResultDir == "" {
-				fmt.Printf("no changes made, result not saved\n")
-			} else {
-				fmt.Printf("result saved to: '%s'\n", info.ResultDir)
-			}
-		},
-	}
-	return &cobra.Command{
-		Use:   "report2 [filter] ...",
-		Short: "Re-runs reports using existing data files",
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			c, x := context.WithCancelCause(context.Background())
-			defer x(nil)
-			err = antler.Run(c, r)
-			return
-		},
-	}
-}
-
-// report2 returns the report cobra command.
-func report2() (cmd *cobra.Command) {
-	r := &antler.Report2Command{
 		Reporting: func(test *antler.Test) {
 			fmt.Printf("reporting on %s...\n", test.ID)
 		},

@@ -10,19 +10,8 @@ import (
 	"list"
 )
 
-// Run is the top-level antler.TestRun, and consists of a hierarchy of TestRuns
-// and associated Reports. It is the only field that test packages must define.
-// TODO remove Run field after Groups work- it's optional for now
-Run?: #TestRun
-
-// Root is the default, top-level antler.Group. Test packages add their Tests
-// and sub-Groups here. It is the only field that test packages must define.
-// TODO remove Root field after flat Test list transition
-Root?: #Group
-
-// Test is the list of Tests to run. Test packages must set this field to run
-// Tests.
-Test?: [...#Test]
+// Test lists the Tests to run. Test packages must set this field to run Tests.
+Test: [...#Test]
 
 // Results configures the destination paths for results and reports.
 Results: #Results
@@ -36,54 +25,6 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // antler package
 //
-
-// antler.Group is used to form a hierarchy of Tests. Each Group is a node in
-// this hierarchy containing a list of Tests, and a list of sub-Groups.  Each
-// Test in a Group must have the same keys in its ID.
-//
-// Name is the name of the Group, and of the Group's directory in the results,
-// relative to the parent Group. Name may be empty only for the default Group.
-//
-// ResultPrefix is the base file name for any output files. It may use Go
-// template syntax (https://pkg.go.dev/text/template), with the Test ID passed
-// to the template as its data. The resulting value may not contain any path
-// separators (i.e. '/' characters), as all output files for a Group must
-// reside in a single directory. ResultPrefix must be unique for each Test, and
-// may be empty for a single Test. See the Note on Templates section at the
-// bottom of this file for more info on escaping with the use of template files.
-//
-// Test lists the Tests in the Group, and may be empty for Groups that only
-// contain other sub-Groups.
-//
-// Sub lists any sub-Groups of the Group.
-#Group: {
-	Name?:         string & =~_IDregex
-	ResultPrefix?: string | *"{{range $v := .}}{{$v}}_{{end}}"
-	Test?: [...#Test]
-	Sub?: [...#Group]
-}
-
-// antler.TestRun is used to orchestrate the execution of Tests. Each TestRun
-// can have one of Test, Serial or Parallel set, and may have Reports.
-//
-// Serial lists Tests to be executed sequentially, and Parallel lists Tests to
-// be executed concurrently. It's up to the author to ensure that Parallel
-// tests can be executed safely, for example by assigning separate namespaces
-// to those Tests which may execute at the same time.
-//
-// Report is a pipeline of #Reports run after the Test completes, and by the
-// report command, in parallel with the pipeline in Test.Report. See also the
-// During and After fields in Test.
-#TestRun: {
-	{} | {
-		Test?: #Test
-	} | {
-		Serial?: [#TestRun, ...#TestRun]
-	} | {
-		Parallel?: [#TestRun, ...#TestRun]
-	}
-	Report?: [#Report, ...#Report]
-}
 
 // antler.Results configures the destination paths for results and reports.
 //
@@ -194,19 +135,13 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // ID is a compound identifier for the Test. It must uniquely identify the Test
 // within the package, and its keys and values must match _IDregex. ID is not
-// required for a single Test, as a default of {"test": "single"} is used.
+// required for a single Test.
 //
 // Path is the base path prefix for any output files. It may use Go template
 // syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
 // template as its data. Any path separators (e.g. '/') in the string generated
 // by the template will result in the creation of directories. Path must be
 // unique for each Test, and may be empty for a single Test.
-//
-// ResultPrefix is the base path for any output files. It may use Go template
-// syntax (https://pkg.go.dev/text/template), with the Test ID passed to the
-// template as its data. Any path separators (e.g. '/') in the string generated
-// by the template will result in the creation of directories. ResultPrefix must
-// be unique for each Test, and may be empty for a single Test.
 //
 // DataFile sets the name suffix of the gob output file used to save the raw
 // result data (by default, "data.gob"). If empty, it will not be saved. In
@@ -219,11 +154,11 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // During is a pipeline of Reports that is run *while* the Test is run. It may
 // not be used to generate saved reports from result data, otherwise those
 // reports would be lost during incremental test runs. When setting During,
-// #During should typically be prepended to the list
+// #During should typically be prepended to include the default Reports
 // (e.g. During: #During + [...]) so that file data is saved and
 // consumed, and logs are emitted, before the other pipeline stages are run.
 //
-// #During is a default list of reports to run during a Test. Here, we save
+// #During is a list of default reports to run during a Test. Here, we save
 // files and consume their FileData items first, so that large files such as
 // pcaps are removed from the data stream and gob file and saved in separate
 // files. We also emit logs to stdout as they arrive.
@@ -235,18 +170,11 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // #After is a default list of reports to run after a Test. Here, we save log
 // files and system information.
-//
-// TODO remove unused fields and doc from #Test after flat Test changes
 #Test: {
-	_DefaultID: {test: "single"}
 	ID?: {
 		[string & =~_IDregex]: string & =~_IDregex
-	} // | *_DefaultID
-	Path:          string | *"{{range $v := .}}{{$v}}_{{end}}"
-	ResultPrefix?: string
-	if ID != _DefaultID {
-		ResultPrefix: string | *"{{range $v := .}}{{$v}}_{{end}}"
 	}
+	Path:     string | *"{{range $v := .}}{{$v}}_{{end}}"
 	DataFile: string | *"data.gob"
 	#Run
 	During:  [...#Report] | *#During
@@ -261,8 +189,8 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	]
 }
 
-// antler.Report defines one Report for execution in a TestRun. Reports are
-// documented in more detail in their individual types.
+// antler.Report contains the union of Report types. Reports are documented in
+// more detail in their individual definitions.
 #Report: {
 	{} | {
 		Analyze?: #Analyze

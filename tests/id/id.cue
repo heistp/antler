@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 // Copyright 2023 Pete Heist
 
-// This Antler test experiments with Test IDs and ResultPrefix.
+// This Antler test experiments with Test IDs and Path.
 
 package id
 

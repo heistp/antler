@@ -30,8 +30,8 @@ type EmitSysInfo struct {
 }
 
 // report implements reporter
-func (y *EmitSysInfo) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (y *EmitSysInfo) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	t := template.New("SysInfo")
 	if t, err = t.Parse(sysinfoTemplate); err != nil {
 		return

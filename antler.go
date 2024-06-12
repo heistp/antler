@@ -186,7 +186,7 @@ func (u doRun) Test(ctx context.Context, test *Test) (err error) {
 		}
 	}
 	r := report([]reporter{s}).add(test.After.report())
-	for e := range r.pipeline(ctx, nil, nil, rw) {
+	for e := range r.pipeline(ctx, rw, nil, nil) {
 		if err == nil {
 			err = e
 		}
@@ -215,7 +215,7 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)
 	go node.Do(ctx, &test.Run, &exeSource{}, d)
-	for e := range p.pipeline(ctx, d, nil, rw) {
+	for e := range p.pipeline(ctx, rw, d, nil) {
 		x(e)
 		if err == nil {
 			err = e
@@ -355,7 +355,7 @@ func (d doReport) Test(ctx context.Context, test *Test) (err error) {
 	}
 	d.Info.Reported++
 	t := report([]reporter{readData{r}}).add(test.After.report())
-	for e := range t.pipeline(ctx, nil, nil, rw) {
+	for e := range t.pipeline(ctx, rw, nil, nil) {
 		if err == nil {
 			err = e
 		}

@@ -27,6 +27,8 @@ import (
 // ignore the Context. In any case, they should expect that partial input data
 // is possible, in which case an error should be returned.
 //
+// Reporters may read or write results using the given 'rwer'.
+//
 // Both in and out are always non-nil channels.
 //
 // If a reporter is the first stage in a pipeline with no input, the in channel
@@ -36,11 +38,9 @@ import (
 // For configuration flexibility, most reports should forward data to out as
 // usual, unless they are certain to be the last stage in the pipeline.
 //
-// Reporters may read or write results using the given 'rwer'.
-//
 // Reporters should be concurrent safe.
 type reporter interface {
-	report(ctx context.Context, in <-chan any, out chan<- any, rw rwer) error
+	report(ctx context.Context, rw rwer, in <-chan any, out chan<- any) error
 }
 
 // Report represents a list of reporters.
@@ -111,8 +111,8 @@ func (r report) add(other report) report {
 //
 // The returned error channel receives any errors that occur, and is closed when
 // the pipeline is done, meaning all of its stages are done.
-func (r report) pipeline(ctx context.Context, in chan any, out chan any,
-	rw rwer) <-chan error {
+func (r report) pipeline(ctx context.Context, rw rwer, in chan any,
+	out chan any) <-chan error {
 	if len(r) == 0 {
 		r = append(r, nopReport{})
 	}
@@ -153,7 +153,7 @@ func (r report) pipeline(ctx context.Context, in chan any, out chan any,
 				}
 				ec <- e
 			}()
-			e = t.report(ctx, in, out, rw)
+			e = t.report(ctx, rw, in, out)
 		}(t, cc[i], cc[i+1])
 	}
 	go func() {
@@ -179,9 +179,9 @@ func (r report) tee(ctx context.Context, rw rwer, in chan any,
 	}
 	t := tee(c...)
 	var ec []<-chan error
-	ec = append(ec, r.pipeline(ctx, in, t, rw))
+	ec = append(ec, r.pipeline(ctx, rw, in, t))
 	for i, p := range to {
-		ec = append(ec, p.pipeline(ctx, c[i], nil, rw))
+		ec = append(ec, p.pipeline(ctx, rw, c[i], nil))
 	}
 	oc := make(chan error)
 	go func() {
@@ -198,8 +198,8 @@ type nopReport struct {
 }
 
 // report implements reporter
-func (nopReport) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (nopReport) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	return
 }
 
@@ -210,8 +210,8 @@ type SaveFiles struct {
 }
 
 // report implements reporter
-func (s *SaveFiles) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (s *SaveFiles) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	m := make(map[string]io.WriteCloser)
 	defer func() {
 		for n, w := range m {
@@ -265,8 +265,8 @@ type Encode struct {
 }
 
 // report implements reporter
-func (c *Encode) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (c *Encode) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	for d := range in {
 		if f, ok := d.(FileRef); ok {
 			var m bool
@@ -336,8 +336,8 @@ type readData struct {
 }
 
 // report implements reporter
-func (r readData) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (r readData) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	defer r.Close()
 	for range in {
 	}
@@ -373,8 +373,8 @@ type writeData struct {
 }
 
 // report implements reporter
-func (w writeData) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (w writeData) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	defer func() {
 		if e := w.Close(); e != nil && err == nil {
 			err = e
@@ -402,8 +402,8 @@ func (w writeData) report(ctx context.Context, in <-chan any, out chan<- any,
 type rangeData []any
 
 // report implements reporter
-func (r rangeData) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (r rangeData) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	for range in {
 	}
 	for _, a := range r {
@@ -426,8 +426,8 @@ func (r rangeData) report(ctx context.Context, in <-chan any, out chan<- any,
 type appendData []any
 
 // report implements reporter
-func (a *appendData) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) error {
+func (a *appendData) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) error {
 	var f error
 	for d := range in {
 		*a = append(*a, d)

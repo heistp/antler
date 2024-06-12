@@ -18,8 +18,8 @@ type Analyze struct {
 }
 
 // report implements reporter
-func (Analyze) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (Analyze) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	y := newAnalysis()
 	for d := range in {
 		out <- d

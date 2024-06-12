@@ -47,8 +47,8 @@ type ChartsTimeSeries struct {
 }
 
 // report implements reporter
-func (g *ChartsTimeSeries) report(ctx context.Context, in <-chan any,
-	out chan<- any, rw rwer) (err error) {
+func (g *ChartsTimeSeries) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	t := template.New("ChartsTimeSeries")
 	t = t.Funcs(template.FuncMap{
 		"flowLabel": func(flow node.Flow) (label string) {
@@ -163,8 +163,8 @@ type ChartsFCT struct {
 }
 
 // report implements reporter
-func (g *ChartsFCT) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (g *ChartsFCT) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	t := template.New("ChartsFCT")
 	t = t.Funcs(template.FuncMap{})
 	if t, err = t.Parse(chartsTemplate); err != nil {

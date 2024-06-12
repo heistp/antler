@@ -25,8 +25,8 @@ type EmitLog struct {
 }
 
 // report implements reporter
-func (l *EmitLog) report(ctx context.Context, in <-chan any, out chan<- any,
-	rw rwer) (err error) {
+func (l *EmitLog) report(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) (err error) {
 	var ww []io.WriteCloser
 	defer func() {
 		for _, w := range ww {

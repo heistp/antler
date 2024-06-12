@@ -686,9 +686,10 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Sockopt?: [#Sockopt, ...#Sockopt]
 }
 
-// MaxPacketSize is the maximum size for PacketClient/PacketServer
-// TODO minimum MaxPacketSize seems arbitrary
-#MaxPacketSize: int & >=32 | *(1500 - 20)
+// MaxPacketSize is the maximum size of a received packet for
+// PacketClient/PacketServer. This should only need to be raised for >1500 byte
+// MTU, e.g. jumbo frames.
+#MaxPacketSize: int & >=0 | *(1500 - 20)
 
 // node.PacketSenders
 #PacketSenders: {

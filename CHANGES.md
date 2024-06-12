@@ -10,10 +10,11 @@ and this project adheres to
 
 ### Changed
 
-- Rename Test.During to Test.DuringDefault
-- Rename Test.Report to Test.AfterDefault
+- Move from TestRuns to a flat list of Tests (after failed Groups experiment)
+- Bump x/net to 0.23 to fix CVE-2023-45288
 - Make Analyze reporter concurrent-safe
 - Log background command context cancellations as exited command
+- Remove default ID for single tests
 
 ## 0.4.0 - 2023-12-20
 

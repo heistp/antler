@@ -11,6 +11,7 @@ and this project adheres to
 ### Changed
 
 - Move from TestRuns to a flat list of Tests (after failed Groups experiment)
+- Rename Test.ResultPrefix/X to Test.Path
 - Bump x/net to 0.23 to fix CVE-2023-45288
 - Make Analyze reporter concurrent-safe
 - Log background command context cancellations as exited command

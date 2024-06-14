@@ -29,9 +29,10 @@ var configCUE string
 
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
-	Test    Tests
-	Results Results
-	Server  Server
+	Test        Tests
+	MultiReport MultiReports
+	Results     Results
+	Server      Server
 }
 
 // validate performs any programmatic generation and validation on the Config

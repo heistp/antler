@@ -14,10 +14,10 @@ import (
 	"github.com/heistp/antler/node"
 )
 
-// A reporter can process data items from the node. It is run as a stage in a
-// pipeline, where data items are received on the in channel, and sent on the
-// out channel. Reporters may consume, emit or forward data items. Reporters
-// should forward any unrecognized or unhandled items.
+// A reporter can process data items from the node for a single Test. It is run
+// as a stage in a pipeline, where data items are received on the in channel,
+// and sent on the out channel. Reporters may consume, emit or forward data
+// items. Reporters should forward any unrecognized or unhandled items.
 //
 // Reporters may return at any time, with or without an error. Any remaining
 // data on their in channel will be forwarded to the out channel.
@@ -63,7 +63,6 @@ type reporters struct {
 	ChartsTimeSeries *ChartsTimeSeries
 	SaveFiles        *SaveFiles
 	Encode           *Encode
-	Index            *Index
 }
 
 // reporter returns the only non-nil reporter implementation.
@@ -83,8 +82,6 @@ func (r *reporters) reporter() reporter {
 		return r.SaveFiles
 	case r.Encode != nil:
 		return r.Encode
-	case r.Index != nil:
-		return r.Index
 	default:
 		panic("no reporter set in reporters union")
 	}
@@ -437,3 +434,48 @@ func (a *appendData) report(ctx context.Context, rw rwer, in <-chan any,
 	}
 	return f
 }
+
+// A multiReporter can process data items for multiple Tests. It receives its
+// input from the final stage of the Test.After pipeline.
+//
+// MultiReporters may use the given Context to react to cancellation signals,
+// and if canceled, should return the error from context.Cause(ctx).
+// MultiReporters may also ignore the Context. In any case, they should expect
+// that partial input data is possible, in which case an error should be
+// returned if it is known that this would affect the output.
+//
+// MultiReporters should be able to handle data from multiple input streams
+// concurrently.
+//
+// MultiReporters may return with or without an error, however, they must not do
+// so until draining the in channel from any testData channels they have read,
+// and until any goroutines that were started have completed.
+//
+// TODO update the above contract after implementation
+type multiReporter interface {
+	report(ctx context.Context, work resultRW, data <-chan testData) error
+}
+
+// A testData contains a Test and its data stream for a multiReporter.
+type testData struct {
+	test *Test
+	in   <-chan any
+}
+
+// multiReporters is a union of the available multiReporters.
+type multiReporters struct {
+	Index *Index
+}
+
+// multiReporter returns the only non-nil multiReporter implementation.
+func (m *multiReporters) multiReporter() multiReporter {
+	switch {
+	case m.Index != nil:
+		return m.Index
+	default:
+		panic("no multiReporter set in multiReporters union")
+	}
+}
+
+// MultiReport represents a list of multiReporters.
+type MultiReports []multiReporters

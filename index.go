@@ -6,12 +6,13 @@ package antler
 import "context"
 
 // Index is a reporter that creates an index.html file for a Group.
+//
+// TODO implement Index reporter
 type Index struct {
 }
 
-// report implements reporter
-func (*Index) report(ctx context.Context, rw rwer, in <-chan any,
-	out chan<- any) (err error) {
-	// TODO implement Index reporter
-	return
+// report implements multiReporter
+func (*Index) report(ctx context.Context, work resultRW,
+	data <-chan testData) error {
+	return nil
 }

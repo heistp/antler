@@ -13,6 +13,9 @@ import (
 // Test lists the Tests to run. Test packages must set this field to run Tests.
 Test: [...#Test]
 
+// MultiReport is a list of multi-Test reports to run. 
+MultiReport?: [...#MultiReport]
+
 // Results configures the destination paths for results and reports.
 Results: #Results
 
@@ -433,8 +436,15 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Consume: bool | *true
 }
 
-// antler.Index is a Report that generates an index page for the Tests in a
-// Group.
+// antler.MultiReport contains the union of MultiReport types. MultiReports are
+// documented in more detail in their individual definitions.
+#MultiReport: {
+	{} | {
+		Index?: #Index
+	}
+}
+
+// antler.Index is a MultiReport that generates an index page for Tests.
 #Index: {
 	Name: string & !="" | *"index.html"
 }

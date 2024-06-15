@@ -174,9 +174,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // #After is a default list of reports to run after a Test. Here, we save log
 // files and system information.
 #Test: {
-	ID?: {
-		[string & =~_IDregex]: string & =~_IDregex
-	}
+	ID?: [string & =~_IDregex]: string & =~_IDregex
 	Path:     string | *"{{range $v := .}}{{$v}}_{{end}}"
 	DataFile: string | *"data.gob"
 	#Run
@@ -436,9 +434,20 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Consume: bool | *true
 }
 
-// antler.MultiReport contains the union of MultiReport types. MultiReports are
-// documented in more detail in their individual definitions.
+// antler.MultiReport contains one definition for a multi-Test report.
+// MultiReports process all the data streams from the Tests they are run for.
+// Their input comes from the output of the Test.After pipeline, so that
+// single-Test reports run before multi-Test reports.
+//
+// ID is used to restrict which Tests the MultiReport is run for. The values
+// in the key/value pairs are regular expressions used to match ID values for
+// the corresponding keys.
+//
+// The individual MultiReport types are embedded, and only one may be specified
+// for each MultiReport. They are documented in more detail in their individual
+// definitions.
 #MultiReport: {
+	ID?: [string & =~_IDregex]: string & =~_IDregex
 	{} | {
 		Index?: #Index
 	}
@@ -446,7 +455,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 
 // antler.Index is a MultiReport that generates an index page for Tests.
 #Index: {
-	Name: string & !="" | *"index.html"
+	Path: string & !="" | *"index.html"
 }
 
 //

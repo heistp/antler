@@ -30,7 +30,7 @@ var configCUE string
 // Config is the Antler configuration, loaded from CUE.
 type Config struct {
 	Test        Tests
-	MultiReport MultiReports
+	MultiReport []MultiReport
 	Results     Results
 	Server      Server
 }

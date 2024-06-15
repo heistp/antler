@@ -9,10 +9,11 @@ import "context"
 //
 // TODO implement Index reporter
 type Index struct {
+	Path string
 }
 
 // report implements multiReporter
-func (*Index) report(ctx context.Context, work resultRW,
-	data <-chan testData) error {
+func (*Index) report(ctx context.Context, work resultRW, test *Test,
+	data <-chan any) error {
 	return nil
 }

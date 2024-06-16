@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io"
 	"maps"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -46,6 +47,21 @@ type TestID map[string]string
 // key/value pairs).
 func (i TestID) Equal(other TestID) bool {
 	return maps.Equal(i, other)
+}
+
+// Match returns true if each of the keys in pattern is in the TestID, and each
+// of the value patterns in pattern match the TestID's corresponding values.
+func (i TestID) Match(pattern TestID) (matched bool, err error) {
+	for k, v := range pattern {
+		vi, ok := i[k]
+		if !ok {
+			return
+		}
+		if matched, err = regexp.MatchString(v, vi); !matched || err != nil {
+			return
+		}
+	}
+	return
 }
 
 // String returns the Test ID in the form: [K=V ...] with key/value pairs

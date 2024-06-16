@@ -96,8 +96,7 @@ func (r report) add(other report) report {
 	return append(r, other...)
 }
 
-// pipeline confines goroutines to run the reporters in a pipeline. See the
-// reporter interface documentation for its contract.
+// pipeline confines goroutines to run the reporters in a pipeline.
 //
 // If in is not nil, the caller is expected to send to in and close it when
 // done. If out is not nil, the caller is expected to receive all items from it
@@ -108,34 +107,50 @@ func (r report) add(other report) report {
 //
 // The returned error channel receives any errors that occur, and is closed when
 // the pipeline is done, meaning all of its stages are done.
-func (r report) pipeline(ctx context.Context, rw rwer, in chan any,
-	out chan any) <-chan error {
+func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
+	out chan<- any) <-chan error {
 	if len(r) == 0 {
 		r = append(r, nopReport{})
 	}
+	var g int // goroutines
 	err := make(chan error)
 	ec := make(chan error)
-	cc := make([]chan any, len(r)+1)
-	if cc[0] = in; cc[0] == nil {
-		cc[0] = make(chan any)
-		close(cc[0])
+	cc := make([]chan any, len(r)-1)
+	// set input channel, or make a closed input channel if nil
+	var pin <-chan any
+	if pin = in; pin == nil {
+		i := make(chan any)
+		close(i)
+		pin = i
 	}
-	for i := 1; i < len(r); i++ {
+	// make intermediary channels
+	for i := 0; i < len(cc); i++ {
 		cc[i] = make(chan any, dataChanBufLen)
 	}
-	var g int
-	if cc[len(r)] = out; cc[len(r)] == nil {
-		cc[len(r)] = make(chan any, dataChanBufLen)
+	// set output channel, or make a drained output channel if nil
+	var pout chan<- any
+	if pout = out; pout == nil {
+		o := make(chan any, dataChanBufLen)
+		pout = o
 		g++
 		go func() {
 			defer func() {
 				ec <- nil
 			}()
-			for range cc[len(r)] {
+			for range o {
 			}
 		}()
 	}
-	for i, t := range r {
+	// start goroutines for each stage
+	for x, t := range r {
+		i := pin
+		if x > 0 {
+			i = cc[x-1]
+		}
+		o := pout
+		if x < len(r)-1 {
+			o = cc[x]
+		}
 		g++
 		go func(t reporter, in <-chan any, out chan<- any) {
 			var e error
@@ -151,8 +166,9 @@ func (r report) pipeline(ctx context.Context, rw rwer, in chan any,
 				ec <- e
 			}()
 			e = t.report(ctx, rw, in, out)
-		}(t, cc[i], cc[i+1])
+		}(t, i, o)
 	}
+	// de-nullify errors and close error channel after complete
 	go func() {
 		for i := 0; i < g; i++ {
 			if e := <-ec; e != nil {

@@ -109,12 +109,12 @@ func (r report) add(other report) report {
 // the pipeline is done, meaning all of its stages are done.
 func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 	out chan<- any) <-chan error {
+	errc := make(chan error)
+	defer close(errc)
 	if len(r) == 0 {
 		r = append(r, nopReport{})
 	}
-	var g int // goroutines
-	err := make(chan error)
-	ec := make(chan error)
+	var ecc []<-chan error
 	cc := make([]chan any, len(r)-1)
 	// set input channel, or make a closed input channel if nil
 	var pin <-chan any
@@ -132,14 +132,13 @@ func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 	if pout = out; pout == nil {
 		o := make(chan any, dataChanBufLen)
 		pout = o
-		g++
-		go func() {
-			defer func() {
-				ec <- nil
-			}()
+		ec := make(chan error)
+		ecc = append(ecc, ec)
+		go func(ec chan error) {
+			defer close(ec)
 			for range o {
 			}
-		}()
+		}(ec)
 	}
 	// start goroutines for each stage
 	for x, t := range r {
@@ -151,33 +150,30 @@ func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 		if x < len(r)-1 {
 			o = cc[x]
 		}
-		g++
-		go func(t reporter, in <-chan any, out chan<- any) {
-			var e error
+		ec := make(chan error)
+		ecc = append(ecc, ec)
+		go func(t reporter, in <-chan any, out chan<- any, ec chan error) {
 			defer func() {
 				for a := range in {
 					out <- a
 				}
 				close(out)
 				if p := recover(); p != nil {
-					e = fmt.Errorf("pipeline panic in %T: %s\n%s",
+					ec <- fmt.Errorf("pipeline panic in %T: %s\n%s",
 						t, p, string(debug.Stack()))
 				}
-				ec <- e
+				close(ec)
 			}()
-			e = t.report(ctx, rw, in, out)
-		}(t, i, o)
-	}
-	// de-nullify errors and close error channel after complete
-	go func() {
-		for i := 0; i < g; i++ {
-			if e := <-ec; e != nil {
-				err <- e
+			if e := t.report(ctx, rw, in, out); e != nil {
+				ec <- e
 			}
-		}
-		close(err)
-	}()
-	return err
+		}(t, i, o, ec)
+	}
+	// send any errors to error channel (close happens in defer)
+	for e := range mergeErr(ecc...) {
+		errc <- e
+	}
+	return errc
 }
 
 // tee confines goroutines to pipeline this report to concurrent pipelines for

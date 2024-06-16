@@ -464,8 +464,6 @@ func (a *appendData) report(ctx context.Context, rw rwer, in <-chan any,
 //
 // MultiReporters must be concurrent safe, and should be able to concurrently
 // process multiple report calls in parallel.
-//
-// TODO update the above contract after implementation
 type multiReporter interface {
 	report(ctx context.Context, work resultRW, test *Test, in <-chan any) error
 }
@@ -488,6 +486,11 @@ type MultiReport struct {
 	multiReporters
 }
 
+// wants returns true if this MultiReport wants to handle the given Test.
+func (m MultiReport) wants(test *Test) (bool, error) {
+	return test.ID.Match(m.ID)
+}
+
 // multiReporters is a union of the available multiReporters.
 type multiReporters struct {
 	Index *Index
@@ -505,26 +508,23 @@ func (m *multiReporters) multiReporter() multiReporter {
 
 // multiRunner runs multiReporters.
 type multiRunner struct {
-	multi   []multiReporter
+	multi   []MultiReport
 	started []bool
 }
 
 // newMultiRunner returns a new multiRunner.
 func newMultiRunner(mr []MultiReport) *multiRunner {
-	var mm []multiReporter
-	for _, m := range mr {
-		mm = append(mm, m.multiReporter())
-	}
 	return &multiRunner{
-		mm,
-		make([]bool, len(mm)),
+		mr,
+		make([]bool, len(mr)),
 	}
 }
 
 // start calls any multiStarters among the multiReporters. If an error occurs,
 // any successfully started multiReporters will be stopped when stop is called.
 func (m *multiRunner) start(work resultRW) (err error) {
-	for i, r := range m.multi {
+	for i, mr := range m.multi {
+		r := mr.multiReporter()
 		if s, ok := r.(multiStarter); ok {
 			if err = s.start(work); err != nil {
 				return
@@ -537,8 +537,8 @@ func (m *multiRunner) start(work resultRW) (err error) {
 
 // tee confines goroutines to run all multiReporters for the given Test.
 //
-// The given Context and resultRW may be used to handle cancellation and write
-// results.
+// The given Context may be used for handling cancellation. The resultRW may be
+// used to write results to the working directory.
 //
 // Data items must be written to the returned out channel, which may be nil in
 // case no multiReporters will run for the given Test. The out channel must be
@@ -548,24 +548,72 @@ func (m *multiRunner) start(work resultRW) (err error) {
 // closed when the tee is done, meaning all of the multiReporters are done.
 func (m *multiRunner) tee(ctx context.Context, work resultRW, test *Test) (
 	out chan<- any, errc <-chan error) {
-	// walk list and find matching multiReporters, returning nil out chan if
-	// none match
-
+	ec := make(chan error)
+	errc = ec
+	defer close(ec)
+	// find multiReporters to run, returning nil out chan if there are none
+	var rr []multiReporter
+	for _, r := range m.multi {
+		w, e := r.wants(test)
+		if e != nil {
+			ec <- e
+			return
+		}
+		if w {
+			rr = append(rr, r.multiReporter())
+		}
+	}
+	if len(rr) == 0 {
+		return
+	}
 	// create out channel, and data channels for multiReporters
-
+	oc := make(chan any, dataChanBufLen)
+	out = oc
+	var dc []chan any
+	for range m.multi {
+		dc = append(dc, make(chan any, dataChanBufLen))
+	}
+	// start tee goroutine to read from out and write to data channels
+	go func() {
+		defer func() {
+			for _, c := range dc {
+				close(c)
+			}
+		}()
+		for d := range oc {
+			for _, c := range dc {
+				c <- d
+			}
+		}
+	}()
 	// start goroutines for each multiReporter to call its report method
-
-	// start goroutine to read from the out channel, and write to each of
-	// the MultiReport data channels
-
-	// TODO work on error handling and cancellation
-	return nil, nil
+	var mec []<-chan error
+	for i, r := range m.multi {
+		ec := make(chan error)
+		mec = append(mec, ec)
+		go func(r multiReporter, ec chan error) {
+			defer func() {
+				for range dc[i] {
+				}
+				close(ec)
+			}()
+			if e := r.report(ctx, work, test, dc[i]); e != nil {
+				ec <- e
+			}
+		}(r.multiReporter(), ec)
+	}
+	// send any errors to error channel (close happens in defer)
+	for e := range mergeErr(mec...) {
+		ec <- e
+	}
+	return
 }
 
 // stop calls any multiStoppers among the multiReporters, and returns the first
 // error, if any. stop is called on all multiReporters regardless of errors.
 func (m *multiRunner) stop(work resultRW) (err error) {
-	for i, r := range m.multi {
+	for i, mr := range m.multi {
+		r := mr.multiReporter()
 		if s, ok := r.(multiStopper); ok && m.started[i] {
 			if e := s.stop(work); e != nil && err == nil {
 				err = e

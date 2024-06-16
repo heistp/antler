@@ -109,12 +109,10 @@ func (r report) add(other report) report {
 // the pipeline is done, meaning all of its stages are done.
 func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 	out chan<- any) <-chan error {
-	errc := make(chan error)
-	defer close(errc)
 	if len(r) == 0 {
 		r = append(r, nopReport{})
 	}
-	var ecc []<-chan error
+	var ecc errChans
 	cc := make([]chan any, len(r)-1)
 	// set input channel, or make a closed input channel if nil
 	var pin <-chan any
@@ -132,8 +130,7 @@ func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 	if pout = out; pout == nil {
 		o := make(chan any, dataChanBufLen)
 		pout = o
-		ec := make(chan error)
-		ecc = append(ecc, ec)
+		ec := ecc.make()
 		go func(ec chan error) {
 			defer close(ec)
 			for range o {
@@ -150,8 +147,7 @@ func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 		if x < len(r)-1 {
 			o = cc[x]
 		}
-		ec := make(chan error)
-		ecc = append(ecc, ec)
+		ec := ecc.make()
 		go func(t reporter, in <-chan any, out chan<- any, ec chan error) {
 			defer func() {
 				for a := range in {
@@ -169,11 +165,7 @@ func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 			}
 		}(t, i, o, ec)
 	}
-	// send any errors to error channel (close happens in defer)
-	for e := range mergeErr(ecc...) {
-		errc <- e
-	}
-	return errc
+	return ecc.merge()
 }
 
 // tee confines goroutines to pipeline this report to concurrent pipelines for
@@ -182,24 +174,27 @@ func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 // the tee is done, meaning each of the pipelines is done.
 func (r report) tee(ctx context.Context, rw rwer, in <-chan any,
 	to ...report) <-chan error {
-	var c []chan any
+	var ic []chan any
 	for range to {
-		c = append(c, make(chan any, dataChanBufLen))
+		ic = append(ic, make(chan any, dataChanBufLen))
 	}
-	t := tee(c...)
-	var ec []<-chan error
-	ec = append(ec, r.pipeline(ctx, rw, in, t))
-	for i, p := range to {
-		ec = append(ec, p.pipeline(ctx, rw, c[i], nil))
-	}
-	oc := make(chan error)
+	oc := make(chan any, dataChanBufLen)
 	go func() {
-		for e := range mergeErr(ec...) {
-			oc <- e
+		for a := range oc {
+			for _, o := range ic {
+				o <- a
+			}
 		}
-		close(oc)
+		for _, o := range ic {
+			close(o)
+		}
 	}()
-	return oc
+	var ec errChans
+	ec.add(r.pipeline(ctx, rw, in, oc))
+	for i, p := range to {
+		ec.add(p.pipeline(ctx, rw, ic[i], nil))
+	}
+	return ec.merge()
 }
 
 // nopReport is a reporter for internal use that does nothing.
@@ -540,19 +535,20 @@ func (m *multiRunner) start(work resultRW) (err error) {
 // case no multiReporters will run for the given Test. The out channel must be
 // closed by the caller after use.
 //
-// The returned error channel receives any errors that occur, and is
-// closed when the tee is done, meaning all of the multiReporters are done.
+// The returned error channel receives any errors that occur, and may be nil in
+// case no multiReporters will run for the given Test. If not nil, it is closed
+// when the tee is done, meaning all of the multiReporters are done.
 func (m *multiRunner) tee(ctx context.Context, work resultRW, test *Test) (
 	out chan<- any, errc <-chan error) {
-	ec := make(chan error)
-	errc = ec
-	defer close(ec)
 	// find multiReporters to run, returning nil out chan if there are none
 	var rr []multiReporter
 	for _, r := range m.multi {
 		w, e := r.wants(test)
 		if e != nil {
+			ec := make(chan error, 1)
 			ec <- e
+			close(ec)
+			errc = ec
 			return
 		}
 		if w {
@@ -583,10 +579,9 @@ func (m *multiRunner) tee(ctx context.Context, work resultRW, test *Test) (
 		}
 	}()
 	// start goroutines for each multiReporter to call its report method
-	var mec []<-chan error
+	var mec errChans
 	for i, r := range m.multi {
-		ec := make(chan error)
-		mec = append(mec, ec)
+		ec := mec.make()
 		go func(r multiReporter, ec chan error) {
 			defer func() {
 				for range dc[i] {
@@ -598,10 +593,7 @@ func (m *multiRunner) tee(ctx context.Context, work resultRW, test *Test) (
 			}
 		}(r.multiReporter(), ec)
 	}
-	// send any errors to error channel (close happens in defer)
-	for e := range mergeErr(mec...) {
-		ec <- e
-	}
+	errc = mec.merge()
 	return
 }
 

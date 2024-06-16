@@ -184,7 +184,7 @@ func (r report) pipeline(ctx context.Context, rw rwer, in <-chan any,
 // each of the given reports. The output for each 'to' report is nil. The
 // returned error channel receives any errors that occur, and is closed when
 // the tee is done, meaning each of the pipelines is done.
-func (r report) tee(ctx context.Context, rw rwer, in chan any,
+func (r report) tee(ctx context.Context, rw rwer, in <-chan any,
 	to ...report) <-chan error {
 	var c []chan any
 	for range to {

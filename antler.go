@@ -100,8 +100,12 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 	if rw, err = c.Results.open(); err != nil {
 		return
 	}
-	d := doRun{r, rw, &RunInfo{}}
+	m := newMultiRunner(c.MultiReport)
+	d := doRun{r, rw, m, &RunInfo{}}
 	defer func() {
+		if e := m.stop(rw); e != nil && err == nil {
+			err = e
+		}
 		d.Info.Elapsed = time.Since(d.Info.Start)
 		if d.Info.Ran == 0 {
 			if e := rw.Abort(); e != nil && err == nil {
@@ -117,6 +121,9 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 			r.Done(*d.Info)
 		}
 	}()
+	if err = m.start(rw); err != nil {
+		return
+	}
 	d.Info.Start = time.Now()
 	for _, t := range c.Test {
 		if err = d.Test(ctx, &t); err != nil {
@@ -129,33 +136,34 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 // doRun is a Tester that runs a Test and its reports.
 type doRun struct {
 	RunCommand
-	RW   resultRW
-	Info *RunInfo
+	RW    resultRW
+	Multi *multiRunner
+	Info  *RunInfo
 }
 
 // Test implements Tester.
-func (u doRun) Test(ctx context.Context, test *Test) (err error) {
-	rw := test.RW(u.RW)
+func (d doRun) Test(ctx context.Context, test *Test) (err error) {
+	rw := test.RW(d.RW)
 	var s reporter
-	if u.Filter != nil {
-		if !u.Filter.Accept(test) {
-			if s, err = u.link(test); err != nil {
+	if d.Filter != nil {
+		if !d.Filter.Accept(test) {
+			if s, err = d.link(test); err != nil {
 				return
 			}
 			if s == nil {
-				if u.Skipped != nil {
-					u.Skipped(test)
+				if d.Skipped != nil {
+					d.Skipped(test)
 				}
 				return
 			} else {
-				if u.Linked != nil {
-					u.Linked(test)
+				if d.Linked != nil {
+					d.Linked(test)
 				}
-				u.Info.linked()
+				d.Info.linked()
 			}
 		}
 	} else if test.DataFile != "" {
-		if s, err = u.link(test); err != nil {
+		if s, err = d.link(test); err != nil {
 			return
 		}
 		if s != nil {
@@ -164,29 +172,31 @@ func (u doRun) Test(ctx context.Context, test *Test) (err error) {
 				return
 			}
 			if e {
-				if u.ReRunning != nil {
-					u.ReRunning(test)
+				if d.ReRunning != nil {
+					d.ReRunning(test)
 				}
 				s = nil
 			} else {
-				if u.Linked != nil {
-					u.Linked(test)
+				if d.Linked != nil {
+					d.Linked(test)
 				}
-				u.Info.linked()
+				d.Info.linked()
 			}
 		}
 	}
 	if s == nil {
-		if u.Running != nil {
-			u.Running(test)
+		if d.Running != nil {
+			d.Running(test)
 		}
-		u.Info.ran()
-		if s, err = u.run(ctx, test); err != nil {
+		d.Info.ran()
+		if s, err = d.run(ctx, test); err != nil {
 			return
 		}
 	}
 	r := report([]reporter{s}).add(test.After.report())
-	for e := range r.pipeline(ctx, rw, nil, nil) {
+	o, me := d.Multi.tee(ctx, rw, test)
+	pe := r.pipeline(ctx, rw, nil, o)
+	for e := range mergeErr(me, pe) {
 		if err == nil {
 			err = e
 		}
@@ -290,13 +300,19 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 	if rw, err = c.Results.open(); err != nil {
 		return
 	}
-	d := doReport{r, rw, &ReportInfo{}}
+	m := newMultiRunner(c.MultiReport)
+	d := doReport{r, rw, m, &ReportInfo{}}
 	defer func() {
-		var e error
-		if _, e = rw.Close(); e != nil && err == nil {
+		if e := m.stop(rw); e != nil && err == nil {
 			err = e
 		}
-
+		/*
+			NOTE removed on 6/17/2024, I think this is legacy
+			var e error
+			if _, e = rw.Close(); e != nil && err == nil {
+				err = e
+			}
+		*/
 		d.Info.Elapsed = time.Since(d.Info.Start)
 		if d.Info.Reported == 0 {
 			if e := rw.Abort(); e != nil && err == nil {
@@ -312,6 +328,9 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 			r.Done(*d.Info)
 		}
 	}()
+	if err = m.start(rw); err != nil {
+		return
+	}
 	d.Info.Start = time.Now()
 	for _, t := range c.Test {
 		if err = d.Test(ctx, &t); err != nil {
@@ -324,8 +343,9 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 // doReport is a Tester that runs reports.
 type doReport struct {
 	ReportCommand
-	RW   resultRW
-	Info *ReportInfo
+	RW    resultRW
+	Multi *multiRunner
+	Info  *ReportInfo
 }
 
 // Test implements Tester.
@@ -355,7 +375,9 @@ func (d doReport) Test(ctx context.Context, test *Test) (err error) {
 	}
 	d.Info.Reported++
 	t := report([]reporter{readData{r}}).add(test.After.report())
-	for e := range t.pipeline(ctx, rw, nil, nil) {
+	o, me := d.Multi.tee(ctx, rw, test)
+	pe := t.pipeline(ctx, rw, nil, o)
+	for e := range mergeErr(me, pe) {
 		if err == nil {
 			err = e
 		}

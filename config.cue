@@ -441,7 +441,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // ID is used to restrict which Tests the MultiReport is run for. The values
 // in the key/value pairs are regular expressions used to match ID values for
-// the corresponding keys.
+// the corresponding keys. If no ID is specified, all Tests are matched.
 //
 // The individual MultiReport types are embedded, and only one may be specified
 // for each MultiReport. They are documented in more detail in their individual

@@ -454,8 +454,14 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 }
 
 // antler.Index is a MultiReport that generates an index page for Tests.
+//
+// To is the path to the index.html file to be generated.
+//
+// GroupBy is a Test ID key used to separate Tests into groups. It is
+// recommended that Tests in a group share the same TestID keys.
 #Index: {
-	Path: string & !="" | *"index.html"
+	To:       string & !="" | *"index.html"
+	GroupBy?: string & !=""
 }
 
 //

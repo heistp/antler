@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  margin: 1em;
+}
+</style>
+</head>
+<body>
+
+<h2>Test Index</h2>
+
+{{range .Group}}
+<p>{{.Key}} = {{.Value}}</p>
+<table>
+{{range .Test}}
+  <tr>
+    <td>{{.ID}}</td>
+  </tr>
+{{end}}
+</table>
+{{end}}
+
+<table>
+{{range .Test}}
+  <tr>
+    <td>{{.ID}}</td>
+  </tr>
+{{end}}
+</table>
+
+</body>
+</html>

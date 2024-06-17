@@ -513,6 +513,7 @@ func newMultiRunner(mr []MultiReport) *multiRunner {
 
 // start calls any multiStarters among the multiReporters. If an error occurs,
 // any successfully started multiReporters will be stopped when stop is called.
+// If a multiReporter does not implement multiStarter, it is considered started.
 func (m *multiRunner) start(work resultRW) (err error) {
 	for i, mr := range m.multi {
 		r := mr.multiReporter()
@@ -520,8 +521,8 @@ func (m *multiRunner) start(work resultRW) (err error) {
 			if err = s.start(work); err != nil {
 				return
 			}
-			m.started[i] = true
 		}
+		m.started[i] = true
 	}
 	return
 }

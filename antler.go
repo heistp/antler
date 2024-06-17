@@ -126,6 +126,7 @@ func (r RunCommand) run(ctx context.Context) (err error) {
 	}
 	d.Info.Start = time.Now()
 	for _, t := range c.Test {
+		t := t
 		if err = d.Test(ctx, &t); err != nil {
 			return
 		}
@@ -333,6 +334,7 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 	}
 	d.Info.Start = time.Now()
 	for _, t := range c.Test {
+		t := t
 		if err = d.Test(ctx, &t); err != nil {
 			return
 		}

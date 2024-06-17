@@ -20,7 +20,7 @@ import (
 
 // chartsTemplate is the template for Google Charts reporters.
 //
-//go:embed charts.tmpl
+//go:embed charts.html.tmpl
 var chartsTemplate string
 
 // chartsTemplateData contains the data for chartsTemplate execution.

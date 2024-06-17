@@ -49,9 +49,11 @@ func (i TestID) Equal(other TestID) bool {
 	return maps.Equal(i, other)
 }
 
-// Match returns true if each of the keys in pattern is in the TestID, and each
-// of the value patterns in pattern match the TestID's corresponding values.
+// Match returns matched true if each of the keys in pattern is in the TestID,
+// and each of the value patterns in pattern match the TestID's corresponding
+// values. A zero value pattern always matches the ID.
 func (i TestID) Match(pattern TestID) (matched bool, err error) {
+	matched = true
 	for k, v := range pattern {
 		vi, ok := i[k]
 		if !ok {

@@ -54,7 +54,7 @@ func (r Results) open() (rw resultRW, err error) {
 	if i, err = r.info(); err != nil {
 		return
 	}
-	rw = resultRW{r, "", i, &resultStat{}}
+	rw = resultRW{r, "", i, newResultStat()}
 	return
 }
 
@@ -219,46 +219,80 @@ type resultRW struct {
 	stat   *resultStat
 }
 
-// resultStat records statistics on the reading and writing of results.
+// resultStat records info on the reading and writing of result files. It is
+// ensured that each file is only in one of the New, Linked or Removed pathSets.
 type resultStat struct {
 	sync.Mutex
-	WrittenFiles int
-	LinkedFiles  int
-	RemovedFiles int
+	new     pathSet
+	linked  pathSet
+	removed pathSet
 }
 
-// AddWrittenFiles adds n written files.
-func (s *resultStat) AddWrittenFiles(n int) {
+// newResultStat returns a new resultStat.
+func newResultStat() *resultStat {
+	return &resultStat{
+		sync.Mutex{},
+		newPathSet(),
+		newPathSet(),
+		newPathSet(),
+	}
+}
+
+// addNew adds the given path to the New list of paths.
+func (s *resultStat) addNew(path string) {
 	s.Lock()
-	s.WrittenFiles += n
+	s.new.add(path)
+	s.removed.remove(path)
+	s.linked.remove(path)
 	s.Unlock()
 }
 
-// RemoveWrittenFiles removes n written files.
-func (s *resultStat) RemoveWrittenFiles(n int) {
+// New returns a sorted list of the new paths.
+func (s *resultStat) New() []string {
 	s.Lock()
-	s.WrittenFiles -= n
+	p := s.new.sorted()
+	s.Unlock()
+	return p
+}
+
+// addLinked adds the given path to the Linked list of paths.
+func (s *resultStat) addLinked(path string) {
+	s.Lock()
+	s.linked.add(path)
+	s.new.remove(path)
+	s.removed.remove(path)
 	s.Unlock()
 }
 
-// AddLinkedFiles adds n linked files.
-func (s *resultStat) AddLinkedFiles(n int) {
+// Linked returns a sorted list of the linked paths.
+func (s *resultStat) Linked() []string {
 	s.Lock()
-	s.LinkedFiles += n
+	p := s.linked.sorted()
+	s.Unlock()
+	return p
+}
+
+// addRemoved adds the given path to the Removed list of paths.
+func (s *resultStat) addRemoved(path string) {
+	s.Lock()
+	s.removed.add(path)
+	s.new.remove(path)
+	s.linked.remove(path)
 	s.Unlock()
 }
 
-// AddRemovedFiles adds n removed files.
-func (s *resultStat) AddRemovedFiles(n int) {
+// Removed returns a sorted list of the removed paths.
+func (s *resultStat) Removed() []string {
 	s.Lock()
-	s.RemovedFiles += n
+	p := s.removed.sorted()
 	s.Unlock()
+	return p
 }
 
 // Changed returns true if any files were written or removed.
 func (s *resultStat) Changed() (changed bool) {
 	s.Lock()
-	changed = s.WrittenFiles > 0 || s.RemovedFiles > 0
+	changed = len(s.new) > 0 || len(s.removed) > 0
 	s.Unlock()
 	return
 }
@@ -298,7 +332,7 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 // Remove implements rwer.
 func (r resultRW) Remove(name string) (err error) {
 	if err = os.Remove(name); err == nil {
-		r.stat.AddRemovedFiles(1)
+		r.stat.addRemoved(r.prefix + name)
 	}
 	return
 }
@@ -330,7 +364,7 @@ func (r resultRW) Link(name string) (err error) {
 			if err = os.Link(p+x, w+x); err != nil {
 				return
 			}
-			r.stat.AddLinkedFiles(1)
+			r.stat.addLinked(n)
 			ok = true
 		}
 	}
@@ -780,7 +814,6 @@ func (a *atomicWriter) Write(p []byte) (n int, err error) {
 		if a.tmp, err = os.Create(a.tmpPath()); err != nil {
 			return
 		}
-		a.stat.AddWrittenFiles(1)
 	}
 	n, err = a.tmp.Write(p)
 	return
@@ -806,10 +839,10 @@ func (a *atomicWriter) Close() (err error) {
 		if err = os.Link(p, a.path()); err != nil {
 			return
 		}
-		a.stat.RemoveWrittenFiles(1)
-		a.stat.AddLinkedFiles(1)
+		a.stat.addLinked(a.name)
 		err = os.Remove(a.tmpPath())
 	} else {
+		a.stat.addNew(a.name)
 		err = os.Rename(a.tmpPath(), a.path())
 	}
 	return
@@ -904,4 +937,32 @@ func (stdoutWriter) Write(p []byte) (n int, err error) {
 // Close implements io.Closer.
 func (stdoutWriter) Close() error {
 	return nil
+}
+
+// pathSet represents a set of file paths.
+type pathSet map[string]struct{}
+
+// newPathSet returns a new pathSet.
+func newPathSet() pathSet {
+	return make(map[string]struct{})
+}
+
+// add adds a path to the set.
+func (p pathSet) add(path string) {
+	p[path] = struct{}{}
+}
+
+// remove removes a path to the set.
+func (p pathSet) remove(path string) {
+	delete(p, path)
+}
+
+// sorted returns a list of the paths sorted with sort.Strings().
+func (p pathSet) sorted() []string {
+	s := make([]string, 0, len(p))
+	for a := range p {
+		s = append(s, a)
+	}
+	sort.Strings(s)
+	return s
 }

@@ -7,7 +7,9 @@ import (
 	"context"
 	_ "embed"
 	"html/template"
+	"path/filepath"
 	"sort"
+	"sync"
 )
 
 // indexTemplate is the template for generating index.html files.
@@ -16,18 +18,20 @@ import (
 var indexTemplate string
 
 // Index is a reporter that creates an index.html file for a Group.
-//
-// TODO implement Index reporter
 type Index struct {
 	To      string
 	GroupBy string
+	Title   string
 	test    []*Test
+	sync.Mutex
 }
 
 // report implements multiReporter to gather the Tests.
 func (x *Index) report(ctx context.Context, work resultRW, test *Test,
 	data <-chan any) error {
+	x.Lock()
 	x.test = append(x.test, test)
+	x.Unlock()
 	return nil
 }
 
@@ -43,29 +47,37 @@ func (x *Index) stop(work resultRW) (err error) {
 			err = e
 		}
 	}()
-	err = t.Execute(w, x.templateData())
+	err = t.Execute(w, x.templateData(work.stat.Paths()))
 	return
 }
 
 // templateData returns the templateData for the index template.
-func (x *Index) templateData() indexTemplateData {
+func (x *Index) templateData(path pathSet) indexTemplateData {
 	var d indexTemplateData
+	d.Title = x.Title
 	for _, v := range x.groupValues() {
-		if v != "" {
-			g := indexGroup{Key: x.GroupBy, Value: v}
-			for _, t := range x.test {
-				if t.ID[x.GroupBy] == v {
-					g.Test = append(g.Test, indexTest{t.ID, nil})
-				}
+		g := indexGroup{Key: x.GroupBy, Value: v}
+		c := make(map[string]struct{})
+		for _, t := range x.test {
+			if t.ID[x.GroupBy] != v {
+				continue
 			}
-			d.Group = append(d.Group, g)
-		} else {
-			for _, t := range x.test {
-				if t.ID[x.GroupBy] == "" {
-					d.Test = append(d.Test, indexTest{t.ID, nil})
-				}
+			var l []indexLink
+			for _, p := range path.withPrefix(t.Path).sorted() {
+				l = append(l, indexLink{filepath.Base(p), p})
+			}
+			g.Test = append(g.Test, indexTest{t.ID, l})
+			for k := range t.ID {
+				c[k] = struct{}{}
 			}
 		}
+		delete(c, x.GroupBy)
+		for k := range c {
+			g.Column = append(g.Column, k)
+		}
+		sort.Strings(g.Column)
+		g.Column = append([]string{x.GroupBy}, g.Column...)
+		d.Group = append(d.Group, g)
 	}
 	return d
 }
@@ -90,15 +102,16 @@ func (x *Index) groupValues() (val []string) {
 
 // indexTemplateData contains the data for indexTemplate execution.
 type indexTemplateData struct {
+	Title string
 	Group []indexGroup
-	Test  []indexTest
 }
 
 // indexGroup contains the information for one group of Tests in the index.
 type indexGroup struct {
-	Key   string
-	Value string
-	Test  []indexTest
+	Key    string
+	Value  string
+	Column []string
+	Test   []indexTest
 }
 
 // indexTest contains the information for one Test in an indexGroup.

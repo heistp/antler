@@ -23,6 +23,7 @@ Test: [
 // MultiReport lists the index report.
 MultiReport: [{
 	Index: {
+		Title:   "Test Index"
 		GroupBy: "A"
 	}
 }]

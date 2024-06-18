@@ -5,30 +5,61 @@
 body {
   margin: 1em;
 }
+table {
+  border-collapse: collapse;
+  border: 1px solid #ddd;
+}
+th {
+  background-color: #0066CC;
+  color: white;
+}
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+tr:nth-child(even){
+  background-color: #f2f2f2;
+}
+tr:hover {
+  background-color: #ddd;
+}
+.link {
+  font-family: monospace;
+  font-size: 1em;
+}
 </style>
+{{if .Title}}
+<title>{{.Title}}</title>
+{{end}}
 </head>
 <body>
 
-<h2>Test Index</h2>
+{{if .Title}}
+<h2>{{.Title}}</h2>
+{{end}}
 
 {{range .Group}}
-<p>{{.Key}} = {{.Value}}</p>
-<table>
-{{range .Test}}
-  <tr>
-    <td>{{.ID}}</td>
-  </tr>
+  {{if .Value}}
+  <h3>{{.Value}}</h3>
+  {{end}}
+  <table>
+    <tr>
+  {{range .Column}}
+      <th>{{.}}</th>
+  {{end}}
+      <th>Files</th>
+    </tr>
+  {{$c := .Column}}
+  {{range $t := .Test}}
+    <tr>
+  {{range $c}}
+      <td>{{index $t.ID .}}</td>
+  {{end}}
+  <td class="link">{{range $t.Link}}<a href="{{.Href}}">{{.Name}}</a><br/> {{end}}</td>
+    </tr>
+  {{end}}
+  </table>
 {{end}}
-</table>
-{{end}}
-
-<table>
-{{range .Test}}
-  <tr>
-    <td>{{.ID}}</td>
-  </tr>
-{{end}}
-</table>
 
 </body>
 </html>

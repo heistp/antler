@@ -247,10 +247,10 @@ func (s *resultStat) addNew(path string) {
 	s.Unlock()
 }
 
-// New returns a sorted list of the new paths.
-func (s *resultStat) New() []string {
+// New returns a copy of the new paths.
+func (s *resultStat) New() pathSet {
 	s.Lock()
-	p := s.new.sorted()
+	p := s.new.clone()
 	s.Unlock()
 	return p
 }
@@ -264,10 +264,20 @@ func (s *resultStat) addLinked(path string) {
 	s.Unlock()
 }
 
-// Linked returns a sorted list of the linked paths.
-func (s *resultStat) Linked() []string {
+// Linked returns a copy of the linked paths.
+func (s *resultStat) Linked() pathSet {
 	s.Lock()
-	p := s.linked.sorted()
+	p := s.linked.clone()
+	s.Unlock()
+	return p
+}
+
+// Paths returns a copy of the new and linked paths.
+func (s *resultStat) Paths() pathSet {
+	s.Lock()
+	p := newPathSet()
+	p.addSet(s.new)
+	p.addSet(s.linked)
 	s.Unlock()
 	return p
 }
@@ -281,10 +291,10 @@ func (s *resultStat) addRemoved(path string) {
 	s.Unlock()
 }
 
-// Removed returns a sorted list of the removed paths.
-func (s *resultStat) Removed() []string {
+// Removed returns a copy of the removed paths.
+func (s *resultStat) Removed() pathSet {
 	s.Lock()
-	p := s.removed.sorted()
+	p := s.removed.clone()
 	s.Unlock()
 	return p
 }
@@ -952,6 +962,13 @@ func (p pathSet) add(path string) {
 	p[path] = struct{}{}
 }
 
+// addSet adds all paths in a set to this set.
+func (p pathSet) addSet(set pathSet) {
+	for k := range set {
+		p[k] = struct{}{}
+	}
+}
+
 // remove removes a path to the set.
 func (p pathSet) remove(path string) {
 	delete(p, path)
@@ -965,4 +982,24 @@ func (p pathSet) sorted() []string {
 	}
 	sort.Strings(s)
 	return s
+}
+
+// clone returns a deep copy of the pathSet.
+func (p pathSet) clone() (p2 pathSet) {
+	p2 = newPathSet()
+	for a := range p {
+		p2.add(a)
+	}
+	return
+}
+
+// withPrefix returns a subset of paths with the given prefix.
+func (p pathSet) withPrefix(prefix string) (p2 pathSet) {
+	p2 = newPathSet()
+	for a := range p {
+		if strings.HasPrefix(a, prefix) {
+			p2.add(a)
+		}
+	}
+	return
 }

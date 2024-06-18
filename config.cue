@@ -459,9 +459,12 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // GroupBy is a Test ID key used to separate Tests into groups. It is
 // recommended that Tests in a group share the same TestID keys.
+//
+// Title is a title for the index page.
 #Index: {
 	To:       string & !="" | *"index.html"
 	GroupBy?: string & !=""
+	Title?:   string & !=""
 }
 
 //

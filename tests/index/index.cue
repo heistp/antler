@@ -31,21 +31,21 @@ Test: [
 MultiReport: [
 	{
 		Index: {
-			Title:   "Test Index"
+			Title:   "All Tests, Group By Field A"
 			GroupBy: "A"
 		}
 	},
 	{
 		ID: {A: "W"}
 		Index: {
-			Title: "Test Index W"
+			Title: "Tests With A=W"
 			To:    "W/index.html"
 		}
 	},
 	{
 		ID: {A: "X"}
 		Index: {
-			Title: "Test Index X"
+			Title: "Tests With A=X"
 			To:    "X/index.html"
 		}
 	},

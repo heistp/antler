@@ -28,9 +28,25 @@ Test: [
 ]
 
 // MultiReport lists the index report.
-MultiReport: [{
-	Index: {
-		Title:   "Test Index"
-		GroupBy: "A"
-	}
-}]
+MultiReport: [
+	{
+		Index: {
+			Title:   "Test Index"
+			GroupBy: "A"
+		}
+	},
+	{
+		ID: {A: "W"}
+		Index: {
+			Title: "Test Index W"
+			To:    "W/index.html"
+		}
+	},
+	{
+		ID: {A: "X"}
+		Index: {
+			Title: "Test Index X"
+			To:    "X/index.html"
+		}
+	},
+]

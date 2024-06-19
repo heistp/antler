@@ -6,6 +6,7 @@ package antler
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"html/template"
 	"path/filepath"
 	"sort"
@@ -63,6 +64,7 @@ func (i *Index) templateData(path pathSet) (data indexTemplateData, err error) {
 		g := indexGroup{Key: i.GroupBy, Value: v}
 		c := make(map[string]struct{})
 		for _, t := range i.test {
+			fmt.Printf("test: %s\n", t.ID)
 			if t.ID[i.GroupBy] != v {
 				continue
 			}
@@ -87,7 +89,9 @@ func (i *Index) templateData(path pathSet) (data indexTemplateData, err error) {
 			g.Column = append(g.Column, k)
 		}
 		sort.Strings(g.Column)
-		g.Column = append([]string{i.GroupBy}, g.Column...)
+		if i.GroupBy != "" {
+			g.Column = append([]string{i.GroupBy}, g.Column...)
+		}
 		data.Group = append(data.Group, g)
 	}
 	return

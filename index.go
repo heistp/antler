@@ -49,7 +49,7 @@ func (i *Index) stop(work resultRW) (err error) {
 		}
 	}()
 	var d indexTemplateData
-	if d, err = i.templateData(work.stat.Paths()); err != nil {
+	if d, err = i.templateData(work.Paths()); err != nil {
 		return
 	}
 	err = t.Execute(w, d)
@@ -57,7 +57,7 @@ func (i *Index) stop(work resultRW) (err error) {
 }
 
 // templateData returns the templateData for the index template.
-func (i *Index) templateData(path pathSet) (data indexTemplateData, err error) {
+func (i *Index) templateData(paths pathSet) (data indexTemplateData, err error) {
 	data.Title = i.Title
 	for _, v := range i.groupValues() {
 		g := indexGroup{Key: i.GroupBy, Value: v}
@@ -67,14 +67,13 @@ func (i *Index) templateData(path pathSet) (data indexTemplateData, err error) {
 				continue
 			}
 			var l []indexLink
-			for _, p := range path.withPrefix(t.Path).sorted() {
-				b := filepath.Base(p)
+			for _, p := range paths.withPrefix(t.Path).sorted() {
 				var x bool
-				if x, err = i.excludeFile(b); err != nil {
+				if x, err = i.excludeFile(p); err != nil {
 					return
 				}
 				if !x {
-					l = append(l, indexLink{b, p})
+					l = append(l, indexLink{filepath.Base(p), p})
 				}
 			}
 			g.Test = append(g.Test, indexTest{t.ID, l})
@@ -95,11 +94,12 @@ func (i *Index) templateData(path pathSet) (data indexTemplateData, err error) {
 	return
 }
 
-// excludeFile returns true if the given path matches any of the ExcludeFile
-// patterns.
-func (i *Index) excludeFile(name string) (matched bool, err error) {
+// excludeFile returns true if the base name of the given path matches any of
+// the ExcludeFile patterns.
+func (i *Index) excludeFile(path string) (matched bool, err error) {
+	b := filepath.Base(path)
 	for _, p := range i.ExcludeFile {
-		if matched, err = filepath.Match(p, name); err != nil || matched {
+		if matched, err = filepath.Match(p, b); err != nil || matched {
 			return
 		}
 	}

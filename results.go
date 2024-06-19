@@ -216,7 +216,7 @@ type resultRW struct {
 	Results
 	prefix string
 	info   []ResultInfo
-	stat   *resultStat
+	*resultStat
 }
 
 // resultStat records info on the reading and writing of result files. It is
@@ -310,7 +310,7 @@ func (s *resultStat) Changed() (changed bool) {
 // Child returns a child resultRW by appending the given prefix to the prefix
 // of this resultRW.
 func (r resultRW) Child(prefix string) resultRW {
-	return resultRW{r.Results, r.prefix + prefix, r.info, r.stat}
+	return resultRW{r.Results, r.prefix + prefix, r.info, r.resultStat}
 }
 
 // Reader implements rwer
@@ -330,7 +330,8 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 		w.initted = true
 		return
 	}
-	w.WriteCloser = newAtomicWriter(r.prefix+name, r.WorkDir, r.info, r.stat)
+	w.WriteCloser = newAtomicWriter(r.prefix+name, r.WorkDir, r.info,
+		r.resultStat)
 	var ok bool
 	if w.Codec, ok = r.Codec.forName(name); !ok {
 		return
@@ -342,7 +343,7 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 // Remove implements rwer.
 func (r resultRW) Remove(name string) (err error) {
 	if err = os.Remove(name); err == nil {
-		r.stat.addRemoved(r.prefix + name)
+		r.addRemoved(r.prefix + name)
 	}
 	return
 }
@@ -374,7 +375,7 @@ func (r resultRW) Link(name string) (err error) {
 			if err = os.Link(p+x, w+x); err != nil {
 				return
 			}
-			r.stat.addLinked(n)
+			r.addLinked(n)
 			ok = true
 		}
 	}
@@ -406,7 +407,7 @@ func (l LinkError) Is(target error) bool {
 // and no error is returned as long as this succeeds. If no unique files were
 // written, Abort is called instead.
 func (r resultRW) Close() (resultDir string, err error) {
-	if !r.stat.Changed() {
+	if !r.Changed() {
 		err = r.Abort()
 		return
 	}

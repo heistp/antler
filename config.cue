@@ -461,10 +461,15 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // recommended that Tests in a group share the same TestID keys.
 //
 // Title is a title for the index page.
+//
+// ExcludeFile is a list of glob patterns
+// (https://pkg.go.dev/path/filepath#Match) matching files to exclude from the
+// index.
 #Index: {
-	To:       string & !="" | *"index.html"
-	GroupBy?: string & !=""
-	Title?:   string & !=""
+	To:          string & !="" | *"index.html"
+	GroupBy?:    string & !=""
+	Title?:      string & !=""
+	ExcludeFile: [...string] | *["*.gob"]
 }
 
 //

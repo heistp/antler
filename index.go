@@ -19,75 +19,97 @@ var indexTemplate string
 
 // Index is a reporter that creates an index.html file for a Group.
 type Index struct {
-	To      string
-	GroupBy string
-	Title   string
-	test    []*Test
+	To          string
+	GroupBy     string
+	Title       string
+	ExcludeFile []string
+	test        []*Test
 	sync.Mutex
 }
 
 // report implements multiReporter to gather the Tests.
-func (x *Index) report(ctx context.Context, work resultRW, test *Test,
+func (i *Index) report(ctx context.Context, work resultRW, test *Test,
 	data <-chan any) error {
-	x.Lock()
-	x.test = append(x.test, test)
-	x.Unlock()
+	i.Lock()
+	i.test = append(i.test, test)
+	i.Unlock()
 	return nil
 }
 
 // stop implements multiStopper to generate the index file.
-func (x *Index) stop(work resultRW) (err error) {
+func (i *Index) stop(work resultRW) (err error) {
 	t := template.New("Index")
 	if t, err = t.Parse(indexTemplate); err != nil {
 		return
 	}
-	w := work.Writer(x.To)
+	w := work.Writer(i.To)
 	defer func() {
 		if e := w.Close(); e != nil && err == nil {
 			err = e
 		}
 	}()
-	err = t.Execute(w, x.templateData(work.stat.Paths()))
+	var d indexTemplateData
+	if d, err = i.templateData(work.stat.Paths()); err != nil {
+		return
+	}
+	err = t.Execute(w, d)
 	return
 }
 
 // templateData returns the templateData for the index template.
-func (x *Index) templateData(path pathSet) indexTemplateData {
-	var d indexTemplateData
-	d.Title = x.Title
-	for _, v := range x.groupValues() {
-		g := indexGroup{Key: x.GroupBy, Value: v}
+func (i *Index) templateData(path pathSet) (data indexTemplateData, err error) {
+	data.Title = i.Title
+	for _, v := range i.groupValues() {
+		g := indexGroup{Key: i.GroupBy, Value: v}
 		c := make(map[string]struct{})
-		for _, t := range x.test {
-			if t.ID[x.GroupBy] != v {
+		for _, t := range i.test {
+			if t.ID[i.GroupBy] != v {
 				continue
 			}
 			var l []indexLink
 			for _, p := range path.withPrefix(t.Path).sorted() {
-				l = append(l, indexLink{filepath.Base(p), p})
+				b := filepath.Base(p)
+				var x bool
+				if x, err = i.excludeFile(b); err != nil {
+					return
+				}
+				if !x {
+					l = append(l, indexLink{b, p})
+				}
 			}
 			g.Test = append(g.Test, indexTest{t.ID, l})
 			for k := range t.ID {
 				c[k] = struct{}{}
 			}
 		}
-		delete(c, x.GroupBy)
+		delete(c, i.GroupBy)
 		for k := range c {
 			g.Column = append(g.Column, k)
 		}
 		sort.Strings(g.Column)
-		g.Column = append([]string{x.GroupBy}, g.Column...)
-		d.Group = append(d.Group, g)
+		g.Column = append([]string{i.GroupBy}, g.Column...)
+		data.Group = append(data.Group, g)
 	}
-	return d
+	return
+}
+
+// excludeFile returns true if the given path matches any of the ExcludeFile
+// patterns.
+func (i *Index) excludeFile(name string) (matched bool, err error) {
+	for _, p := range i.ExcludeFile {
+		if matched, err = filepath.Match(p, name); err != nil || matched {
+			return
+		}
+	}
+	return
 }
 
 // groupValues returns the sorted, unique TestID values for the GroupBy key.
-func (x *Index) groupValues() (val []string) {
+func (i *Index) groupValues() (val []string) {
 	g := make(map[string]struct{})
-	if x.GroupBy != "" {
-		for _, t := range x.test {
-			v := t.ID[x.GroupBy]
+	if i.GroupBy != "" {
+		for _, t := range i.test {
+			v := t.ID[i.GroupBy]
 			g[v] = struct{}{}
 		}
 	} else {

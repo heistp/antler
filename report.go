@@ -563,7 +563,7 @@ func (m *multiRunner) tee(ctx context.Context, work resultRW, test *Test) (
 	oc := make(chan any, dataChanBufLen)
 	out = oc
 	var dc []chan any
-	for range m.multi {
+	for range rr {
 		dc = append(dc, make(chan any, dataChanBufLen))
 	}
 	// start tee goroutine to read from out and write to data channels
@@ -581,7 +581,7 @@ func (m *multiRunner) tee(ctx context.Context, work resultRW, test *Test) (
 	}()
 	// start goroutines for each multiReporter to call its report method
 	var mec errChans
-	for i, r := range m.multi {
+	for i, r := range rr {
 		ec := mec.make()
 		go func(r multiReporter, ec chan error) {
 			defer func() {
@@ -592,7 +592,7 @@ func (m *multiRunner) tee(ctx context.Context, work resultRW, test *Test) (
 			if e := r.report(ctx, work, test, dc[i]); e != nil {
 				ec <- e
 			}
-		}(r.multiReporter(), ec)
+		}(r, ec)
 	}
 	errc = mec.merge()
 	return

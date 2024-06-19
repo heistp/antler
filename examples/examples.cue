@@ -14,3 +14,10 @@ Test: [
 	_vbrudp,
 	_fct,
 ]
+
+// MultiReport adds an HTML index file.
+MultiReport: [{
+	Index: {
+		Title: "Antler Examples"
+	}
+}]

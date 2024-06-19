@@ -185,7 +185,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	]
 	After:  [...#Report] | *#After
 	#After: [...#Report] | *[
-		{EmitLog: {To: ["node.log"], Sort: true}},
+		{EmitLog: {To: ["log.txt"], Sort: true}},
 		{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
 	]
 }

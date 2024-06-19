@@ -15,8 +15,15 @@ Test: [
 		// Path uses a directory for A, and B as the filename prefix.
 		Path: "\(a)/\(b)-"
 
-		// Emit a and b, for testing.
-		System: Command: "echo a=\(a) b=\(b)"
+		// SysInfo gathers system information.
+		SysInfo: {
+			OS: {
+				Command: {Command: "uname -a"}
+			}
+			Command: [
+				{Command: "echo a=\(a) b=\(b)"},
+			]
+		}
 	},
 ]
 

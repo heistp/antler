@@ -375,7 +375,7 @@ func (r resultRW) Link(name string) (err error) {
 			if err = os.Link(p+x, w+x); err != nil {
 				return
 			}
-			r.addLinked(n)
+			r.addLinked(n + x)
 			ok = true
 		}
 	}

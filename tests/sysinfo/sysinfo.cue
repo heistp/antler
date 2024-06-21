@@ -30,6 +30,9 @@ Test: [{
 
 	// disable saving of gob data
 	DataFile: ""
+	// remove default reports
+	AfterDefault: []
+	// add just SysInfo report
 	After: [
 		{EmitSysInfo: {}},
 	]

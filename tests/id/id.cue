@@ -22,6 +22,6 @@ Test: [
 		DataFile: ""
 
 		// remove default reporters to skip writing any files
-		After: []
+		AfterDefault: []
 	},
 ]

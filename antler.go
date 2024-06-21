@@ -194,7 +194,9 @@ func (d doRun) Test(ctx context.Context, test *Test) (err error) {
 			return
 		}
 	}
-	r := report([]reporter{s}).add(test.After.report())
+	r := report([]reporter{s})
+	r = r.add(test.AfterDefault.report())
+	r = r.add(test.After.report())
 	o, me := d.Multi.tee(ctx, rw, test)
 	pe := r.pipeline(ctx, rw, nil, o)
 	for e := range mergeErr(me, pe) {
@@ -216,7 +218,8 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 		err = nil
 	}
 	var a appendData
-	var p report = test.During.report()
+	p := test.DuringDefault.report()
+	p = p.add(test.During.report())
 	if w != nil {
 		p = append(p, writeData{w})
 	} else {
@@ -307,13 +310,6 @@ func (r ReportCommand) run(ctx context.Context) (err error) {
 		if e := m.stop(rw); e != nil && err == nil {
 			err = e
 		}
-		/*
-			NOTE removed on 6/17/2024, I think this is legacy
-			var e error
-			if _, e = rw.Close(); e != nil && err == nil {
-				err = e
-			}
-		*/
 		d.Info.Elapsed = time.Since(d.Info.Start)
 		if d.Info.Reported == 0 {
 			if e := rw.Abort(); e != nil && err == nil {
@@ -376,7 +372,9 @@ func (d doReport) Test(ctx context.Context, test *Test) (err error) {
 		return
 	}
 	d.Info.Reported++
-	t := report([]reporter{readData{r}}).add(test.After.report())
+	t := report([]reporter{readData{r}})
+	t = t.add(test.AfterDefault.report())
+	t = t.add(test.After.report())
 	o, me := d.Multi.tee(ctx, rw, test)
 	pe := t.pipeline(ctx, rw, nil, o)
 	for e := range mergeErr(me, pe) {

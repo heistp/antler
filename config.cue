@@ -154,39 +154,31 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // Run defines the Run hierarchy, and is documented in more detail in #Run.
 //
-// During is a pipeline of Reports that is run *while* the Test is run. It may
-// not be used to generate saved reports from result data, otherwise those
-// reports would be lost during incremental test runs. When setting During,
-// #During should typically be prepended to include the default Reports
-// (e.g. During: #During + [...]) so that file data is saved and
-// consumed, and logs are emitted, before the other pipeline stages are run.
+// DuringDefault and During are concatenated together to form a pipeline of
+// Reports that are run *while* the Test is run. They may not be used to
+// generate saved reports from result data, otherwise those reports would be
+// lost during incremental test runs. DuringDefault defines some sensible
+// defaults to run during the test, like saving file data and emitting logs,
+// but these can be overridden for all Tests.
 //
-// #During is a list of default reports to run during a Test. Here, we save
-// files and consume their FileData items first, so that large files such as
-// pcaps are removed from the data stream and gob file and saved in separate
-// files. We also emit logs to stdout as they arrive.
-//
-// After is analogous to During, but run *after* the Test is run.  This may be
-// used to generate persistent reports from the result data. When setting
-// After, #After may be prepended to the list to save log files, system info,
-// etc. (e.g. After: #After + [...]).
-//
-// #After is a default list of reports to run after a Test. Here, we save log
-// files and system information.
+// AfterDefault and After are analogous to DuringDefault and During, but are
+// run *after* the Test is run. These may be used to generate persistent reports
+// from the result data. AfterDefault defines some sensible defaults to run
+// after Tests, like saving sorted log files, and system information.
 #Test: {
 	ID?: [string & =~_IDregex]: string & =~_IDregex
 	Path:     string | *"{{range $v := .}}{{$v}}_{{end}}"
 	DataFile: string | *"data.gob"
 	#Run
-	During:  [...#Report] | *#During
-	#During: [...#Report] | *[
+	During?: [...#Report]
+	DuringDefault: [...#Report] | *[
 			{SaveFiles: {Consume: true}},
 			{EmitLog: {To: ["-"]}},
 	]
-	After:  [...#Report] | *#After
-	#After: [...#Report] | *[
-		{EmitLog: {To: ["log.txt"], Sort: true}},
-		{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
+	After?: [...#Report]
+	AfterDefault: [...#Report] | *[
+			{EmitLog: {To: ["log.txt"], Sort: true}},
+			{EmitSysInfo: {To: ["sysinfo_%s.html"]}},
 	]
 }
 

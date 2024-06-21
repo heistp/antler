@@ -15,5 +15,5 @@ Test: [{
 	// disable saving of gob data
 	DataFile: ""
 	// remove default reporters to skip writing any files
-	After: []
+	AfterDefault: []
 }]

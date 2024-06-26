@@ -21,13 +21,13 @@
 
 {{if .GroupBy}}
 <h3>Index</h3>
-<ul style="list-style-type: none">
+<ol>
 {{range .Group}}
   {{if .Value}}
   <li><a href="#{{.Value}}-header">{{.Value}}</a></li>
   {{end}}
 {{end}}
-</ul>
+</ol>
 {{end}}
 
 {{range .Group}}

@@ -19,9 +19,18 @@
 <h2>{{.Title}}</h2>
 {{end}}
 
+{{if .Group}}
+<h3>Index</h3>
+  <ul style="list-style-type: none">
+  {{range .Group}}
+    <li><a href="#{{.Value}}-header">{{.Value}}</a></li>
+  {{end}}
+  </ul>
+{{end}}
+
 {{range .Group}}
   {{if .Value}}
-  <h3>{{.Value}}</h3>
+  <h3 id="#{{.Value}}-header">{{.Value}}</h3>
   {{end}}
   <table>
     <tr>

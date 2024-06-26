@@ -19,13 +19,15 @@
 <h2>{{.Title}}</h2>
 {{end}}
 
-{{if .Group}}
+{{if .GroupBy}}
 <h3>Index</h3>
-  <ul style="list-style-type: none">
-  {{range .Group}}
-    <li><a href="#{{.Value}}-header">{{.Value}}</a></li>
+<ul style="list-style-type: none">
+{{range .Group}}
+  {{if .Value}}
+  <li><a href="#{{.Value}}-header">{{.Value}}</a></li>
   {{end}}
-  </ul>
+{{end}}
+</ul>
 {{end}}
 
 {{range .Group}}

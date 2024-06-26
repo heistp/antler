@@ -63,6 +63,7 @@ func (i *Index) stop(work resultRW) (err error) {
 // templateData returns the templateData for the index template.
 func (i *Index) templateData(paths pathSet) (data indexTemplateData, err error) {
 	data.Title = i.Title
+	data.GroupBy = i.GroupBy
 	for _, v := range i.groupValues() {
 		g := indexGroup{Key: i.GroupBy, Value: v}
 		c := make(map[string]struct{})
@@ -130,8 +131,9 @@ func (i *Index) groupValues() (val []string) {
 
 // indexTemplateData contains the data for indexTemplate execution.
 type indexTemplateData struct {
-	Title string
-	Group []indexGroup
+	Title   string
+	Group   []indexGroup
+	GroupBy string
 }
 
 // indexGroup contains the information for one group of Tests in the index.

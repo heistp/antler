@@ -28,6 +28,7 @@ type chartsTemplateData struct {
 	Class   template.JS
 	Data    chartsData
 	Options map[string]any
+	Stream  []StreamAnalysis
 }
 
 // ChartsTimeSeries is a reporter that makes time series plots using Google
@@ -44,12 +45,18 @@ type ChartsTimeSeries struct {
 	// defined in config.cue.
 	// https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
 	Options map[string]any
+
+	// TODO add FlowList config parameter
 }
 
 // report implements reporter
 func (g *ChartsTimeSeries) report(ctx context.Context, rw rwer, in <-chan any,
 	out chan<- any) (err error) {
-	t := template.New("ChartsTimeSeries")
+	t := template.New("Style")
+	if t, err = t.Parse(styleTemplate); err != nil {
+		return
+	}
+	t = t.New("ChartsTimeSeries")
 	t = t.Funcs(template.FuncMap{
 		"flowLabel": func(flow node.Flow) (label string) {
 			label, ok := g.FlowLabel[flow]
@@ -74,6 +81,7 @@ func (g *ChartsTimeSeries) report(ctx context.Context, rw rwer, in <-chan any,
 		"google.visualization.LineChart",
 		g.data(a.streams.byTime(), a.packets.byTime()),
 		g.Options,
+		a.streams.byTime(),
 	}
 	var ww []io.WriteCloser
 	for _, to := range g.To {
@@ -91,7 +99,7 @@ func (g *ChartsTimeSeries) report(ctx context.Context, rw rwer, in <-chan any,
 }
 
 // data returns the chart data.
-func (g *ChartsTimeSeries) data(san []streamAnalysis, pan []packetAnalysis) (
+func (g *ChartsTimeSeries) data(san []StreamAnalysis, pan []PacketAnalysis) (
 	data chartsData) {
 	var h chartsRow
 	h.addColumn("")
@@ -111,7 +119,7 @@ func (g *ChartsTimeSeries) data(san []streamAnalysis, pan []packetAnalysis) (
 	}
 	data.addRow(h)
 	for i, d := range san {
-		for _, g := range d.Goodput {
+		for _, g := range d.GoodputPoint {
 			var r chartsRow
 			r.addColumn(g.T.Duration().Seconds())
 			for j := 0; j < len(san); j++ {
@@ -165,7 +173,11 @@ type ChartsFCT struct {
 // report implements reporter
 func (g *ChartsFCT) report(ctx context.Context, rw rwer, in <-chan any,
 	out chan<- any) (err error) {
-	t := template.New("ChartsFCT")
+	t := template.New("Style")
+	if t, err = t.Parse(styleTemplate); err != nil {
+		return
+	}
+	t = t.New("ChartsFCT")
 	t = t.Funcs(template.FuncMap{})
 	if t, err = t.Parse(chartsTemplate); err != nil {
 		return
@@ -196,6 +208,7 @@ func (g *ChartsFCT) report(ctx context.Context, rw rwer, in <-chan any,
 		"google.visualization.ScatterChart",
 		g.data(a.streams.byTime()),
 		g.Options,
+		a.streams.byTime(),
 	}
 	var ww []io.WriteCloser
 	for _, to := range g.To {
@@ -213,7 +226,7 @@ func (g *ChartsFCT) report(ctx context.Context, rw rwer, in <-chan any,
 }
 
 // data returns the chart data.
-func (g *ChartsFCT) data(san []streamAnalysis) (data chartsData) {
+func (g *ChartsFCT) data(san []StreamAnalysis) (data chartsData) {
 	var h chartsRow
 	h.addColumn("")
 	for _, s := range g.Series {

@@ -92,19 +92,20 @@ func (y *analysis) analyze() {
 	y.packets.analyze()
 }
 
-// streamAnalysis contains the data and calculated stats for a stream.
-type streamAnalysis struct {
-	Client  node.StreamInfo
-	Server  node.StreamInfo
-	Sent    []node.StreamIO
-	Rcvd    []node.StreamIO
-	Goodput []goodput
-	FCT     metric.Duration
-	Length  metric.Bytes
+// StreamAnalysis contains the data and calculated stats for a stream.
+type StreamAnalysis struct {
+	Flow         node.Flow
+	Client       node.StreamInfo
+	Server       node.StreamInfo
+	Sent         []node.StreamIO
+	Rcvd         []node.StreamIO
+	GoodputPoint []GoodputPoint
+	FCT          metric.Duration
+	Length       metric.Bytes
 }
 
 // T0 returns the earliest absolute time from Sent or Rcvd.
-func (s *streamAnalysis) T0() time.Time {
+func (s *StreamAnalysis) T0() time.Time {
 	if len(s.Sent) == 0 {
 		if len(s.Rcvd) == 0 {
 			return time.Time{}
@@ -121,8 +122,13 @@ func (s *streamAnalysis) T0() time.Time {
 	}
 }
 
-// goodput is a single goodput data point.
-type goodput struct {
+// Goodput returns the total goodput for the stream.
+func (s *StreamAnalysis) Goodput() metric.Bitrate {
+	return metric.CalcBitrate(s.Length, s.FCT.Duration())
+}
+
+// GoodputPoint is a single Goodput data point.
+type GoodputPoint struct {
 	// T is the time relative to the start of the earliest stream.
 	T metric.RelativeTime
 
@@ -131,20 +137,20 @@ type goodput struct {
 }
 
 // streams aggregates data for multiple streams.
-type streams map[node.Flow]*streamAnalysis
+type streams map[node.Flow]*StreamAnalysis
 
 // newStreams returns a new streams.
 func newStreams() streams {
-	return streams(make(map[node.Flow]*streamAnalysis))
+	return streams(make(map[node.Flow]*StreamAnalysis))
 }
 
 // analysis adds streamAnalysis for the given flow if it doesn't already exist.
-func (m *streams) analysis(flow node.Flow) (s *streamAnalysis) {
+func (m *streams) analysis(flow node.Flow) (s *StreamAnalysis) {
 	var ok bool
 	if s, ok = (*m)[flow]; ok {
 		return
 	}
-	s = &streamAnalysis{}
+	s = &StreamAnalysis{Flow: flow}
 	(*m)[flow] = s
 	return
 }
@@ -188,7 +194,7 @@ func (m *streams) analyze() {
 				g = metric.CalcBitrate(r.Total-pr.Total,
 					time.Duration(r.T-pr.T))
 			}
-			s.Goodput = append(s.Goodput, goodput{r.T, g})
+			s.GoodputPoint = append(s.GoodputPoint, GoodputPoint{r.T, g})
 			pr = r
 		}
 		if len(s.Rcvd) > 0 {
@@ -201,7 +207,7 @@ func (m *streams) analyze() {
 }
 
 // byTime returns a slice of streamAnalysis, sorted by start time.
-func (m *streams) byTime() (s []streamAnalysis) {
+func (m *streams) byTime() (s []StreamAnalysis) {
 	for _, d := range *m {
 		s = append(s, *d)
 	}
@@ -220,8 +226,9 @@ type owd struct {
 	Delay time.Duration
 }
 
-// packetAnalysis contains the data and calculated stats for a packet flow.
-type packetAnalysis struct {
+// PacketAnalysis contains the data and calculated stats for a packet flow.
+type PacketAnalysis struct {
+	Flow   node.Flow
 	Client node.PacketInfo
 	Server node.PacketInfo
 	Sent   []node.PacketIO
@@ -230,7 +237,7 @@ type packetAnalysis struct {
 }
 
 // T0 returns the earliest absolute packet time.
-func (y *packetAnalysis) T0() time.Time {
+func (y *PacketAnalysis) T0() time.Time {
 	if len(y.Sent) == 0 {
 		if len(y.Rcvd) == 0 {
 			return time.Time{}
@@ -248,20 +255,20 @@ func (y *packetAnalysis) T0() time.Time {
 }
 
 // packets aggregates data for multiple packet flows.
-type packets map[node.Flow]*packetAnalysis
+type packets map[node.Flow]*PacketAnalysis
 
 // newPackets returns a new packets.
 func newPackets() packets {
-	return packets(make(map[node.Flow]*packetAnalysis))
+	return packets(make(map[node.Flow]*PacketAnalysis))
 }
 
 // analysis adds packetAnalysis for the given flow if it doesn't already exist.
-func (k *packets) analysis(flow node.Flow) (d *packetAnalysis) {
+func (k *packets) analysis(flow node.Flow) (d *PacketAnalysis) {
 	var ok bool
 	if d, ok = (*k)[flow]; ok {
 		return
 	}
-	d = &packetAnalysis{}
+	d = &PacketAnalysis{Flow: flow}
 	(*k)[flow] = d
 	return
 }
@@ -310,7 +317,7 @@ func (k *packets) analyze() {
 }
 
 // byTime returns a slice of packetAnalysis, sorted by start time.
-func (k *packets) byTime() (d []packetAnalysis) {
+func (k *packets) byTime() (d []PacketAnalysis) {
 	for _, p := range *k {
 		d = append(d, *p)
 	}

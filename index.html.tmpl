@@ -1,36 +1,18 @@
 <!DOCTYPE html>
 <html>
+
 <head>
+{{template "Style"}}
 <style>
-body {
-  margin: 1em;
-}
-table {
-  border-collapse: collapse;
-  border: 1px solid #ddd;
-}
-th {
-  background-color: #008000;
-  color: white;
-}
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-}
-tr:nth-child(even){
-  background-color: #f2f2f2;
-}
-tr:hover {
-  background-color: #ddd;
-}
-.link {
-  font-family: monospace;
-}
+  .link {
+    font-family: monospace;
+  }
 </style>
 {{if .Title}}
-<title>{{.Title}}</title>
+  <title>{{.Title}}</title>
 {{end}}
 </head>
+
 <body>
 
 {{if .Title}}
@@ -46,7 +28,7 @@ tr:hover {
   {{range .Column}}
       <th>{{.}}</th>
   {{end}}
-      <th>Files</th>
+      <th>files</th>
     </tr>
   {{$c := .Column}}
   {{range $t := .Test}}

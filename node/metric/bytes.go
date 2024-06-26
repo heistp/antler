@@ -22,6 +22,11 @@ const (
 	Pebibyte       = 1024 * Tebibyte
 )
 
+// Bytes returns the Bytes in bytes.
+func (b Bytes) Bytes() uint64 {
+	return uint64(b)
+}
+
 // Kilobytes returns the Bytes in Kilobytes.
 func (b Bytes) Kilobytes() float64 {
 	return float64(b) / float64(Kilobyte)

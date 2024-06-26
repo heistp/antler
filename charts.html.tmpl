@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <script type="text/javascript"
     src="https://www.gstatic.com/charts/loader.js"></script>
@@ -14,8 +15,37 @@
       chart.draw(data, options);
     }
   </script>
+{{template "Style"}}
 </head>
+
 <body>
+{{/* Google Charts element, referenced from JS */}}
   <div id="chart_div"></div>
+
+{{/* Streams Table */}}
+{{if .Stream}}
+<div>
+  <h3 style="text-align: center">Streams</h3>
+  <table style="margin: auto">
+    <tr>
+      <th>ID</th>
+      <th>T<sub>0</sub> (Sec.)</th>
+      <th>Completion Time (Sec.)</th>
+      <th>Length (Bytes)</th>
+      <th>Goodput (Mbps)</th>
+    </tr>
+{{range .Stream}}
+    <tr>
+      <td>{{.Flow}}</td>
+      <td>{{(index .Sent 0).T.Duration.Seconds}}</td>
+      <td>{{.FCT.Seconds}}</td>
+      <td>{{.Length.Bytes}}</td>
+      <td>{{.Goodput.Mbps}}</td>
+    </tr>
+{{end}}
+  </table>
+</div>
+{{end}}
+
 </body>
 </html>

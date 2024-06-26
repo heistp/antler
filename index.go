@@ -38,7 +38,11 @@ func (i *Index) report(ctx context.Context, work resultRW, test *Test,
 
 // stop implements multiStopper to generate the index file.
 func (i *Index) stop(work resultRW) (err error) {
-	t := template.New("Index")
+	t := template.New("Style")
+	if t, err = t.Parse(styleTemplate); err != nil {
+		return
+	}
+	t = t.New("Index")
 	if t, err = t.Parse(indexTemplate); err != nil {
 		return
 	}

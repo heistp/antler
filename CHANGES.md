@@ -6,16 +6,29 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to
 [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.5.0 - 2024-06-27
+
+### Added
+
+- Implement multi-test reports via MultiReport in config.cue
+- Add generation of index.html pages with tests and links to results
+- Add table of flow metrics (goodput, FCT, etc.) to timeseries and fct plots
 
 ### Changed
 
-- Move from TestRuns to a flat list of Tests (after failed Groups experiment)
+- Replace the TestRun hierarchy in the config with a flat list of Tests
+- Rename Test.During to DuringDefault, and TestRun.Report to Test.During
+- Remove default ID for single Tests
+- Change node log files to have .txt extension so they open in browser
 - Rename Test.ResultPrefix/X to Test.Path
-- Bump x/net to 0.23 to fix CVE-2023-45288
-- Make Analyze reporter concurrent-safe
-- Log background command context cancellations as exited command
-- Remove default ID for single tests
+
+### Fixed
+
+- Pull in x/net 0.26 to fix CVE-2023-45288 and make Dependabot happy
+- Make the Analyze reporter concurrent-safe
+- Log background command exits as exited command instead of error
+- Use filepath.Separator instead of hardcoded slashes
+- Make TestID.Match return true for a zero ID pattern
 
 ## 0.4.0 - 2023-12-20
 

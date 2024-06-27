@@ -76,11 +76,12 @@ that helps avoid config mistakes and duplication.
   written by users to target any plotting package
 * optional result streaming during test (may be configured to deliver only some
   results, e.g. logs, but not pcaps)
+* generation of index.html pages of tests
 * embedded web server to serve results
 
 ## Status
 
-As of version 0.4.0, many of the core features are implemented, along with some
+As of version 0.5.0, many of the core features are implemented, along with some
 basic tests and visualizations. The [Roadmap](#roadmap) shows future plans.
 Overall, more work is needed to expand and improve the available plots, gather
 better data (with Linux kernel socket stats), stabilize the config and data
@@ -163,16 +164,6 @@ another language, if required.
   - record replies and calculate RTT
   - detect lost and late (out of order) packets
 - complete the SSH launcher, with sudo support, and add an example of its use
-
-### Version 0.5.0
-
-- add an HTML index of tests and results
-- add standard reports for each test:
-  - time series and FCT plots
-  - table of standard flow metrics, including goodput, FCT and data transferred
-  - node logs
-  - system information
-  - git tags
 
 ### Inbox
 

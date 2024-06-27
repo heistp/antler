@@ -45,8 +45,6 @@ type ChartsTimeSeries struct {
 	// defined in config.cue.
 	// https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
 	Options map[string]any
-
-	// TODO add FlowList config parameter
 }
 
 // report implements reporter

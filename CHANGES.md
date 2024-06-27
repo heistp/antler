@@ -13,6 +13,7 @@ and this project adheres to
 - Implement multi-test reports via MultiReport in config.cue
 - Add generation of index.html pages with tests and links to results
 - Add table of flow metrics (goodput, FCT, etc.) to timeseries and fct plots
+- Set default reports for log files, system information and flow metrics
 
 ### Changed
 

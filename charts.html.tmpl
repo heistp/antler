@@ -11,7 +11,7 @@
     function drawChart() {
       var data = google.visualization.arrayToDataTable({{.Data}});
       var options = {{.Options}};
-      var chart = new {{.Class}}(document.getElementById("chart_div"));
+      var chart = new {{.Class}}(document.getElementById("gchart"));
       chart.draw(data, options);
     }
   </script>
@@ -19,14 +19,27 @@
 </head>
 
 <body>
+
+{{/* Index */}}
+<div>
+<h3>Index</h3>
+<ol>
+  <li><a href="#plot">Plot</a></li>
+{{if .Stream}}
+  <li><a href="#streams">Streams</a></li>
+{{end}}
+</ol>
+</div>
+
 {{/* Google Charts element, referenced from JS */}}
-  <div id="chart_div"></div>
+<h3 id="plot">Plot</h3>
+<div id="gchart"></div>
 
 {{/* Streams Table */}}
 {{if .Stream}}
+<h3 id="streams">Streams</h3>
 <div>
-  <h3 style="text-align: center">Streams</h3>
-  <table style="margin: auto">
+  <table>
     <tr>
       <th>ID</th>
       <th>T<sub>0</sub> (Sec.)</th>

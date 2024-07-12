@@ -16,6 +16,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/kballard/go-shellquote"
 )
 
 // System executes a system command.
@@ -62,7 +64,10 @@ func (s *System) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 			err = nil
 		}()
 	}
-	c := s.CmdContext(ctx)
+	var c *exec.Cmd
+	if c, err = s.CmdContext(ctx); err != nil {
+		return
+	}
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("%w (%s)", err, c)
@@ -225,9 +230,8 @@ func (s *System) file(rcl io.ReadCloser, name string, rec *recorder) {
 // Command represents the information needed to run a system command.
 type Command struct {
 	// Command is the command to run. The string is split into command name and
-	// arguments using space as a delimiter, with no support for escaping. If
-	// spaces are needed in arguments, use the Arg field instead, or in
-	// addition to Command.
+	// arguments using a shell-style escaping scheme. The Arg field may be used
+	// instead of or in addition to Command.
 	Command string
 
 	// Arg is a slice of arguments for the command. If Command is empty, then
@@ -237,21 +241,30 @@ type Command struct {
 }
 
 // Cmd returns an exec.Cmd with name and arg obtained from param().
-func (c Command) Cmd() *exec.Cmd {
-	n, a := c.param()
-	return exec.Command(n, a...)
+func (c Command) Cmd() (*exec.Cmd, error) {
+	n, a, err := c.param()
+	if err != nil {
+		return nil, err
+	}
+	return exec.Command(n, a...), nil
 }
 
 // CmdContext returns an exec.Command using exec.CommandContext, with name and
 // arg obtained from param().
-func (c Command) CmdContext(ctx context.Context) *exec.Cmd {
-	n, a := c.param()
-	return exec.CommandContext(ctx, n, a...)
+func (c Command) CmdContext(ctx context.Context) (*exec.Cmd, error) {
+	n, a, err := c.param()
+	if err != nil {
+		return nil, err
+	}
+	return exec.CommandContext(ctx, n, a...), nil
 }
 
 // Text implements Texter
 func (c Command) Text(ctx context.Context) (txt string, err error) {
-	m := c.CmdContext(ctx)
+	var m *exec.Cmd
+	if m, err = c.CmdContext(ctx); err != nil {
+		return
+	}
 	var o []byte
 	if o, err = m.CombinedOutput(); err != nil {
 		err = CommandError{err, m.String(), o}
@@ -262,8 +275,11 @@ func (c Command) Text(ctx context.Context) (txt string, err error) {
 }
 
 // param returns the name and arg parameters for exec.
-func (c Command) param() (name string, arg []string) {
-	a := strings.Fields(c.Command)
+func (c Command) param() (name string, arg []string, err error) {
+	var a []string
+	if a, err = shellquote.Split(c.Command); err != nil {
+		return
+	}
 	a = append(a, c.Arg...)
 	name = a[0]
 	arg = a[1:]

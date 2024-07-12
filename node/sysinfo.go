@@ -153,7 +153,10 @@ func (s *SysInfoData) gather(ctx context.Context, info SysInfo) (err error) {
 
 	// commands
 	for _, c := range info.Command {
-		m := c.CmdContext(ctx)
+		var m *exec.Cmd
+		if m, err = c.CmdContext(ctx); err != nil {
+			return
+		}
 		var o []byte
 		if o, err = m.CombinedOutput(); err != nil {
 			err = CommandError{err, m.String(), o}

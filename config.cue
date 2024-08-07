@@ -574,7 +574,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // If Inherit is true (the default), the environment of the parent process is
 // included.
 #Env: {
-	Vars?:   [string, ...string] & list.MaxItems(8)
+	Vars?:   [string, ...string] & list.MaxItems(16)
 	Inherit: bool | *true
 }
 

@@ -102,7 +102,7 @@ func (n Netns) zero() bool {
 
 // EnvMax is the maximum number of allowed environment variables for a Node.
 // This must be kept in sync with the length restriction in config.cue.
-const EnvMax = 8
+const EnvMax = 16
 
 // Env specifies the environment of the node process.
 type Env struct {
@@ -127,6 +127,16 @@ func (n Env) vars() (s []string) {
 		}
 	}
 	return
+}
+
+// varsSet returns true if any values in the Vars array are non-empty.
+func (n Env) varsSet() bool {
+	for _, e := range n.Vars {
+		if e != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // An ExeSource provides contents and metadata for node executables.

@@ -11,6 +11,7 @@ import (
 
 // Local is a launcher used to start a node as a locally executed process.
 type Local struct {
+	Sudo bool
 }
 
 // launch implements launcher
@@ -36,16 +37,20 @@ func (l *Local) launch(node Node, log logFunc) (tr transport, err error) {
 		}
 		cl.Push(deleteNetns{ns})
 	}
-	var n string
 	var a []string
-	if ns != "" {
-		n = "ip"
-		a = []string{"netns", "exec", ns, f.Path}
-	} else {
-		n = f.Path
+	if l.Sudo {
+		a = append(a, "sudo")
 	}
+	if ns != "" {
+		a = append(a, "ip")
+		a = append(a, "netns")
+		a = append(a, "exec")
+		a = append(a, ns)
+	} else {
+	}
+	a = append(a, f.Path)
 	a = append(a, string(node.ID))
-	c := exec.Command(n, a...)
+	c := exec.Command(a[0], a[1:]...)
 	c.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}

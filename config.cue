@@ -537,18 +537,29 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Env?:     #Env
 }
 
-// node.Launchers lists the available ways to start a node. For SSH, Destination
-// specifies the destination as given to the ssh binary, if different from the
-// Node ID. If Local is specified, the node will be launched in a separate
-// process on the local machine, using stdio for communication.
+// node.Launchers lists the available ways to start a node.
 //
-// It must be possible to connect to the ssh destination without a password, and
-// for Linux, the root user is required to use network namespaces.
+// If Local is specified, the node will be launched in a separate process on
+// the local machine, using stdio for communication.
+//
+// If SSH is specified, the node will be executed on a host via the ssh command.
+// Destination specifies the destination as given to the ssh binary, if
+// different from the Node ID. It must be possible to connect to the ssh
+// destination without a password.
+//
+// For Linux, the root user is required to use network namespaces. Sudo may be
+// set to true to run the node with the sudo command, which must be configured
+// to not require a password.
 #Launchers: {
 	{} | {
-		SSH?: {Destination?: string & !=""}
+		SSH?: {
+			Destination?: string & !=""
+			Sudo:         bool | *false
+		}
 	} | {
-		Local?: {}
+		Local?: {
+			Sudo: bool | *false
+		}
 	}
 }
 

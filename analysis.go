@@ -72,8 +72,10 @@ func (y *analysis) add(a any) {
 		p := y.packets.analysis(v.Flow)
 		if v.Sent {
 			p.Sent = append(p.Sent, v)
-		} else {
+		} else if v.Server {
 			p.Rcvd = append(p.Rcvd, v)
+		} else {
+			p.Repl = append(p.Repl, v)
 		}
 	}
 }
@@ -224,6 +226,42 @@ type owd struct {
 
 	// Delay is the one-way delay.
 	Delay time.Duration
+
+	// Up is true if this delay is from client to server.
+	Up bool
+}
+
+// rtt is a single round-trip time data point.
+type rtt struct {
+	// T is the time relative to the start of the test.
+	T metric.RelativeTime
+
+	// Delay is the round-trip time.
+	Delay time.Duration
+}
+
+// lost is a single lost packet data point.
+type lost struct {
+	// T is the time relative to the start of the test that the packet was sent.
+	T metric.RelativeTime
+
+	// Seq is the sequence number that was lost.
+	Seq node.Seq
+
+	// Up is true if the packet was lost from client to server.
+	Up bool
+}
+
+// late is a single late packet data point.
+type late struct {
+	// T is the time relative to the start of the test.
+	T metric.RelativeTime
+
+	// Seq is the sequence number that was late.
+	Seq node.Seq
+
+	// Up is true if the packet was late from client to server.
+	Up bool
 }
 
 // PacketAnalysis contains the data and calculated stats for a packet flow.
@@ -231,9 +269,13 @@ type PacketAnalysis struct {
 	Flow   node.Flow
 	Client node.PacketInfo
 	Server node.PacketInfo
-	Sent   []node.PacketIO
-	Rcvd   []node.PacketIO
+	Sent   []node.PacketIO // sent by client
+	Rcvd   []node.PacketIO // received by server
+	Repl   []node.PacketIO // reply received by client
 	OWD    []owd
+	RTT    []rtt
+	Lost   []lost
+	Late   []late
 }
 
 // T0 returns the earliest absolute packet time.
@@ -298,6 +340,11 @@ func (k *packets) synchronize(start time.Time) {
 			t := io.T.Time(p.Server.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}
+		for i := 0; i < len(p.Repl); i++ {
+			io := &p.Repl[i]
+			t := io.T.Time(p.Client.Tinit)
+			io.T = metric.RelativeTime(t.Sub(start))
+		}
 	}
 }
 
@@ -306,11 +353,35 @@ func (k *packets) analyze() {
 	for _, p := range *k {
 		var s, r node.PacketIO
 		for _, s = range p.Sent {
+			// NOTE duplicate packets are ignored
+			// TODO record late requests as any that are below the max Rcvd Seq
+			var f bool
 			for _, r = range p.Rcvd {
 				if s.Seq == r.Seq {
 					d := time.Duration(r.T - s.T)
-					p.OWD = append(p.OWD, owd{r.T, d})
+					p.OWD = append(p.OWD, owd{r.T, d, true})
+					f = true
+					break
 				}
+			}
+			if !f {
+				p.Lost = append(p.Lost, lost{s.T, s.Seq, true})
+				continue
+			}
+			// TODO record late replies as any that are below the max Repl Seq
+			f = false
+			for _, y := range p.Repl {
+				if r.Seq == y.Seq {
+					ow := time.Duration(y.T - r.T)
+					rt := time.Duration(y.T - s.T)
+					p.OWD = append(p.OWD, owd{y.T, ow, false})
+					p.RTT = append(p.RTT, rtt{y.T, rt})
+					f = true
+				}
+			}
+			if !f {
+				p.Lost = append(p.Lost, lost{r.T, r.Seq, false})
+				continue
 			}
 		}
 	}

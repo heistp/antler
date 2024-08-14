@@ -215,7 +215,7 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 				rec.Send(PacketInfo{metric.Tinit, p.Flow, true})
 				f[p.Flow] = struct{}{}
 			}
-			rec.Send(PacketIO{p, t, false})
+			rec.Send(PacketIO{p, t, true, false})
 			if p.Flag&FlagEcho != 0 {
 				p.Flag = FlagReply
 				if n, e = p.Read(b); e != nil {
@@ -321,7 +321,7 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 			if _, err = cn.Write(b[:p.Len]); err != nil {
 				return
 			}
-			arg.rec.Send(PacketIO{p, metric.Now(), true})
+			arg.rec.Send(PacketIO{p, metric.Now(), true, true})
 		case p, ok := <-rc:
 			if !ok {
 				g--
@@ -565,6 +565,9 @@ type PacketIO struct {
 
 	// T is the node-relative time this PacketIO was recorded.
 	T metric.RelativeTime
+
+	// Server indicates if this is from the server (true) or client (false).
+	Server bool
 
 	// Sent is true for a sent packet, and false for received.
 	Sent bool

@@ -5,6 +5,7 @@ package antler
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -219,63 +220,112 @@ func (m *streams) byTime() (s []StreamAnalysis) {
 	return
 }
 
-// owd is a single one-way delay data point.
-type owd struct {
-	// T is the time relative to the start of the test.
-	T metric.RelativeTime
-
-	// Delay is the one-way delay.
-	Delay time.Duration
-
-	// Up is true if this delay is from client to server.
-	Up bool
-}
-
-// rtt is a single round-trip time data point.
-type rtt struct {
-	// T is the time relative to the start of the test.
-	T metric.RelativeTime
-
-	// Delay is the round-trip time.
-	Delay time.Duration
-}
-
-// lost is a single lost packet data point.
-type lost struct {
-	// T is the time relative to the start of the test that the packet was sent.
-	T metric.RelativeTime
-
-	// Seq is the sequence number that was lost.
-	Seq node.Seq
-
-	// Up is true if the packet was lost from client to server.
-	Up bool
-}
-
-// late is a single late packet data point.
-type late struct {
-	// T is the time relative to the start of the test.
-	T metric.RelativeTime
-
-	// Seq is the sequence number that was late.
-	Seq node.Seq
-
-	// Up is true if the packet was late from client to server.
-	Up bool
-}
-
 // PacketAnalysis contains the data and calculated stats for a packet flow.
 type PacketAnalysis struct {
+	// data
 	Flow   node.Flow
 	Client node.PacketInfo
 	Server node.PacketInfo
 	Sent   []node.PacketIO // sent by client
 	Rcvd   []node.PacketIO // received by server
 	Repl   []node.PacketIO // reply received by client
-	OWD    []owd
-	RTT    []rtt
-	Lost   []lost
-	Late   []late
+
+	// statistics
+	Up   packetStats // stats from client to server
+	Down packetStats // stats from server to client
+	RTT  []rtt
+}
+
+// packetStats contains statistics for one direction of a packet flow.
+type packetStats struct {
+	Lost  []lost
+	Dup   []dup
+	OWD   []owd
+	Early []early
+	Late  []late
+}
+
+// owd is a single one-way delay data point.
+type owd struct {
+	T     metric.RelativeTime // time the packet was received
+	Seq   node.Seq            // sequence number of sample
+	Delay time.Duration       // one-way delay
+}
+
+// rtt is a single round-trip time data point.
+type rtt struct {
+	T     metric.RelativeTime // time the packet was received
+	Seq   node.Seq            // round-trip sequence number
+	Delay time.Duration       // round-trip time
+}
+
+// lost is a single lost packet data point.
+type lost struct {
+	T   metric.RelativeTime // time the packet was sent
+	Seq node.Seq            // sequence number that was lost
+}
+
+// late is a single late packet data point.
+type late struct {
+	T   metric.RelativeTime // time the packet was received
+	Seq node.Seq            // sequence number that was late
+}
+
+// early is a single early packet data point.
+type early struct {
+	T   metric.RelativeTime // time the packet was received
+	Seq node.Seq            // sequence number that was early
+}
+
+// dup is a single duplicate packet data point.
+type dup struct {
+	T   metric.RelativeTime // time the packet was received
+	Seq node.Seq            // sequence number of duplicate
+}
+
+// analyze records the one-way packet stats from source and dest packets. The
+// destination map is returned for optional further analysis.
+func (s *packetStats) analyze(src, dst []node.PacketIO) (
+	dstMap map[node.Seq]node.PacketIO) {
+	// create dst map, find dups and remove from dst
+	dstMap = make(map[node.Seq]node.PacketIO)
+	var dst2 []node.PacketIO
+	for _, dp := range dst {
+		if _, ok := dstMap[dp.Seq]; ok {
+			s.Dup = append(s.Dup, dup{dp.T, dp.Seq})
+			continue
+		}
+		dstMap[dp.Seq] = dp
+		dst2 = append(dst2, dp)
+	}
+	dst = dst2
+	// find lost packets and remove from src, and record OWD along the way
+	var src2 []node.PacketIO
+	for _, sp := range src {
+		dp, ok := dstMap[sp.Seq]
+		if !ok {
+			s.Lost = append(s.Lost, lost{sp.T, sp.Seq})
+			continue
+		}
+		s.OWD = append(s.OWD, owd{dp.T, sp.Seq, time.Duration(dp.T - sp.T)})
+		src2 = append(src2, sp)
+	}
+	src = src2
+	if len(src) != len(dst) {
+		panic(fmt.Sprintf("packetStats.analyze len(src)=%d != len(dst)=%d",
+			len(src), len(dst)))
+	}
+	// find early and late packets
+	for i := 0; i < len(src); i++ {
+		sp := src[i]
+		dp := dst[i]
+		if dp.Seq < sp.Seq {
+			s.Late = append(s.Late, late{dp.T, dp.Seq})
+		} else if dp.Seq > sp.Seq {
+			s.Early = append(s.Early, early{dp.T, dp.Seq})
+		}
+	}
+	return
 }
 
 // T0 returns the earliest absolute packet time.
@@ -292,6 +342,20 @@ func (y *PacketAnalysis) T0() time.Time {
 			return y.Client.Time(y.Sent[0].T)
 		} else {
 			return y.Server.Time(y.Rcvd[0].T)
+		}
+	}
+}
+
+// analyze gets the packet statistics for the Flow. The data fields must already
+// have been populated.
+func (y *PacketAnalysis) analyze() {
+	// analyze stats for each direction
+	y.Up.analyze(y.Sent, y.Rcvd)
+	d := y.Down.analyze(y.Rcvd, y.Repl)
+	// get round-trip times
+	for _, sp := range y.Sent {
+		if dp, ok := d[sp.Seq]; ok {
+			y.RTT = append(y.RTT, rtt{dp.T, sp.Seq, time.Duration(dp.T - sp.T)})
 		}
 	}
 }
@@ -351,39 +415,42 @@ func (k *packets) synchronize(start time.Time) {
 // analyze uses the collected data to calculate relevant metrics and stats.
 func (k *packets) analyze() {
 	for _, p := range *k {
-		var s, r node.PacketIO
-		for _, s = range p.Sent {
-			// NOTE duplicate packets are ignored
-			// TODO record late requests as any that are below the max Rcvd Seq
-			var f bool
-			for _, r = range p.Rcvd {
-				if s.Seq == r.Seq {
-					d := time.Duration(r.T - s.T)
-					p.OWD = append(p.OWD, owd{r.T, d, true})
-					f = true
-					break
+		p.analyze()
+		/*
+			var s, r node.PacketIO
+			for _, s = range p.Sent {
+				// NOTE duplicate packets are ignored
+				// TODO record late requests as any that are below the max Rcvd Seq
+				var f bool
+				for _, r = range p.Rcvd {
+					if s.Seq == r.Seq {
+						d := time.Duration(r.T - s.T)
+						p.OWD = append(p.OWD, owd{r.T, r.Seq, d})
+						f = true
+						break
+					}
+				}
+				if !f {
+					p.Lost = append(p.Lost, lost{s.T, s.Seq})
+					continue
+				}
+				// TODO record late replies as any that are below the max Repl Seq
+				f = false
+				for _, y := range p.Repl {
+					if r.Seq == y.Seq {
+						ow := time.Duration(y.T - r.T)
+						rt := time.Duration(y.T - s.T)
+						p.OWD = append(p.OWD, owd{y.T, y.Seq, ow})
+						p.RTT = append(p.RTT, rtt{y.T, y.Seq, rt})
+						f = true
+					}
+				}
+				if !f {
+					p.Lost = append(p.Lost, lost{r.T, r.Seq})
+					continue
 				}
 			}
-			if !f {
-				p.Lost = append(p.Lost, lost{s.T, s.Seq, true})
-				continue
-			}
-			// TODO record late replies as any that are below the max Repl Seq
-			f = false
-			for _, y := range p.Repl {
-				if r.Seq == y.Seq {
-					ow := time.Duration(y.T - r.T)
-					rt := time.Duration(y.T - s.T)
-					p.OWD = append(p.OWD, owd{y.T, ow, false})
-					p.RTT = append(p.RTT, rtt{y.T, rt})
-					f = true
-				}
-			}
-			if !f {
-				p.Lost = append(p.Lost, lost{r.T, r.Seq, false})
-				continue
-			}
-		}
+		*/
 	}
 }
 

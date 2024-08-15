@@ -134,7 +134,7 @@ func (g *ChartsTimeSeries) data(san []StreamAnalysis, pan []PacketAnalysis) (
 		}
 	}
 	for i, d := range pan {
-		for _, o := range d.OWD {
+		for _, o := range d.Up.OWD {
 			var r chartsRow
 			r.addColumn(o.T.Duration().Seconds())
 			for j := 0; j < len(san); j++ {

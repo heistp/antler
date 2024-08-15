@@ -294,27 +294,30 @@ func (d DuplicatePathError) Error() string {
 // validateNodeIDs returns an error if any Node IDs do not uniquely identify
 // their fields.
 func (s Tests) validateNodeIDs() (err error) {
-	nn := make(map[node.Node]struct{})
 	for i := range s {
+		// gather nodes for Test
 		t := &s[i]
 		r := node.NewTree(&t.Run)
+		nn := make(map[node.Node]struct{})
 		r.Walk(func(n node.Node) bool {
 			nn[n] = struct{}{}
 			return true
 		})
-	}
-	ii := make(map[node.ID]struct{})
-	var aa []node.ID
-	for n := range nn {
-		if _, ok := ii[n.ID]; ok {
-			if !slices.Contains(aa, n.ID) {
-				aa = append(aa, n.ID)
+		// validate there are no duplicate node IDs
+		ii := make(map[node.ID]struct{})
+		var aa []node.ID
+		for n := range nn {
+			if _, ok := ii[n.ID]; ok {
+				if !slices.Contains(aa, n.ID) {
+					aa = append(aa, n.ID)
+				}
 			}
+			ii[n.ID] = struct{}{}
 		}
-		ii[n.ID] = struct{}{}
-	}
-	if len(aa) > 0 {
-		err = AmbiguousNodeIDError{aa}
+		if len(aa) > 0 {
+			err = AmbiguousNodeIDError{t.ID, aa}
+			return
+		}
 	}
 	return
 }
@@ -322,7 +325,8 @@ func (s Tests) validateNodeIDs() (err error) {
 // AmbiguousNodeIDError is returned when multiple Nodes use the same ID but with
 // different field values.
 type AmbiguousNodeIDError struct {
-	ID []node.ID
+	TestID TestID
+	ID     []node.ID
 }
 
 // Error implements error
@@ -332,5 +336,6 @@ func (a AmbiguousNodeIDError) Error() string {
 		s = append(s, i.String())
 	}
 	sort.Strings(s)
-	return fmt.Sprintf("ambiguous Node IDs: %s", strings.Join(s, ", "))
+	return fmt.Sprintf("test %s has ambiguous Node IDs: %s",
+		a.TestID, strings.Join(s, ", "))
 }

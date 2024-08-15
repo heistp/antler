@@ -550,15 +550,19 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // For Linux, the root user is required to use network namespaces. Sudo may be
 // set to true to run the node with the sudo command, which must be configured
 // to not require a password.
+//
+// The Set fields are for internal use and must not be changed.
 #Launchers: {
 	{} | {
 		SSH?: {
 			Destination?: string & !=""
 			Sudo:         bool | *false
+			Set:          true
 		}
 	} | {
 		Local?: {
 			Sudo: bool | *false
+			Set:  true
 		}
 	}
 }

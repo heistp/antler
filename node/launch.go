@@ -65,17 +65,17 @@ func (n Node) String() string {
 
 // launchers is a union of the available launcher implementations.
 type launchers struct {
-	Local *Local
-	SSH   *SSH
+	Local Local
+	SSH   SSH
 }
 
 // launcher returns the launcher implementation for the Node.
 func (l *launchers) launcher() (a launcher) {
 	switch {
-	case l.SSH != nil:
-		a = l.SSH
-	case l.Local != nil:
+	case l.Local.Set:
 		a = l.Local
+	case l.SSH.Set:
+		a = l.SSH
 	default:
 		panic("no launcher set in launchers union")
 	}

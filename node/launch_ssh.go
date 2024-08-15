@@ -30,10 +30,11 @@ type sshArgs struct {
 type SSH struct {
 	Destination string // ssh destination (man ssh(1))
 	Sudo        bool
+	Set         bool
 }
 
 // launch implements launcher
-func (s *SSH) launch(node Node, log logFunc) (tr transport, err error) {
+func (s SSH) launch(node Node, log logFunc) (tr transport, err error) {
 	if !node.Netns.zero() {
 		err = fmt.Errorf("Netns not supported with the SSH launcher")
 		return

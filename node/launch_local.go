@@ -12,10 +12,11 @@ import (
 // Local is a launcher used to start a node as a locally executed process.
 type Local struct {
 	Sudo bool
+	Set  bool
 }
 
 // launch implements launcher
-func (l *Local) launch(node Node, log logFunc) (tr transport, err error) {
+func (l Local) launch(node Node, log logFunc) (tr transport, err error) {
 	cl := newCloserStack(log)
 	defer func() {
 		if err != nil {

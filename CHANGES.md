@@ -11,6 +11,11 @@ and this project adheres to
 ### Added
 
 - Add shell-style escaping support for the System Runner
+- Complete the SSH launcher, with sudo support (see ssh test)
+
+### Changed
+
+- Add fields to node.PacketIO- all test with packet flows must be re-run
 
 ## 0.5.0 - 2024-06-27
 

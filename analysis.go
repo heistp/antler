@@ -76,6 +76,7 @@ func (y *analysis) add(a any) {
 		} else if v.Server {
 			p.Rcvd = append(p.Rcvd, v)
 		} else {
+			fmt.Printf("adding to Repl: %+v\n", v)
 			p.Repl = append(p.Repl, v)
 		}
 	}
@@ -312,7 +313,7 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 	}
 	src = src2
 	if len(src) != len(dst) {
-		panic(fmt.Sprintf("packetStats.analyze len(src)=%d != len(dst)=%d",
+		panic(fmt.Sprintf("packetStats.analyze len(src)=%d != len(dst)=%d (incoherent data, re-run test)",
 			len(src), len(dst)))
 	}
 	// find early and late packets
@@ -416,41 +417,6 @@ func (k *packets) synchronize(start time.Time) {
 func (k *packets) analyze() {
 	for _, p := range *k {
 		p.analyze()
-		/*
-			var s, r node.PacketIO
-			for _, s = range p.Sent {
-				// NOTE duplicate packets are ignored
-				// TODO record late requests as any that are below the max Rcvd Seq
-				var f bool
-				for _, r = range p.Rcvd {
-					if s.Seq == r.Seq {
-						d := time.Duration(r.T - s.T)
-						p.OWD = append(p.OWD, owd{r.T, r.Seq, d})
-						f = true
-						break
-					}
-				}
-				if !f {
-					p.Lost = append(p.Lost, lost{s.T, s.Seq})
-					continue
-				}
-				// TODO record late replies as any that are below the max Repl Seq
-				f = false
-				for _, y := range p.Repl {
-					if r.Seq == y.Seq {
-						ow := time.Duration(y.T - r.T)
-						rt := time.Duration(y.T - s.T)
-						p.OWD = append(p.OWD, owd{y.T, y.Seq, ow})
-						p.RTT = append(p.RTT, rtt{y.T, y.Seq, rt})
-						f = true
-					}
-				}
-				if !f {
-					p.Lost = append(p.Lost, lost{r.T, r.Seq})
-					continue
-				}
-			}
-		*/
 	}
 }
 

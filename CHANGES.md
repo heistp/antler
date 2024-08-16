@@ -12,10 +12,16 @@ and this project adheres to
 
 - Add shell-style escaping support for the System Runner
 - Complete the SSH launcher, with sudo support (see ssh test)
+- Record server-sent and client-received packets
+- Analyze packet results to detect lost, early, late and duplicate packets
 
 ### Changed
 
-- Add fields to node.PacketIO- all test with packet flows must be re-run
+- Add fields to node.PacketIO (note: all tests with packet flows must be re-run)
+
+### Fixed
+
+- Fix hang in PacketClient when receiving echo replies
 
 ## 0.5.0 - 2024-06-27
 

@@ -217,13 +217,15 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			}
 			rec.Send(PacketIO{p, t, true, false})
 			if p.Flag&FlagEcho != 0 {
-				p.Flag = FlagReply
+				p.Flag &= ^FlagEcho
+				p.Flag |= FlagReply
 				if n, e = p.Read(b); e != nil {
 					return
 				}
 				if _, e = conn.WriteTo(b[:n], a); e != nil {
 					return
 				}
+				rec.Send(PacketIO{p, metric.Now(), true, true})
 			}
 		}
 	}()
@@ -321,7 +323,7 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 			if _, err = cn.Write(b[:p.Len]); err != nil {
 				return
 			}
-			arg.rec.Send(PacketIO{p, metric.Now(), true, true})
+			arg.rec.Send(PacketIO{p, metric.Now(), false, true})
 		case p, ok := <-rc:
 			if !ok {
 				g--
@@ -366,6 +368,7 @@ func (p *PacketClient) read(conn net.PacketConn, rec *recorder) (
 			if _, e = p.Write(b[:n]); e != nil {
 				return
 			}
+			rec.Send(PacketIO{p, metric.Now(), false, false})
 			rc <- p
 		}
 	}()
@@ -451,7 +454,14 @@ func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 	} else {
 		w = time.After(u.firstWait())
 	}
+	var o chan Packet
+	var pp []Packet
+	var p Packet
 	for {
+		if len(pp) > 0 && o == nil {
+			p, pp = pp[0], pp[1:]
+			o = out
+		}
 		select {
 		case _, ok := <-in:
 			if !ok {
@@ -466,11 +476,13 @@ func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
 			if u.Echo {
 				f |= FlagEcho
 			}
-			out <- Packet{PacketHeader{f, seq.Next(), ""}, u.nextLength(),
-				nil, false, nil}
+			pp = append(pp, Packet{PacketHeader{f, seq.Next(), ""},
+				u.nextLength(), nil, false, nil})
 			if len(u.Wait) > 1 {
 				w = time.After(u.nextWait())
 			}
+		case o <- p:
+			o = nil
 		}
 	}
 }

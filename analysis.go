@@ -71,13 +71,18 @@ func (y *analysis) add(a any) {
 		}
 	case node.PacketIO:
 		p := y.packets.analysis(v.Flow)
-		if v.Sent {
-			p.Sent = append(p.Sent, v)
-		} else if v.Server {
-			p.Rcvd = append(p.Rcvd, v)
+		if v.Server {
+			if v.Sent {
+				p.ServerSent = append(p.ServerSent, v)
+			} else {
+				p.ServerRcvd = append(p.ServerRcvd, v)
+			}
 		} else {
-			fmt.Printf("adding to Repl: %+v\n", v)
-			p.Repl = append(p.Repl, v)
+			if v.Sent {
+				p.ClientSent = append(p.ClientSent, v)
+			} else {
+				p.ClientRcvd = append(p.ClientRcvd, v)
+			}
 		}
 	}
 }
@@ -224,12 +229,13 @@ func (m *streams) byTime() (s []StreamAnalysis) {
 // PacketAnalysis contains the data and calculated stats for a packet flow.
 type PacketAnalysis struct {
 	// data
-	Flow   node.Flow
-	Client node.PacketInfo
-	Server node.PacketInfo
-	Sent   []node.PacketIO // sent by client
-	Rcvd   []node.PacketIO // received by server
-	Repl   []node.PacketIO // reply received by client
+	Flow       node.Flow
+	Client     node.PacketInfo
+	Server     node.PacketInfo
+	ClientSent []node.PacketIO
+	ClientRcvd []node.PacketIO
+	ServerSent []node.PacketIO
+	ServerRcvd []node.PacketIO
 
 	// statistics
 	Up   packetStats // stats from client to server
@@ -293,6 +299,7 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 	var dst2 []node.PacketIO
 	for _, dp := range dst {
 		if _, ok := dstMap[dp.Seq]; ok {
+			//fmt.Printf("dup %d\n", dp.Seq)
 			s.Dup = append(s.Dup, dup{dp.T, dp.Seq})
 			continue
 		}
@@ -305,6 +312,7 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 	for _, sp := range src {
 		dp, ok := dstMap[sp.Seq]
 		if !ok {
+			//fmt.Printf("lost %d\n", sp.Seq)
 			s.Lost = append(s.Lost, lost{sp.T, sp.Seq})
 			continue
 		}
@@ -321,8 +329,10 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 		sp := src[i]
 		dp := dst[i]
 		if dp.Seq < sp.Seq {
+			//fmt.Printf("late %d\n", dp.Seq)
 			s.Late = append(s.Late, late{dp.T, dp.Seq})
 		} else if dp.Seq > sp.Seq {
+			//fmt.Printf("early %d\n", dp.Seq)
 			s.Early = append(s.Early, early{dp.T, dp.Seq})
 		}
 	}
@@ -331,18 +341,18 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 
 // T0 returns the earliest absolute packet time.
 func (y *PacketAnalysis) T0() time.Time {
-	if len(y.Sent) == 0 {
-		if len(y.Rcvd) == 0 {
+	if len(y.ClientSent) == 0 {
+		if len(y.ServerRcvd) == 0 {
 			return time.Time{}
 		}
-		return y.Server.Time(y.Rcvd[0].T)
-	} else if len(y.Rcvd) == 0 {
-		return y.Client.Time(y.Sent[0].T)
+		return y.Server.Time(y.ServerRcvd[0].T)
+	} else if len(y.ServerRcvd) == 0 {
+		return y.Client.Time(y.ClientSent[0].T)
 	} else {
-		if y.Sent[0].T < y.Rcvd[0].T {
-			return y.Client.Time(y.Sent[0].T)
+		if y.ClientSent[0].T < y.ServerRcvd[0].T {
+			return y.Client.Time(y.ClientSent[0].T)
 		} else {
-			return y.Server.Time(y.Rcvd[0].T)
+			return y.Server.Time(y.ServerRcvd[0].T)
 		}
 	}
 }
@@ -350,11 +360,15 @@ func (y *PacketAnalysis) T0() time.Time {
 // analyze gets the packet statistics for the Flow. The data fields must already
 // have been populated.
 func (y *PacketAnalysis) analyze() {
+	//fmt.Printf("analyze ClientSent:%d ServerRcvd:%d\n",
+	//	len(y.ClientSent), len(y.ServerRcvd))
 	// analyze stats for each direction
-	y.Up.analyze(y.Sent, y.Rcvd)
-	d := y.Down.analyze(y.Rcvd, y.Repl)
+	y.Up.analyze(y.ClientSent, y.ServerRcvd)
+	//fmt.Printf("analyze ServerSent:%d ClientRcvd:%d\n",
+	//	len(y.ServerSent), len(y.ClientRcvd))
+	d := y.Down.analyze(y.ServerSent, y.ClientRcvd)
 	// get round-trip times
-	for _, sp := range y.Sent {
+	for _, sp := range y.ClientSent {
 		if dp, ok := d[sp.Seq]; ok {
 			y.RTT = append(y.RTT, rtt{dp.T, sp.Seq, time.Duration(dp.T - sp.T)})
 		}
@@ -395,18 +409,23 @@ func (k *packets) StartTime() (start time.Time) {
 // test-relative time.
 func (k *packets) synchronize(start time.Time) {
 	for _, p := range *k {
-		for i := 0; i < len(p.Sent); i++ {
-			io := &p.Sent[i]
+		for i := 0; i < len(p.ClientSent); i++ {
+			io := &p.ClientSent[i]
 			t := io.T.Time(p.Client.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}
-		for i := 0; i < len(p.Rcvd); i++ {
-			io := &p.Rcvd[i]
+		for i := 0; i < len(p.ServerRcvd); i++ {
+			io := &p.ServerRcvd[i]
 			t := io.T.Time(p.Server.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}
-		for i := 0; i < len(p.Repl); i++ {
-			io := &p.Repl[i]
+		for i := 0; i < len(p.ServerSent); i++ {
+			io := &p.ServerSent[i]
+			t := io.T.Time(p.Server.Tinit)
+			io.T = metric.RelativeTime(t.Sub(start))
+		}
+		for i := 0; i < len(p.ClientRcvd); i++ {
+			io := &p.ClientRcvd[i]
 			t := io.T.Time(p.Client.Tinit)
 			io.T = metric.RelativeTime(t.Sub(start))
 		}

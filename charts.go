@@ -29,6 +29,7 @@ type chartsTemplateData struct {
 	Data    chartsData
 	Options map[string]any
 	Stream  []StreamAnalysis
+	Packet  []PacketAnalysis
 }
 
 // ChartsTimeSeries is a reporter that makes time series plots using Google
@@ -80,6 +81,7 @@ func (g *ChartsTimeSeries) report(ctx context.Context, rw rwer, in <-chan any,
 		g.data(a.streams.byTime(), a.packets.byTime()),
 		g.Options,
 		a.streams.byTime(),
+		a.packets.byTime(),
 	}
 	var ww []io.WriteCloser
 	for _, to := range g.To {
@@ -207,6 +209,7 @@ func (g *ChartsFCT) report(ctx context.Context, rw rwer, in <-chan any,
 		g.data(a.streams.byTime()),
 		g.Options,
 		a.streams.byTime(),
+		a.packets.byTime(),
 	}
 	var ww []io.WriteCloser
 	for _, to := range g.To {

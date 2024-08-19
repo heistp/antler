@@ -28,6 +28,9 @@
 {{if .Stream}}
   <li><a href="#streams">Streams</a></li>
 {{end}}
+{{if .Packet}}
+  <li><a href="#packets">Packet Flows</a></li>
+{{end}}
 </ol>
 </div>
 
@@ -54,6 +57,66 @@
       <td>{{.FCT.Seconds}}</td>
       <td>{{.Length.Bytes}}</td>
       <td>{{.Goodput.Mbps}}</td>
+    </tr>
+{{end}}
+  </table>
+</div>
+{{end}}
+
+{{/* Packet Flows Table */}}
+{{if .Packet}}
+<h3 id="packets">Packet Flows</h3>
+<div>
+  <table>
+    <tr>
+      <td>
+      <td>
+      <th colspan="1">RTT</th>
+      <th colspan="7">Up</th>
+      <th colspan="7">Down</th>
+    </tr>
+    <tr>
+      <th>ID</th>
+      <th>T<sub>0</sub></th>
+      <th>Mean</th>
+      <!-- Up -->
+      <th>OWD</th>
+      <th>Sent</th>
+      <th>Rcvd</th>
+      <th>Lost</th>
+      <th>Early</th>
+      <th>Late</th>
+      <th>Dup</th>
+      <!-- Down -->
+      <th>OWD</th>
+      <th>Sent</th>
+      <th>Rcvd</th>
+      <th>Lost</th>
+      <th>Early</th>
+      <th>Late</th>
+      <th>Dup</th>
+    </tr>
+{{range .Packet}}
+    <tr>
+      <td>{{.Flow}}</td>
+      <td>{{(index .ClientSent 0).T.Duration.Seconds}} s</td>
+      <td>{{printf "%.3f ms" .RTTMean}}</td>
+      <!-- Up -->
+      <td>{{printf "%.3f ms" .Up.OWDMean}}</td>
+      <td>{{len .ClientSent}}</td>
+      <td>{{len .ServerRcvd}}</td>
+      <td>{{len .Up.Lost}} ({{printf "%.2f" .Up.LostPct}}%)</td>
+      <td>{{len .Up.Early}}</td>
+      <td>{{len .Up.Late}}</td>
+      <td>{{len .Up.Dup}}</td>
+      <!-- Down -->
+      <td>{{printf "%.3f ms" .Down.OWDMean}}</td>
+      <td>{{len .ServerSent}}</td>
+      <td>{{len .ClientRcvd}}</td>
+      <td>{{len .Down.Lost}} ({{printf "%.2f" .Down.LostPct}}%)</td>
+      <td>{{len .Down.Early}}</td>
+      <td>{{len .Down.Late}}</td>
+      <td>{{len .Down.Dup}}</td>
     </tr>
 {{end}}
   </table>

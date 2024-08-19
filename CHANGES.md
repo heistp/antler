@@ -13,6 +13,7 @@ and this project adheres to
 - Complete the SSH launcher, with sudo support (see ssh test)
 - Analyze packet results to detect lost, early, late and duplicate packets
 - Add packets example using netem to delay, jitter-ify, drop and re-order packets
+- Add packet flow stats to time series plots
 - Record server-sent and client-received packets
 - Add shell-style escaping support for the System Runner
 

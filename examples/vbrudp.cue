@@ -3,7 +3,7 @@
 
 package examples
 
-// _vbrudp runs one TCP stream and one VBR UDP stream from the left to the
+// _vbrudp runs one TCP stream and one VBR UDP flow from the left to the
 // right endpoint. The middlebox (mid namespace) has the cake qdisc added at
 // 20 Mbit.
 //

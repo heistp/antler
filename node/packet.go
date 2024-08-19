@@ -203,6 +203,7 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 		var n int
 		var a net.Addr
 		b := make([]byte, s.MaxPacketSize)
+		d := make(map[Seq]struct{})
 		for {
 			if n, a, e = conn.ReadFrom(b); e != nil {
 				return
@@ -217,6 +218,10 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			}
 			rec.Send(PacketIO{p, t, true, false})
 			if p.Flag&FlagEcho != 0 {
+				if _, ok := d[p.Seq]; ok {
+					continue
+				}
+				d[p.Seq] = struct{}{}
 				p.Flag &= ^FlagEcho
 				p.Flag |= FlagReply
 				if n, e = p.Read(b); e != nil {

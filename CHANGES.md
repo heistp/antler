@@ -18,6 +18,7 @@ and this project adheres to
 ### Changed
 
 - Add fields to node.PacketIO (note: all tests with packet flows must be re-run)
+- Do not echo duplicates in PacketServer
 
 ### Fixed
 

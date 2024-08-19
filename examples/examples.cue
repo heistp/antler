@@ -11,6 +11,7 @@ Test: [
 	_tcpstream,
 	_ratedrop,
 	_iperf3,
+	_packets,
 	_vbrudp,
 	_fct,
 ]

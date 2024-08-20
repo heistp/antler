@@ -307,7 +307,7 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 	var dst2 []node.PacketIO
 	for _, dp := range dst {
 		if _, ok := dstMap[dp.Seq]; ok {
-			fmt.Printf("dup %d\n", dp.Seq)
+			//fmt.Printf("dup %d\n", dp.Seq)
 			s.Dup = append(s.Dup, dup{dp.T, dp.Seq})
 			continue
 		}
@@ -320,7 +320,7 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 	for _, sp := range src {
 		dp, ok := dstMap[sp.Seq]
 		if !ok {
-			fmt.Printf("lost %d\n", sp.Seq)
+			//fmt.Printf("lost %d\n", sp.Seq)
 			s.Lost = append(s.Lost, lost{sp.T, sp.Seq})
 			continue
 		}
@@ -337,10 +337,10 @@ func (s *packetStats) analyze(src, dst []node.PacketIO) (
 		sp := src[i]
 		dp := dst[i]
 		if dp.Seq < sp.Seq {
-			fmt.Printf("late %d\n", dp.Seq)
+			//fmt.Printf("late %d\n", dp.Seq)
 			s.Late = append(s.Late, late{dp.T, dp.Seq})
 		} else if dp.Seq > sp.Seq {
-			fmt.Printf("early %d\n", dp.Seq)
+			//fmt.Printf("early %d\n", dp.Seq)
 			s.Early = append(s.Early, early{dp.T, dp.Seq})
 		}
 	}
@@ -378,12 +378,12 @@ func (y *PacketAnalysis) T0() time.Time {
 // analyze gets the packet statistics for the Flow. The data fields must already
 // have been populated.
 func (y *PacketAnalysis) analyze() {
-	fmt.Printf("analyze ClientSent:%d ServerRcvd:%d\n",
-		len(y.ClientSent), len(y.ServerRcvd))
+	//fmt.Printf("analyze ClientSent:%d ServerRcvd:%d\n",
+	//	len(y.ClientSent), len(y.ServerRcvd))
 	// analyze stats for each direction
 	y.Up.analyze(y.ClientSent, y.ServerRcvd)
-	fmt.Printf("analyze ServerSent:%d ClientRcvd:%d\n",
-		len(y.ServerSent), len(y.ClientRcvd))
+	//fmt.Printf("analyze ServerSent:%d ClientRcvd:%d\n",
+	//	len(y.ServerSent), len(y.ClientRcvd))
 	d := y.Down.analyze(y.ServerSent, y.ClientRcvd)
 	// get round-trip times
 	var rr []float64

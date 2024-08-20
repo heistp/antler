@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -257,19 +258,18 @@ type PacketClient struct {
 	// MaxPacketSize is the maximum size of a received packet.
 	MaxPacketSize int
 
-	// Wait is the length of time to wait after all Senders are done.
-	Wait metric.Duration
-
 	Sender []PacketSenders
 
 	// Sockopts provides support for socket options.
 	Sockopts
 
-	conn   net.Conn     // connection
-	rec    *recorder    // recorder
-	timerQ packetTimerQ // timer queue
-	sender int          // index of current sender
-	seq    Seq          // current sequence number
+	conn    net.Conn          // connection
+	request map[Seq]time.Time // echo request send times
+	srtt    time.Duration     // smoothed RTT
+	rec     *recorder         // recorder
+	timerQ  packetTimerQ      // timer queue
+	sender  int               // index of current sender
+	seq     Seq               // current sequence number
 }
 
 // Run implements runner
@@ -279,6 +279,7 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if c.conn, err = dl.DialContext(ctx, c.Protocol, c.Addr); err != nil {
 		return
 	}
+	c.request = make(map[Seq]time.Time)
 	c.rec = arg.rec
 	c.timerQ = packetTimerQ{}
 	heap.Init(&c.timerQ)
@@ -312,7 +313,8 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 					w = time.After(0)
 				}
 			} else {
-				w = time.After(c.Wait.Duration())
+				fmt.Fprintf(os.Stderr, "wait: %s\n", c.srtt*3)
+				w = time.After(c.srtt * 3)
 			}
 		}
 
@@ -334,8 +336,27 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 				done = true
 				break
 			}
-			if p.err != nil && err == nil {
-				err = p.err
+			if p.err != nil {
+				if err == nil {
+					err = p.err
+				}
+				done = true
+				break
+			}
+			// get smoothed RTT of echo replies
+			if p.PacketHeader.Flag&FlagReply != 0 {
+				var t time.Time
+				var ok bool
+				if t, ok = c.request[p.Seq]; ok {
+					r := time.Since(t)
+					if c.srtt == 0 {
+						c.srtt = r
+					} else {
+						a := 0.125 // RFC 6298
+						c.srtt = time.Duration(
+							a*float64(r) + (1-a)*float64(c.srtt))
+					}
+				}
 			}
 		case <-ctx.Done():
 			done = true
@@ -402,7 +423,11 @@ func (c *PacketClient) send(length int, echo bool) (seq Seq, err error) {
 	if _, err = c.conn.Write(b[:p.Len]); err != nil {
 		return
 	}
-	c.rec.Send(PacketIO{p, metric.Now(), false, true})
+	now := time.Now()
+	c.rec.Send(PacketIO{p, metric.Relative(now), false, true})
+	if p.PacketHeader.Flag&FlagEcho != 0 {
+		c.request[p.Seq] = now
+	}
 	return
 }
 

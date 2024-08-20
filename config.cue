@@ -721,6 +721,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Protocol:      #PacketProtocol
 	Flow:          #Flow
 	MaxPacketSize: #MaxPacketSize
+	Wait:          #Duration | *"1s"
 	Sender: [#PacketSenders, ...#PacketSenders]
 	DS?: int & <=0xFF
 	Sockopt?: [#Sockopt, ...#Sockopt]

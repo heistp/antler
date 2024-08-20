@@ -14,11 +14,13 @@ and this project adheres to
 - Analyze packet results to detect lost, early, late and duplicate packets
 - Add packets example using netem to delay, jitter-ify, drop and re-order packets
 - Add packet flow stats to time series plots
+- Add Wait time to PacketClient to wait for final replies from server
 - Record server-sent and client-received packets
 - Add shell-style escaping support for the System Runner
 
 ### Changed
 
+- Re-implement PacketClient to improve efficiency and release precision
 - Add fields to node.PacketIO (note: all tests with packet flows must be re-run)
 - Do not echo duplicates in PacketServer
 

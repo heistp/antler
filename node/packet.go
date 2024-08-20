@@ -5,6 +5,7 @@ package node
 
 import (
 	"bytes"
+	"container/heap"
 	"context"
 	"encoding/binary"
 	"encoding/gob"
@@ -77,6 +78,9 @@ type PacketHeader struct {
 	// Seq is the sequence number assigned by the client.
 	Seq Seq
 
+	// Sender is the index of the sender in the client.
+	Sender int
+
 	// Flow is the flow identifier, and corresponds to a client and server pair.
 	Flow Flow
 }
@@ -92,7 +96,8 @@ func (p *PacketHeader) Write(b []byte) (n int, err error) {
 	}
 	p.Flag = PacketFlag(b[7])
 	p.Seq = Seq(binary.LittleEndian.Uint64(b[8:16]))
-	p.Flow = Flow(string(b[17 : 17+b[16]]))
+	p.Sender = int(binary.LittleEndian.Uint16(b[16:18]))
+	p.Flow = Flow(string(b[19 : 19+b[18]]))
 	n = p.Len()
 	return
 }
@@ -110,15 +115,16 @@ func (p *PacketHeader) Read(b []byte) (n int, err error) {
 	copy(b, packetMagic)
 	b[7] = byte(p.Flag)
 	binary.LittleEndian.PutUint64(b[8:16], uint64(p.Seq))
-	b[16] = byte(len(p.Flow))
-	copy(b[17:], []byte(p.Flow))
+	binary.LittleEndian.PutUint16(b[16:18], uint16(p.Sender))
+	b[18] = byte(len(p.Flow))
+	copy(b[19:], []byte(p.Flow))
 	n = p.Len()
 	return
 }
 
 // Len returns the length of the header, in bytes.
 func (p *PacketHeader) Len() int {
-	return len(packetMagic) + 1 + 8 + 1 + len(p.Flow)
+	return len(packetMagic) + 1 + 8 + 2 + 1 + len(p.Flow)
 }
 
 // PacketServer is the server used for packet oriented protocols.
@@ -224,7 +230,7 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 				d[p.Seq] = struct{}{}
 				p.Flag &= ^FlagEcho
 				p.Flag |= FlagReply
-				if n, e = p.Read(b); e != nil {
+				if _, e = p.Read(b); e != nil {
 					return
 				}
 				if _, e = conn.WriteTo(b[:n], a); e != nil {
@@ -251,109 +257,100 @@ type PacketClient struct {
 	// MaxPacketSize is the maximum size of a received packet.
 	MaxPacketSize int
 
+	// Wait is the length of time to wait after all Senders are done.
+	Wait metric.Duration
+
 	Sender []PacketSenders
 
 	// Sockopts provides support for socket options.
 	Sockopts
+
+	conn   net.Conn     // connection
+	rec    *recorder    // recorder
+	timerQ packetTimerQ // timer queue
+	sender int          // index of current sender
+	seq    Seq          // current sequence number
 }
 
 // Run implements runner
 func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	err error) {
 	dl := net.Dialer{Control: c.dialControl}
-	var cn net.Conn
-	if cn, err = dl.DialContext(ctx, c.Protocol, c.Addr); err != nil {
+	if c.conn, err = dl.DialContext(ctx, c.Protocol, c.Addr); err != nil {
 		return
 	}
-	arg.rec.Send(PacketInfo{metric.Tinit, c.Flow, false})
-	out := make(chan Packet)
-	var q seqSrc
-	var in []chan Packet
-	var g int
-	for _, s := range c.Sender {
-		g++
-		p := make(chan Packet)
-		in = append(in, p)
-		go s.packetSender().send(&q, p, out)
-	}
-	g++
-	rc := c.read(cn.(net.PacketConn), arg.rec)
+	c.rec = arg.rec
+	c.timerQ = packetTimerQ{}
+	heap.Init(&c.timerQ)
+	c.rec.Send(PacketInfo{metric.Tinit, c.Flow, false})
+	r := c.read(arg.rec)
 	defer func() {
-		for _, i := range in {
-			close(i)
-		}
-		cn.Close()
-		for g > 0 {
-			select {
-			case p := <-out:
-				if p.done {
-					g--
-				}
-				if p.err != nil && err == nil {
-					err = p.err
-				}
-			case _, ok := <-rc:
-				if !ok {
-					g--
-				}
-			}
+		c.conn.Close()
+		for range r {
 		}
 	}()
-	b := make([]byte, c.MaxPacketSize)
-	for g > 0 {
-		select {
-		case p := <-out:
-			if p.err != nil {
-				err = p.err
-				return
-			}
-			if p.done {
-				if g--; g == 1 {
-					return
+	t0 := time.Now()
+	var s PacketSenders
+	for c.sender, s = range c.Sender {
+		if err = s.packetSender().send(c, t0, nil); err != nil {
+			return
+		}
+	}
+	var done bool
+	var w <-chan time.Time // wait channel
+	var q bool             // timer queue not empty
+	var t packetTimer
+	for !done {
+		// create timer until next packetTimer or until Wait expires
+		if w == nil {
+			q = c.timerQ.Len() > 0
+			if q {
+				t = heap.Pop(&c.timerQ).(packetTimer)
+				if d := t.at.Sub(time.Now()); d > 0 {
+					w = time.After(d)
+				} else {
+					w = time.After(0)
 				}
+			} else {
+				w = time.After(c.Wait.Duration())
+			}
+		}
+
+		// select on wait channel, read or done
+		select {
+		case <-w:
+			w = nil
+			if !q {
+				done = true
 				break
 			}
-			p.Flow = c.Flow
-			var n int
-			if n, err = p.Read(b); err != nil {
+			c.sender = t.sender
+			s := c.Sender[t.sender].packetSender()
+			if err = s.send(c, t.at, t.data); err != nil {
 				return
 			}
-			if p.Len == 0 {
-				p.Len = n
-			} else if p.Len < n {
-				err = fmt.Errorf("requested packet len %d < header len %d",
-					p.Len, n)
-				return
-			}
-			if _, err = cn.Write(b[:p.Len]); err != nil {
-				return
-			}
-			arg.rec.Send(PacketIO{p, metric.Now(), false, true})
-		case p, ok := <-rc:
+		case p, ok := <-r:
 			if !ok {
-				g--
-				return
+				done = true
+				break
 			}
-			if p.err != nil {
+			if p.err != nil && err == nil {
 				err = p.err
-				return
-			}
-			for _, i := range in {
-				i <- p
 			}
 		case <-ctx.Done():
-			return
+			done = true
 		}
 	}
 	return
 }
 
 // read is the entry point for the conn read goroutine.
-func (p *PacketClient) read(conn net.PacketConn, rec *recorder) (
+func (c *PacketClient) read(rec *recorder) (
 	rc chan Packet) {
+	pc := c.conn.(net.PacketConn)
 	rc = make(chan Packet)
 	go func() {
-		b := make([]byte, p.MaxPacketSize)
+		b := make([]byte, c.MaxPacketSize)
 		var n int
 		var a net.Addr
 		var e error
@@ -364,7 +361,8 @@ func (p *PacketClient) read(conn net.PacketConn, rec *recorder) (
 			close(rc)
 		}()
 		for {
-			n, a, e = conn.ReadFrom(b)
+			n, a, e = pc.ReadFrom(b)
+			now := metric.Now()
 			if e != nil {
 				break
 			}
@@ -373,19 +371,88 @@ func (p *PacketClient) read(conn net.PacketConn, rec *recorder) (
 			if _, e = p.Write(b[:n]); e != nil {
 				return
 			}
-			rec.Send(PacketIO{p, metric.Now(), false, false})
+			rec.Send(PacketIO{p, now, false, false})
 			rc <- p
 		}
 	}()
 	return
 }
 
-// A packetSender can send outgoing and react to incoming packets. The send
-// method must read from the in channel until it's closed, at which point send
-// should complete as soon as possible, and send a zero value packet to out,
-// with an error if the sender was forced to completed abnormally.
+// send sends a Packet.
+func (c *PacketClient) send(length int, echo bool) (seq Seq, err error) {
+	var f PacketFlag
+	seq = c.seq
+	c.seq++
+	if echo {
+		f |= FlagEcho
+	}
+	p := Packet{PacketHeader{f, seq, c.sender, c.Flow}, length, nil, false, nil}
+	b := make([]byte, c.MaxPacketSize)
+	var n int
+	if n, err = p.Read(b); err != nil {
+		return
+	}
+	if p.Len == 0 {
+		p.Len = n
+	} else if p.Len < n {
+		err = fmt.Errorf("requested packet len %d < header len %d",
+			p.Len, n)
+		return
+	}
+	if _, err = c.conn.Write(b[:p.Len]); err != nil {
+		return
+	}
+	c.rec.Send(PacketIO{p, metric.Now(), false, true})
+	return
+}
+
+// schedule schedules a call to send with the given data.
+func (c *PacketClient) schedule(at time.Time, data any) {
+	heap.Push(&c.timerQ, packetTimer{c.sender, at, data})
+}
+
+// packetTimer schedules an event for PacketClient.
+type packetTimer struct {
+	sender int
+	at     time.Time
+	data   any
+}
+
+// packetTimerQ is a min-heap for packetTimers, using the heap package.
+type packetTimerQ []packetTimer
+
+// Len implements heap.Interface.
+func (q packetTimerQ) Len() int {
+	return len(q)
+}
+
+// Less implements heap.Interface.
+func (q packetTimerQ) Less(i, j int) bool {
+	return q[i].at.Before(q[j].at)
+}
+
+// Swap implements heap.Interface.
+func (q packetTimerQ) Swap(i, j int) {
+	q[i], q[j] = q[j], q[i]
+}
+
+// Push implements heap.Interface.
+func (q *packetTimerQ) Push(x any) {
+	*q = append(*q, x.(packetTimer))
+}
+
+// Pop implements heap.Interface.
+func (q *packetTimerQ) Pop() any {
+	o := *q
+	n := len(o)
+	t := o[n-1]
+	*q = o[:n-1]
+	return t
+}
+
+// A packetSender can send outgoing packets.  TODO complete doc
 type packetSender interface {
-	send(seq *seqSrc, in, out chan Packet)
+	send(client *PacketClient, at time.Time, data any) error
 }
 
 // PacketSenders is the union of available packetSender implementations.
@@ -415,18 +482,10 @@ type Unresponsive struct {
 	// well.
 	WaitFirst bool
 
-	// RandomWait, if true, indicates to use random wait times from the list.
-	// Otherwise, the wait times are taken from Wait sequentially.
-	RandomWait bool
-
 	// Length lists the lengths of the packets, which are cycled through either
 	// sequentially or randomly (according to RandomLength) until all packets
 	// are sent.
 	Length []int
-
-	// RandomLength, if true, indicates to use random lengths from the list.
-	// Otherwise, the lengths are taken from Length sequentially.
-	RandomLength bool
 
 	// Duration is how long to send packets.
 	Duration metric.Duration
@@ -434,82 +493,38 @@ type Unresponsive struct {
 	// Echo, if true, requests mirrored replies from the server.
 	Echo bool
 
-	// waitIndex is the current index in Wait.
-	waitIndex int
-
-	// lengthIndex is the current index in Length.
-	lengthIndex int
-
-	// rand provides random numbers.
-	rand *rand.Rand
+	done        time.Time  // start time
+	started     bool       // send called at least once
+	waitIndex   int        // current index in Wait
+	lengthIndex int        // current index in Length
+	rand        *rand.Rand // random number source
 }
 
-// send implements packetSender
-func (u *Unresponsive) send(seq *seqSrc, in, out chan Packet) {
-	var e error
-	defer func() {
-		out <- Packet{done: true, err: e}
-	}()
-	t0 := time.Now()
-	var w <-chan time.Time
-	if len(u.Wait) <= 1 {
-		t := time.NewTicker(u.nextWait())
-		defer t.Stop()
-		w = t.C
-	} else {
-		w = time.After(u.firstWait())
-	}
-	var o chan Packet
-	var pp []Packet
-	var p Packet
-	for {
-		if len(pp) > 0 && o == nil {
-			p, pp = pp[0], pp[1:]
-			o = out
-		}
-		select {
-		case _, ok := <-in:
-			if !ok {
-				e = fmt.Errorf("PacketClient Unresponsive sender was canceled")
-				return
-			}
-		case <-w:
-			if time.Since(t0) >= u.Duration.Duration() {
-				return
-			}
-			var f PacketFlag
-			if u.Echo {
-				f |= FlagEcho
-			}
-			pp = append(pp, Packet{PacketHeader{f, seq.Next(), ""},
-				u.nextLength(), nil, false, nil})
-			if len(u.Wait) > 1 {
-				w = time.After(u.nextWait())
-			}
-		case o <- p:
-			o = nil
+// start implements packetSender.
+func (u *Unresponsive) send(client *PacketClient, at time.Time,
+	data any) (err error) {
+	s := true // send
+	if !u.started {
+		u.done = at.Add(u.Duration.Duration())
+		u.started = true
+		if u.WaitFirst {
+			s = false
 		}
 	}
-}
-
-// firstWait returns the first wait time.
-func (u *Unresponsive) firstWait() time.Duration {
-	if !u.WaitFirst {
-		return 0
+	if s {
+		if _, err = client.send(u.nextLength(), u.Echo); err != nil {
+			return
+		}
 	}
-	return u.nextWait()
+	if a := at.Add(u.nextWait()); a.Before(u.done) {
+		client.schedule(a, nil)
+	}
+	return
 }
 
 // nextWait returns the next wait time.
 func (u *Unresponsive) nextWait() (wait time.Duration) {
 	if len(u.Wait) == 0 {
-		return
-	}
-	if u.RandomWait {
-		if u.rand == nil {
-			u.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
-		}
-		wait = time.Duration(u.Wait[u.rand.Intn(len(u.Wait))])
 		return
 	}
 	wait = time.Duration(u.Wait[u.waitIndex])
@@ -522,13 +537,6 @@ func (u *Unresponsive) nextWait() (wait time.Duration) {
 // nextLength returns the next packet length.
 func (u *Unresponsive) nextLength() (length int) {
 	if len(u.Length) == 0 {
-		return
-	}
-	if u.RandomLength {
-		if u.rand == nil {
-			u.rand = rand.New(rand.NewSource(time.Now().UnixNano()))
-		}
-		length = u.Length[u.rand.Intn(len(u.Length))]
 		return
 	}
 	length = u.Length[u.lengthIndex]

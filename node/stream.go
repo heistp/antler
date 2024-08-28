@@ -389,6 +389,10 @@ type Transfer struct {
 	// sample will be recorded for every read and write.
 	IOSampleInterval metric.Duration
 
+	// TCPInfoInterval is the sampling interval for TCPInfo from Linux. Zero
+	// means TCPInfo sampling is disabled.
+	TCPInfoInterval metric.Duration
+
 	// BufLen is the size of the buffer used to read and write from the conn.
 	BufLen int
 
@@ -411,6 +415,13 @@ func (x Transfer) send(ctx context.Context, conn net.Conn, arg runArg) (
 	in, dur := x.IOSampleInterval.Duration(), x.Duration.Duration()
 	t0 := metric.Now()
 	arg.rec.Send(StreamIO{x.Flow, t0, 0, true})
+	if x.TCPInfoInterval > 0 {
+		a := sockAddrConn(conn)
+		id := TCPInfoID{x.Flow, Client}
+		i := x.TCPInfoInterval.Duration()
+		arg.sockdiag.Add(a, id, i)
+		defer arg.sockdiag.Remove(a, i)
+	}
 	t := t0
 	ts := t0
 	var l metric.Bytes

@@ -36,11 +36,12 @@ import (
 // Once the parent conn is done, the node is done.
 type node struct {
 	// immutable from construction
-	ev     chan event
-	runc   chan run
-	parent *conn
-	rec    *recorder
-	child  *child
+	ev       chan event
+	runc     chan run
+	parent   *conn
+	rec      *recorder
+	child    *child
+	sockdiag *sockdiag
 
 	// mutable state for run/events
 	state       state
@@ -61,6 +62,7 @@ func newNode(nodeID ID, parent transport) *node {
 		p,                              // parent
 		newRecorder(nodeID, "node", p), // rec
 		newChild(ev),                   // child
+		newSockdiag(ev),                // sockdiag
 		stateRun,                       // state
 		false,                          // cancel
 		false,                          // contextDone
@@ -86,7 +88,8 @@ const RootNodeID = "antler"
 
 // Do runs a Run tree in an in-process "root" node, and sends data items back on
 // the given data channel. The item types that may be sent include StreamInfo,
-// StreamIO, PacketInfo, PacketIO, FileData, SysInfoData, LogEntry and Error.
+// StreamIO, TCPInfo, PacketInfo, PacketIO, FileData, SysInfoData, LogEntry and
+// Error.
 //
 // Do is used by the antler package and executable.
 func Do(ctx context.Context, rn *Run, src ExeSource, data chan<- any) {
@@ -193,6 +196,7 @@ func (n *node) advance(cxl context.CancelCauseFunc) bool {
 		case stateCancel:
 			cxl(n.err)
 			close(n.runc)
+			n.sockdiag.Stop()
 			n.child.Cancel()
 		case stateCanceled:
 			n.parent.Canceled()
@@ -243,7 +247,8 @@ func (n *node) handleRuns(ctx context.Context) {
 				}
 				n.parent.Send(ran{r.ID, f, ok, r.to})
 			}()
-			f, ok = r.Run.run(ctx, runArg{n.child, r.Feedback, n.rec, c}, n.ev)
+			f, ok = r.Run.run(ctx,
+				runArg{n.child, r.Feedback, n.sockdiag, n.rec, c}, n.ev)
 		}()
 	}
 }

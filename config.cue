@@ -796,6 +796,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Duration:         #Duration | *"1m"
 	Length?:          int & >0
 	IOSampleInterval: #Duration | *"100ms"
+	TCPInfoInterval?: #Duration
 	BufLen:           int & >0 | *(1024 * 128)
 	#Stream
 }

@@ -109,26 +109,48 @@ func (g *ChartsTimeSeries) data(san []StreamAnalysis, pan []PacketAnalysis) (
 		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		data.set(0, col, fmt.Sprintf("%s goodput", l))
-		for _, g := range d.GoodputPoint {
-			data.set(row, 0, g.T.Duration().Seconds())
-			data.set(row, col, g.Goodput.Mbps())
-			row++
+		if len(d.GoodputPoint) > 1 {
+			data.set(0, col, fmt.Sprintf("%s goodput", l))
+			for _, g := range d.GoodputPoint {
+				data.set(row, 0, g.T.Duration().Seconds())
+				data.set(row, col, g.Goodput.Mbps())
+				row++
+			}
+			col++
 		}
-		col++
+		if len(d.TCPInfo) > 0 {
+			data.set(0, col, fmt.Sprintf("%s delivery rate", l))
+			for _, t := range d.TCPInfo {
+				data.set(row, 0, t.T.Duration().Seconds())
+				data.set(row, col, t.DeliveryRate.Mbps())
+				row++
+			}
+			col++
+		}
+		if len(d.TCPInfo) > 0 {
+			data.set(0, col, fmt.Sprintf("%s TCP RTT", l))
+			for _, t := range d.TCPInfo {
+				data.set(row, 0, t.T.Duration().Seconds())
+				data.set(row, col, t.RTT.Seconds()*1000.0)
+				row++
+			}
+			col++
+		}
 	}
 	for _, d := range pan {
 		l := string(d.Client.Flow)
 		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		data.set(0, col, fmt.Sprintf("%s OWD", l))
-		for _, o := range d.Up.OWD {
-			data.set(row, 0, o.T.Duration().Seconds())
-			data.set(row, col, float64(o.Delay)/1000000)
-			row++
+		if len(d.Up.OWD) > 0 {
+			data.set(0, col, fmt.Sprintf("%s OWD up", l))
+			for _, o := range d.Up.OWD {
+				data.set(row, 0, o.T.Duration().Seconds())
+				data.set(row, col, o.Delay.Seconds()*1000.0)
+				row++
+			}
+			col++
 		}
-		col++
 	}
 	data.normalize()
 	return

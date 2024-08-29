@@ -53,12 +53,16 @@ _tcpinfo: {
 					}
 				}
 				vAxes: {
-					"0": viewWindow: {
-						max: 105
+					"0": {
+						title: "Delivery Rate (Mbps)"
+						viewWindow: max: 105
 					}
-					"1": viewWindow: {
-						min: _rtt * 1.0
-						max: _rtt * 4
+					"1": {
+						title: "TCP RTT (ms)"
+						viewWindow: {
+							min: _rtt * 1.0
+							max: _rtt * 4
+						}
 					}
 				}
 			}

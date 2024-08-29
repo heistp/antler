@@ -11,7 +11,7 @@ _tcpstream: {
 	_rtt: 80
 
 	// _duration is the test duration in seconds
-	_duration: 10
+	_duration: 60
 
 	// _qdisc is the qdisc to use
 	_qdisc: "cake bandwidth 50Mbit flowblind"

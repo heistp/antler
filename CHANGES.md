@@ -23,6 +23,7 @@ and this project adheres to
 - Re-implement PacketClient to improve efficiency and packet release precision
 - Add fields to node.PacketIO (note: all tests with packet flows must be re-run)
 - Do not echo duplicates in PacketServer
+- Refactor chartsData to automatically equalize rows and columns
 
 ### Fixed
 

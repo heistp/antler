@@ -101,57 +101,36 @@ func (g *ChartsTimeSeries) report(ctx context.Context, rw rwer, in <-chan any,
 // data returns the chart data.
 func (g *ChartsTimeSeries) data(san []StreamAnalysis, pan []PacketAnalysis) (
 	data chartsData) {
-	var h chartsRow
-	h.addColumn("")
+	data.set(0, 0, "Time (sec)")
+	col := 1
+	row := 1
 	for _, d := range san {
 		l := string(d.Client.Flow)
 		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		h.addColumn(l)
+		data.set(0, col, l)
+		for _, g := range d.GoodputPoint {
+			data.set(row, 0, g.T.Duration().Seconds())
+			data.set(row, col, g.Goodput.Mbps())
+			row++
+		}
+		col++
 	}
 	for _, d := range pan {
 		l := string(d.Client.Flow)
 		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		h.addColumn(l)
-	}
-	data.addRow(h)
-	for i, d := range san {
-		for _, g := range d.GoodputPoint {
-			var r chartsRow
-			r.addColumn(g.T.Duration().Seconds())
-			for j := 0; j < len(san); j++ {
-				if j != i {
-					r.addColumn(nil)
-					continue
-				}
-				r.addColumn(g.Goodput.Mbps())
-			}
-			for j := 0; j < len(pan); j++ {
-				r.addColumn(nil)
-			}
-			data.addRow(r)
-		}
-	}
-	for i, d := range pan {
+		data.set(0, col, l)
 		for _, o := range d.Up.OWD {
-			var r chartsRow
-			r.addColumn(o.T.Duration().Seconds())
-			for j := 0; j < len(san); j++ {
-				r.addColumn(nil)
-			}
-			for j := 0; j < len(pan); j++ {
-				if j != i {
-					r.addColumn(nil)
-					continue
-				}
-				r.addColumn(float64(o.Delay) / 1000000)
-			}
-			data.addRow(r)
+			data.set(row, 0, o.T.Duration().Seconds())
+			data.set(row, col, float64(o.Delay)/1000000)
+			row++
 		}
+		col++
 	}
+	data.normalize()
 	return
 }
 
@@ -228,24 +207,23 @@ func (g *ChartsFCT) report(ctx context.Context, rw rwer, in <-chan any,
 
 // data returns the chart data.
 func (g *ChartsFCT) data(san []StreamAnalysis) (data chartsData) {
-	var h chartsRow
-	h.addColumn("")
-	for _, s := range g.Series {
-		h.addColumn(s.Name)
+	data.set(0, 0, "Length (kB)")
+	for i, s := range g.Series {
+		data.set(0, i+1, s.Name)
 	}
-	data.addRow(h)
+	row := 1
 	for _, a := range san {
-		var r chartsRow
-		r.addColumn(a.Length.Kilobytes())
+		data.set(row, 0, a.Length.Kilobytes())
+		col := 1
 		for _, s := range g.Series {
 			if s.Match(a.Client.Flow) {
-				r.addColumn(a.FCT.Seconds())
-			} else {
-				r.addColumn(nil)
+				data.set(row, col, a.FCT.Seconds())
 			}
+			col++
 		}
-		data.addRow(r)
+		row++
 	}
+	data.normalize()
 	return
 }
 
@@ -267,20 +245,38 @@ func (s *FlowSeries) Match(flow node.Flow) (matches bool) {
 	return s.rgx.MatchString(string(flow))
 }
 
-// chartsData represents tabular data for use in Google Charts.
+// chartsData represents tabular data for use in Google Charts.  Callers should
+// first use the set method to set any values, then the normalize method to
+// prepare the data for use with Charts.
 type chartsData [][]any
 
-// addRow adds a row to the data.
-func (c *chartsData) addRow(row chartsRow) {
-	*c = append(*c, row)
+// set records the given value in the given row and column, expanding the
+// underlying slice as necessary.
+func (c *chartsData) set(row int, column int, value any) {
+	for i := len(*c) - 1; i < row; i++ {
+		*c = append(*c, []any{})
+	}
+	for i := len((*c)[row]) - 1; i < column; i++ {
+		(*c)[row] = append((*c)[row], nil)
+	}
+	(*c)[row][column] = value
 }
 
-// chartsRow represents the data for a single row.
-type chartsRow []any
-
-// addColumn adds a column to the row.
-func (r *chartsRow) addColumn(v any) {
-	*r = append(*r, v)
+// normalize finalizes the table by equalizing the number of columns for each
+// row, and returns the data for convenience.
+func (c *chartsData) normalize() [][]any {
+	var m int
+	for i := 0; i < len(*c); i++ {
+		if len((*c)[i]) > m {
+			m = len((*c)[i])
+		}
+	}
+	for i := 0; i < len(*c); i++ {
+		for j := len((*c)[i]); j < m; j++ {
+			(*c)[i] = append((*c)[i], nil)
+		}
+	}
+	return *c
 }
 
 // flows wraps []node.Flow with additional functionality.

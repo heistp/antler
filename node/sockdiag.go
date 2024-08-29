@@ -135,7 +135,7 @@ func (m *sampler) Add(addr sockAddr, id TCPInfoID) {
 	m.addr[addr] = id
 }
 
-// TCPFlowInfo contains the flow and orientation information in TCPInfo.
+// TCPInfoID contains the flow and location information in TCPInfo.
 type TCPInfoID struct {
 	Flow     Flow
 	Location Location

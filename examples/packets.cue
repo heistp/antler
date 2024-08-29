@@ -33,7 +33,7 @@ _packets: {
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {
-				"udp": "UDP OWD"
+				"udp": "UDP"
 			}
 			Options: {
 				title: "UDP flow | \(_qdisc)"

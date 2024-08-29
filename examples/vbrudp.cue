@@ -38,9 +38,9 @@ _vbrudp: {
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {
-				"bbr":   "BBR Goodput"
-				"cubic": "CUBIC Goodput"
-				"udp":   "UDP OWD"
+				"bbr":   "BBR"
+				"cubic": "CUBIC"
+				"udp":   "UDP"
 			}
 			Options: {
 				title: "CUBIC vs BBR | \(_rate) bottleneck | \(_rtt)ms Path RTT | \(_qdisc)"

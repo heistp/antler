@@ -109,7 +109,7 @@ func (g *ChartsTimeSeries) data(san []StreamAnalysis, pan []PacketAnalysis) (
 		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		data.set(0, col, l)
+		data.set(0, col, fmt.Sprintf("%s goodput", l))
 		for _, g := range d.GoodputPoint {
 			data.set(row, 0, g.T.Duration().Seconds())
 			data.set(row, col, g.Goodput.Mbps())
@@ -122,7 +122,7 @@ func (g *ChartsTimeSeries) data(san []StreamAnalysis, pan []PacketAnalysis) (
 		if ll, ok := g.FlowLabel[d.Client.Flow]; ok {
 			l = ll
 		}
-		data.set(0, col, l)
+		data.set(0, col, fmt.Sprintf("%s OWD", l))
 		for _, o := range d.Up.OWD {
 			data.set(row, 0, o.T.Duration().Seconds())
 			data.set(row, col, float64(o.Delay)/1000000)

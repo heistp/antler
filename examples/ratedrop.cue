@@ -40,8 +40,8 @@ _ratedrop: {
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {
-				"bbr": "BBR Goodput"
-				"udp": "UDP OWD"
+				"bbr": "BBR"
+				"udp": "UDP"
 			}
 			Options: {
 				title: "BBR Rate Drop \(_rate0) to \(_rate1) | \(_rtt)ms Path RTT | \(_qdisc) "

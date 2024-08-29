@@ -31,9 +31,9 @@ _tcpstream: {
 		{ChartsTimeSeries: {
 			To: ["timeseries.html"]
 			FlowLabel: {
-				"cubic": "CUBIC Goodput"
-				"reno":  "Reno Goodput"
-				"udp":   "UDP OWD"
+				"cubic": "CUBIC"
+				"reno":  "Reno"
+				"udp":   "UDP"
 			}
 			Options: {
 				title: "CUBIC vs Reno / \(_rtt)ms Path RTT / \(_qdisc)"

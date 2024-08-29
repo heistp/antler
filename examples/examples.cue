@@ -14,6 +14,7 @@ Test: [
 	_packets,
 	_vbrudp,
 	_fct,
+	_tcpinfo,
 ]
 
 // MultiReport adds an HTML index file.

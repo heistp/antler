@@ -385,8 +385,9 @@ type Transfer struct {
 	// Length is the number of bytes after which the sender stops writing.
 	Length metric.Bytes
 
-	// IOSampleInterval is the minimum time between IO samples. Zero means a
-	// sample will be recorded for every read and write.
+	// IOSampleInterval is the minimum time between IO samples. Zero disables
+	// IO sampling. A value of 1ns typically means a sample will be recorded for
+	// every read and write.
 	IOSampleInterval metric.Duration
 
 	// TCPInfoInterval is the sampling interval for TCPInfo from Linux. Zero
@@ -442,7 +443,7 @@ func (x Transfer) send(ctx context.Context, conn net.Conn, arg runArg) (
 		n, err = conn.Write(b[:bl])
 		t = metric.Now()
 		l += metric.Bytes(n)
-		if n > 0 {
+		if n > 0 && in > 0 {
 			if time.Duration(t-ts) > in || done {
 				arg.rec.Send(StreamIO{x.Flow, t, l, true})
 				ts = t
@@ -488,7 +489,7 @@ func (x Transfer) receive(ctx context.Context, conn io.ReadWriter, arg runArg) (
 			if b[n-1] == transferFinal {
 				done = true
 			}
-			if time.Duration(t-ts) > in || done || err != nil {
+			if in > 0 && time.Duration(t-ts) > in || done || err != nil {
 				arg.rec.Send(StreamIO{x.Flow, t, l, false})
 				ts = t
 			}

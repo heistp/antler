@@ -24,6 +24,7 @@ and this project adheres to
 - Add fields to node.PacketIO (note: all tests with packet flows must be re-run)
 - Do not echo duplicates in PacketServer
 - Refactor chartsData to automatically equalize rows and columns
+- Make IOSampleInterval optional in case recording stream I/O is not desired
 
 ### Fixed
 

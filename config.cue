@@ -793,11 +793,11 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 
 // node.transfer
 #Transfer: {
-	Duration:         #Duration | *"1m"
-	Length?:          int & >0
-	IOSampleInterval: #Duration | *"100ms"
-	TCPInfoInterval?: #Duration
-	BufLen:           int & >0 | *(1024 * 128)
+	Duration:          #Duration | *"1m"
+	Length?:           int & >0
+	IOSampleInterval?: #Duration
+	TCPInfoInterval?:  #Duration
+	BufLen:            int & >0 | *(1024 * 128)
 	#Stream
 }
 

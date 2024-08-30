@@ -6,16 +6,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to
 [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.6.0 - 2024-08-30
 
 ### Added
 
+- Add support for sampling Linux socket stats via netlink sock_diag subsystem
 - Complete the SSH launcher, with sudo support (see ssh test)
 - Analyze packet results to detect lost, early, late and duplicate packets
+- Implement echo support to measure RTT for packet flows
 - Add packets example using netem to delay, jitter-ify, drop and re-order packets
 - Add packet flow stats to time series plots
 - Add RTT-based wait time to PacketClient to wait for final replies from server
-- Record server-sent and client-received packets
 - Add shell-style escaping support for the System Runner
 
 ### Changed

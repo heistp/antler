@@ -81,11 +81,10 @@ that helps avoid config mistakes and duplication.
 
 ## Status
 
-As of version 0.5.0, many of the core features are implemented, along with some
+As of version 0.6.0, many of the core features are implemented, along with some
 basic tests and visualizations. The [Roadmap](#roadmap) shows future plans.
-Overall, more work is needed to expand and improve the available plots, gather
-better data (with Linux kernel socket stats), stabilize the config and data
-formats, and support platforms other than Linux.
+Overall, more work is needed to expand and improve the available plots,
+stabilize the config and data formats, and support platforms other than Linux.
 
 ## Installation
 
@@ -157,24 +156,15 @@ another language, if required.
 - add an antler _init_ command to create a default project
 - write documentation (in markdown)
 
-### Version 0.6.0
-
-- add support for sampling Linux socket stats via netlink (in C)
-- for packet flows:
-  - record replies and calculate RTT
-  - detect lost and late (out of order) packets
-- complete the SSH launcher, with sudo support, and add an example of its use
-
 ### Inbox
 
 #### Features
 
 - implement traffic generator in C (or rewrite node in Rust)
 - allow writing custom Go templates to generate any plot/report output
-- add more context to plots (flow info, system info, zoom instructions)
+- merge system info and logs into plots
 - add rm command to remove result and update latest symlink
 - add ls command to list results
-- make UDP flood more efficient
 - add admin web UI to run a package of tests
 - add node-side compression support for System runner FileData output
 - handle tests both with and without node-synchronized time
@@ -185,7 +175,6 @@ another language, if required.
 - add log command to emit LogEntry's to stdout
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
-- support multiple nodes in the same namespace
 - add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
 - support MacOS
 - support FreeBSD

@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"os"
 	"sync"
 	"time"
 
@@ -313,7 +312,6 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 					w = time.After(0)
 				}
 			} else {
-				fmt.Fprintf(os.Stderr, "wait: %s\n", c.srtt*3)
 				w = time.After(c.srtt * 3)
 			}
 		}

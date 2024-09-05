@@ -321,8 +321,8 @@ func (c *Encode) encode(name string, rw rwer) (err error) {
 		return
 	}
 	_, err = io.Copy(w, r)
-	if err == nil && c.Destructive && r.Path != w.Path {
-		err = rw.Remove(r.Path)
+	if err == nil && c.Destructive && r.Name != w.Name {
+		err = rw.Remove(r.Name)
 	}
 	return
 }

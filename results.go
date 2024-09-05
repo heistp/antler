@@ -342,8 +342,8 @@ func (r resultRW) Writer(name string) (w *ResultWriter) {
 
 // Remove implements rwer.
 func (r resultRW) Remove(name string) (err error) {
-	if err = os.Remove(name); err == nil {
-		r.addRemoved(r.prefix + name)
+	if err = os.Remove(r.path(name)); err == nil {
+		r.addRemoved(name)
 	}
 	return
 }

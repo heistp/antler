@@ -290,8 +290,10 @@ func (r *Runners) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
 	var u runner
 	if u = r.runner(); u == nil {
-		e := arg.rec.NewErrorf("Run has no runner set")
-		ev <- errorEvent{e, false}
+		// NOTE not returning an error allows empty runner lists
+		//e := arg.rec.NewErrorf("Run has no runner set")
+		//ev <- errorEvent{e, false}
+		ok = true
 		return
 	}
 	arg.rec = arg.rec.WithTag(typeBaseName(u))

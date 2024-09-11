@@ -483,9 +483,9 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	{} | {
 		#Runners
 	} | {
-		Serial?: [#Run, ...#Run]
+		Serial?: [...#Run]
 	} | {
-		Parallel?: [#Run, ...#Run]
+		Parallel?: [...#Run]
 	} | {
 		Schedule?: #Schedule
 	} | {
@@ -505,7 +505,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Random?:     bool
 	Sequential?: bool
 	WaitFirst?:  bool
-	Run: [#Run, ...#Run]
+	Run: [...#Run]
 }
 
 // node.Child defines a Run to execute on a child Node. In this way, entire Run
@@ -589,7 +589,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // If Inherit is true (the default), the environment of the parent process is
 // included.
 #Env: {
-	Vars?:   [string, ...string] & list.MaxItems(16)
+	Vars?:   [...string] & list.MaxItems(16)
 	Inherit: bool | *true
 }
 
@@ -650,7 +650,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // All, if true, means to accept all messages.
 #MessageFilter: {
-	File?: [string, ...string]
+	File?: [...string]
 	Log?:  bool
 	Flow?: #Flow
 	All?:  bool
@@ -685,7 +685,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // implements Texter.
 #Command: {
 	Command?: string & !=""
-	Arg?: [string, ...string]
+	Arg?: [...string]
 }
 
 // node.File represents a file name, and implements Texter.
@@ -723,7 +723,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	MaxPacketSize: #MaxPacketSize
 	Sender: [#PacketSenders, ...#PacketSenders]
 	DS?: int & <=0xFF
-	Sockopt?: [#Sockopt, ...#Sockopt]
+	Sockopt?: [...#Sockopt]
 }
 
 // MaxPacketSize is the maximum size of a received packet for
@@ -743,7 +743,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Wait:        [...#Duration] | *["200ms"]
 	WaitFirst?:  bool
 	RandomWait?: bool
-	Length?: [int, ...int]
+	Length?: [...int]
 	RandomLength?: bool
 	Duration:      #Duration
 	Echo:          bool | *false
@@ -810,7 +810,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Direction: #Direction
 	CCA?:      string & !=""
 	DS?:       int & <=0xFF
-	Sockopt?: [#Sockopt, ...#Sockopt]
+	Sockopt?: [...#Sockopt]
 }
 
 // node.Direction is the sense for a Stream, either "up" (client to server) or

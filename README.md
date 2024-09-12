@@ -160,6 +160,9 @@ another language, if required.
 
 #### Features
 
+- try new evaluator in CUE 0.10 to improve performance during config parsing
+- improve performance of low interval / UDP flood recording and plotting
+- complete overhaul of configuration mechanism?
 - implement traffic generator in C (or rewrite node in Rust)
 - allow writing custom Go templates to generate any plot/report output
 - merge system info and logs into plots

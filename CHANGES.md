@@ -12,6 +12,9 @@ and this project adheres to
 
 ### Changed
 
+- Allow empty runner lists
+- Improve PacketClient efficiency by remove received replies from request map
+
 ### Fixed
 
 - Remove encoded source files from index when Destructive is true

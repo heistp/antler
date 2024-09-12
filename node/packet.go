@@ -354,6 +354,7 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 						c.srtt = time.Duration(
 							a*float64(r) + (1-a)*float64(c.srtt))
 					}
+					delete(c.request, p.Seq)
 				}
 			}
 		case <-ctx.Done():

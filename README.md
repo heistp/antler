@@ -160,6 +160,7 @@ another language, if required.
 
 #### Features
 
+- improve performance of linking prior results in incremental builds
 - try new evaluator in CUE 0.10 to improve performance during config parsing
 - improve performance of low interval / UDP flood recording and plotting
 - complete overhaul of configuration mechanism?

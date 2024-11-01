@@ -482,7 +482,11 @@ func (x Transfer) receive(ctx context.Context, conn io.ReadWriter, arg runArg) (
 	var done bool
 	var n int
 	for !done {
-		n, err = conn.Read(b)
+		r := x.BufLen
+		if x.Length > 0 && x.Length-l < metric.Bytes(x.BufLen) {
+			r = int(x.Length - l)
+		}
+		n, err = conn.Read(b[:r])
 		t := metric.Now()
 		l += metric.Bytes(n)
 		if n > 0 {

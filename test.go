@@ -4,6 +4,7 @@
 package antler
 
 import (
+	"crypto/rand"
 	"encoding/gob"
 	"fmt"
 	"html/template"
@@ -28,6 +29,10 @@ type Test struct {
 	// DataFile is the name of the gob file containing the raw result data. If
 	// empty, raw result data is not saved for the Test.
 	DataFile string
+
+	// HMAC, if true, indicates that all nodes participating in this Test use
+	// HMAC signing, to protect the servers from unauthorized use.
+	HMAC bool
 
 	// Run is the top-level Run instance.
 	node.Run
@@ -338,4 +343,42 @@ func (a AmbiguousNodeIDError) Error() string {
 	sort.Strings(s)
 	return fmt.Sprintf("test %s has ambiguous Node IDs: %s",
 		a.TestID, strings.Join(s, ", "))
+}
+
+// setKeys generates and sets a Test-specific security key on any SetKeyers, for
+// Tests that have HMAC protection enabled.
+func (s Tests) setKeys() (err error) {
+	for i := range s {
+		t := &s[i]
+		if t.HMAC {
+			k := make([]byte, 32)
+			if _, err = rand.Read(k); err != nil {
+				return
+			}
+			setKey(&t.Run, k)
+		}
+	}
+	return
+}
+
+// setKey is called recursively for a Run to call SetKey on any SetKeyers.
+func setKey(run *node.Run, key []byte) {
+	var rr []node.Run
+	switch {
+	case len(run.Serial) > 0:
+		rr = run.Serial
+	case len(run.Parallel) > 0:
+		rr = run.Parallel
+	case run.Schedule != nil:
+		rr = run.Schedule.Run
+	case run.Child != nil:
+		setKey(&run.Child.Run, key)
+		return
+	}
+	for i := range rr {
+		setKey(&rr[i], key)
+	}
+	if k := run.SetKeyer(); k != nil {
+		k.SetKey(key)
+	}
 }

@@ -4,16 +4,27 @@
 package node
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/gob"
 	"fmt"
+	"hash"
 	"io"
+	"math"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/heistp/antler/node/metric"
 )
+
+// nonceLen is the length of nonce values for HMAC verification, in bytes.
+const nonceLen = 32
 
 // StreamServer is the server used for stream oriented protocols.
 type StreamServer struct {
@@ -29,7 +40,12 @@ type StreamServer struct {
 	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
 	Protocol string
 
-	errc chan error
+	// Key is a security key for HMAC verification.
+	Key []byte
+
+	nonce    map[string]struct{}
+	nonceMtx sync.Mutex
+	errc     chan error
 }
 
 // Run implements runner
@@ -43,6 +59,9 @@ func (s *StreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if s.ListenAddrKey != "" {
 		ofb[s.ListenAddrKey] = l.Addr().String()
 	}
+	if len(s.Key) > 0 {
+		s.nonce = make(map[string]struct{})
+	}
 	s.errc = make(chan error)
 	s.start(ctx, l, arg)
 	arg.cxl <- s
@@ -52,6 +71,11 @@ func (s *StreamServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 // Cancel implements canceler
 func (s *StreamServer) Cancel() error {
 	return <-s.errc
+}
+
+// SetKey implements SetKeyer
+func (s *StreamServer) SetKey(key []byte) {
+	s.Key = key
 }
 
 // start starts the main and accept goroutines.
@@ -127,11 +151,63 @@ func (s *StreamServer) serve(ctx context.Context, conn *net.TCPConn,
 		errc <- errDone
 	}()
 	var m streamer
-	d := gob.NewDecoder(conn)
-	if e = d.Decode(&m); e != nil {
+	if m, e = s.header(conn); e != nil {
 		return
 	}
 	e = m.handleServer(ctx, conn, arg)
+}
+
+// header reads the header and returns the streamer read from the header.
+func (s *StreamServer) header(conn *net.TCPConn) (streamer streamer, err error) {
+	var h hash.Hash
+	var m, n []byte
+	if len(s.Key) > 0 {
+		h = hmac.New(sha256.New, s.Key)
+		n = make([]byte, nonceLen)
+		if _, err = io.ReadFull(conn, n); err != nil {
+			return
+		}
+		if !s.validNonce(n) {
+			err = fmt.Errorf("nonce replay:%x from:%s", n, conn.RemoteAddr())
+			return
+		}
+		m = make([]byte, h.Size())
+		if _, err = io.ReadFull(conn, m); err != nil {
+			return
+		}
+	}
+	var l uint16
+	if err = binary.Read(conn, binary.LittleEndian, &l); err != nil {
+		return
+	}
+	b := make([]byte, l)
+	if _, err = io.ReadFull(conn, b); err != nil {
+		return
+	}
+	if h != nil {
+		h.Write(n)
+		h.Write(b)
+		x := h.Sum(nil)
+		if !hmac.Equal(m, x) {
+			err = fmt.Errorf("invalid HMAC:%x from:%s", m, conn.RemoteAddr())
+			return
+		}
+	}
+	d := gob.NewDecoder(bytes.NewReader(b))
+	err = d.Decode(&streamer)
+	return
+}
+
+// validNonce records the given nonce as having been used, and returns true for
+// the first usage.
+func (s *StreamServer) validNonce(nonce []byte) bool {
+	s.nonceMtx.Lock()
+	defer s.nonceMtx.Unlock()
+	if _, ok := s.nonce[string(nonce)]; ok {
+		return false
+	}
+	s.nonce[string(nonce)] = struct{}{}
+	return true
 }
 
 // StreamClient is the client used for stream oriented protocols.
@@ -147,6 +223,9 @@ type StreamClient struct {
 	// Protocol is the protocol to use (tcp, tcp4 or tcp6).
 	Protocol string
 
+	// Key is a security key for HMAC signing.
+	Key []byte
+
 	Streamers
 }
 
@@ -157,9 +236,9 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if a, err = s.addr(arg.ifb); err != nil {
 		return
 	}
-	m := s.streamer()
+	r := s.streamer()
 	d := net.Dialer{}
-	if r, ok := m.(dialController); ok {
+	if r, ok := r.(dialController); ok {
 		d.Control = r.dialControl
 	}
 	var c net.Conn
@@ -186,12 +265,52 @@ func (s *StreamClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 			}
 		}
 	}()
-	e := gob.NewEncoder(c)
-	if err = e.Encode(&m); err != nil {
+	var h []byte
+	if h, err = s.header(r); err != nil {
 		return
 	}
-	err = m.handleClient(ctx, c, arg)
+	if _, err = c.Write(h); err != nil {
+		return
+	}
+	err = r.handleClient(ctx, c, arg)
 	return
+}
+
+// header returns the client header as a byte slice.
+func (s *StreamClient) header(streamer streamer) (hdr []byte, err error) {
+	var b bytes.Buffer // buf to hold gobbed streamer
+	if err = gob.NewEncoder(&b).Encode(&streamer); err != nil {
+		return
+	}
+	if b.Len() > math.MaxUint16 {
+		err = fmt.Errorf("encoded streamer too large, %d > %d",
+			b.Len(), math.MaxUint16)
+		return
+	}
+	r := b.Bytes() // gobbed streamer bytes
+	if len(s.Key) > 0 {
+		n := make([]byte, nonceLen) // nonce
+		if _, err = rand.Read(n); err != nil {
+			return
+		}
+		h := hmac.New(sha256.New, s.Key)
+		h.Write(n)
+		h.Write(r)
+		m := h.Sum(nil)
+		hdr = append(hdr, n...)
+		hdr = append(hdr, m...)
+	}
+	l := uint16(b.Len())
+	if hdr, err = binary.Append(hdr, binary.LittleEndian, l); err != nil {
+		return
+	}
+	hdr = append(hdr, r...)
+	return
+}
+
+// SetKey implements SetKeyer
+func (s *StreamClient) SetKey(key []byte) {
+	s.Key = key
 }
 
 // addr returns the dial address, from either Addr or AddrKey.
@@ -396,6 +515,12 @@ type Transfer struct {
 
 	// BufLen is the size of the buffer used to read and write from the conn.
 	BufLen int
+
+	// Nonce is a secure random number used for client authentication.
+	Nonce []byte
+
+	// HMAC is the hash value for the nonce.
+	HMAC []byte
 
 	Stream
 }

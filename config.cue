@@ -152,6 +152,10 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // minimal gain), but the Test must always be re-run to generate reports, and
 // the report command will not work.
 //
+// HMAC enables or disables HMAC protection for test traffic. Enabling HMAC
+// prevents casual attackers from sending unauthorized traffic to test servers,
+// but does not provide immunity from sophisticated attacks.
+//
 // Run defines the Run hierarchy, and is documented in more detail in #Run.
 //
 // DuringDefault and During are concatenated together to form a pipeline of
@@ -169,6 +173,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	ID?: [string & =~_IDregex]: string & =~_IDregex
 	Path:     string | *"{{range $v := .}}{{$v}}_{{end}}"
 	DataFile: string | *"data.gob"
+	HMAC:     bool | *false
 	#Run
 	During?: [...#Report]
 	DuringDefault: [...#Report] | *[

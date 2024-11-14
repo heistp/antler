@@ -7,9 +7,12 @@ import (
 	"bytes"
 	"container/heap"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
+	"hash"
 	"math/rand"
 	"net"
 	"sync"
@@ -17,6 +20,10 @@ import (
 
 	"github.com/heistp/antler/node/metric"
 )
+
+// maxFlowID is the maximum length of a flow ID.  This is kept short as flow IDs
+// are used in test packets and to record data points.
+const maxFlowID = 16
 
 // Seq is a packet sequence number.
 type Seq uint64
@@ -83,6 +90,9 @@ type PacketHeader struct {
 
 	// Flow is the flow identifier, and corresponds to a client and server pair.
 	Flow Flow
+
+	// hmac is the hash to use for message authentication, or nil if disabled.
+	hmac hash.Hash
 }
 
 // Write implements io.Writer to "write" from bytes to the packet.
@@ -91,13 +101,31 @@ func (p *PacketHeader) Write(b []byte) (n int, err error) {
 		err = fmt.Errorf("packet header len %d > buf len %d", p.Len(), len(b))
 		return
 	}
-	if !bytes.Equal(b[0:7], packetMagic) {
-		err = fmt.Errorf("invalid packet magic: %x", b[0:7])
+	i := 0
+	if !bytes.Equal(b[i:i+len(packetMagic)], packetMagic) {
+		err = fmt.Errorf("invalid packet magic:%x flow:%d seq:%d",
+			b[i:i+len(packetMagic)], p.Flow, p.Seq)
 	}
-	p.Flag = PacketFlag(b[7])
-	p.Seq = Seq(binary.LittleEndian.Uint64(b[8:16]))
-	p.Sender = int(binary.LittleEndian.Uint16(b[16:18]))
-	p.Flow = Flow(string(b[19 : 19+b[18]]))
+	i += len(packetMagic)
+	p.Flag = PacketFlag(b[i])
+	i++
+	p.Seq = Seq(binary.LittleEndian.Uint64(b[i : i+8]))
+	i += 8
+	p.Sender = int(binary.LittleEndian.Uint16(b[i : i+2]))
+	i += 2
+	l := int(b[i])
+	i++
+	p.Flow = Flow(string(b[i : i+l]))
+	i += l
+	if p.hmac != nil {
+		p.hmac.Reset()
+		p.hmac.Write(b[:i])
+		h := b[i : i+p.hmac.Size()]
+		x := p.hmac.Sum(nil)
+		if !hmac.Equal(h, x) {
+			err = fmt.Errorf("invalid HMAC:%x flow:%d seq:%d", h, p.Flow, p.Seq)
+		}
+	}
 	n = p.Len()
 	return
 }
@@ -108,23 +136,40 @@ func (p *PacketHeader) Read(b []byte) (n int, err error) {
 		err = fmt.Errorf("buf len %d < packet header len %d", len(b), p.Len())
 		return
 	}
-	if len(p.Flow) > 16 {
-		err = fmt.Errorf("flow name %s > 16 characters", p.Flow)
+	if len(p.Flow) > maxFlowID {
+		err = fmt.Errorf("flow ID %s > 16 characters", p.Flow)
 		return
 	}
-	copy(b, packetMagic)
-	b[7] = byte(p.Flag)
-	binary.LittleEndian.PutUint64(b[8:16], uint64(p.Seq))
-	binary.LittleEndian.PutUint16(b[16:18], uint16(p.Sender))
-	b[18] = byte(len(p.Flow))
-	copy(b[19:], []byte(p.Flow))
+	i := 0
+	copy(b[i:], packetMagic)
+	i += len(packetMagic)
+	b[i] = byte(p.Flag)
+	i++
+	binary.LittleEndian.PutUint64(b[i:i+8], uint64(p.Seq))
+	i += 8
+	binary.LittleEndian.PutUint16(b[i:i+2], uint16(p.Sender))
+	i += 2
+	b[i] = byte(len(p.Flow))
+	i++
+	copy(b[i:], []byte(p.Flow))
+	i += len(p.Flow)
+	if p.hmac != nil {
+		p.hmac.Reset()
+		p.hmac.Write(b[:i])
+		h := p.hmac.Sum(nil)
+		copy(b[i:], h)
+	}
 	n = p.Len()
 	return
 }
 
 // Len returns the length of the header, in bytes.
 func (p *PacketHeader) Len() int {
-	return len(packetMagic) + 1 + 8 + 2 + 1 + len(p.Flow)
+	l := len(packetMagic) + 1 + 8 + 2 + 1 + len(p.Flow)
+	if p.hmac != nil {
+		l += p.hmac.Size()
+	}
+	return l
 }
 
 // PacketServer is the server used for packet oriented protocols.
@@ -139,6 +184,10 @@ type PacketServer struct {
 	// MaxPacketSize is the maximum size of a received packet.
 	MaxPacketSize int
 
+	// Key is a security key for HMAC verification.
+	Key []byte
+
+	hmac hash.Hash
 	errc chan error
 }
 
@@ -150,6 +199,9 @@ func (s *PacketServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	if c, err = g.ListenPacket(ctx, s.Protocol, s.ListenAddr); err != nil {
 		return
 	}
+	if len(s.Key) > 0 {
+		s.hmac = hmac.New(sha256.New, s.Key)
+	}
 	s.errc = make(chan error)
 	s.start(ctx, c, arg.rec)
 	arg.cxl <- s
@@ -159,6 +211,11 @@ func (s *PacketServer) Run(ctx context.Context, arg runArg) (ofb Feedback,
 // Cancel implements canceler
 func (s *PacketServer) Cancel() error {
 	return <-s.errc
+}
+
+// SetKey implements SetKeyer
+func (s *PacketServer) SetKey(key []byte) {
+	s.Key = key
 }
 
 // start starts the main and packet handling goroutines.
@@ -204,8 +261,9 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 			}
 			close(ec)
 		}()
-		f := make(map[Flow]struct{})
+		f := make(map[Flow]net.Addr)
 		var p Packet
+		p.hmac = s.hmac
 		var n int
 		var a net.Addr
 		b := make([]byte, s.MaxPacketSize)
@@ -215,12 +273,17 @@ func (s *PacketServer) start(ctx context.Context, conn net.PacketConn,
 				return
 			}
 			t := metric.Now()
-			if _, e = p.Write(b[:n]); e != nil {
-				return
+			if _, we := p.Write(b[:n]); we != nil {
+				rec.Logf("dropped packet due to decoding error: %s", we)
+				continue
 			}
-			if _, ok := f[p.Flow]; !ok {
+			if a2, ok := f[p.Flow]; !ok {
 				rec.Send(PacketInfo{metric.Tinit, p.Flow, true})
-				f[p.Flow] = struct{}{}
+				f[p.Flow] = a
+			} else if a2.String() != a.String() {
+				rec.Logf("dropped packet after address change for flow %s, this:%s != original:%s",
+					p.Flow, a, a2)
+				continue
 			}
 			rec.Send(PacketIO{p, t, true, false})
 			if p.Flag&FlagEcho != 0 {
@@ -262,7 +325,11 @@ type PacketClient struct {
 	// Sockopts provides support for socket options.
 	Sockopts
 
+	// Key is a security key for HMAC signing.
+	Key []byte
+
 	conn    net.Conn          // connection
+	hmac    hash.Hash         // hash to use for HMAC signing
 	request map[Seq]time.Time // echo request send times
 	srtt    time.Duration     // smoothed RTT
 	rec     *recorder         // recorder
@@ -277,6 +344,9 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	dl := net.Dialer{Control: c.dialControl}
 	if c.conn, err = dl.DialContext(ctx, c.Protocol, c.Addr); err != nil {
 		return
+	}
+	if len(c.Key) > 0 {
+		c.hmac = hmac.New(sha256.New, c.Key)
 	}
 	c.request = make(map[Seq]time.Time)
 	c.rec = arg.rec
@@ -364,6 +434,11 @@ func (c *PacketClient) Run(ctx context.Context, arg runArg) (ofb Feedback,
 	return
 }
 
+// SetKey implements SetKeyer
+func (c *PacketClient) SetKey(key []byte) {
+	c.Key = key
+}
+
 // read is the entry point for the conn read goroutine.
 func (c *PacketClient) read(rec *recorder) (
 	rc chan Packet) {
@@ -406,7 +481,8 @@ func (c *PacketClient) send(length int, echo bool) (seq Seq, err error) {
 	if echo {
 		f |= FlagEcho
 	}
-	p := Packet{PacketHeader{f, seq, c.sender, c.Flow}, length, nil, false, nil}
+	p := Packet{PacketHeader{f, seq, c.sender, c.Flow, c.hmac},
+		length, nil, false, nil}
 	b := make([]byte, c.MaxPacketSize)
 	var n int
 	if n, err = p.Read(b); err != nil {
@@ -474,7 +550,10 @@ func (q *packetTimerQ) Pop() any {
 	return t
 }
 
-// A packetSender can send outgoing packets.  TODO complete doc
+// A packetSender can send outgoing packets.  Implementations may call the
+// client to send packets or schedule additional sends.  At is the time the
+// method is called, and implementations should use this for scheduling
+// instead of the current time.
 type packetSender interface {
 	send(client *PacketClient, at time.Time, data any) error
 }
@@ -524,7 +603,7 @@ type Unresponsive struct {
 	rand        *rand.Rand // random number source
 }
 
-// start implements packetSender.
+// send implements packetSender.
 func (u *Unresponsive) send(client *PacketClient, at time.Time,
 	data any) (err error) {
 	s := true // send

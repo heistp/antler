@@ -285,6 +285,17 @@ func (r *Runners) runner() runner {
 	return nil
 }
 
+// SetKeyer returns the only non-nil runner implementation as a SetKeyer, or nil
+// if it does not exist or is not a SetKeyer.
+func (r *Runners) SetKeyer() (sk SetKeyer) {
+	var u runner
+	if u = r.runner(); u == nil {
+		return
+	}
+	sk, _ = u.(SetKeyer)
+	return
+}
+
 // do executes the runner.
 func (r *Runners) do(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
@@ -349,6 +360,13 @@ type cancelFunc func() error
 // Cancel implements canceler
 func (c cancelFunc) Cancel() error {
 	return c()
+}
+
+// SetKeyer is the interface that wraps the SetKey method. If a runner
+// implements SetKeyer, it will be called to set a secure random key that's
+// global to the antler instance, and thus shared by all nodes.
+type SetKeyer interface {
+	SetKey([]byte)
 }
 
 // Feedback contains key/value pairs, which are returned by runners for use by

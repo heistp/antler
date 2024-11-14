@@ -47,6 +47,9 @@ func (c *Config) validate() (err error) {
 	if err = c.Test.validateNodeIDs(); err != nil {
 		return
 	}
+	if err = c.Test.setKeys(); err != nil {
+		return
+	}
 	return
 }
 

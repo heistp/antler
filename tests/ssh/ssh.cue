@@ -31,4 +31,6 @@ Test: [{
 	DataFile: ""
 	// remove default reporters to skip writing any files
 	AfterDefault: []
+	// enable HMAC protection
+	HMAC: true
 }]

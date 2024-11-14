@@ -10,6 +10,8 @@ and this project adheres to
 
 ### Added
 
+- Add HMAC signing to protect test servers against unauthorized use
+
 ### Changed
 
 - Allow empty runner lists

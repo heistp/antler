@@ -228,6 +228,11 @@ func (u doRun) run(ctx context.Context, test *Test) (src reporter, err error) {
 	d := make(chan any, dataChanBufLen)
 	ctx, x := context.WithCancelCause(ctx)
 	defer x(nil)
+	if test.Timeout > 0 {
+		var t context.CancelFunc
+		ctx, t = context.WithTimeout(ctx, test.Timeout.Duration())
+		defer t()
+	}
 	go node.Do(ctx, &test.Run, &exeSource{}, d)
 	for e := range p.pipeline(ctx, rw, d, nil) {
 		x(e)

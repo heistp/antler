@@ -11,16 +11,19 @@ and this project adheres to
 ### Added
 
 - Add HMAC signing to protect test servers against unauthorized use
+- Add test timeouts (see #Test.Timeout) and exerciser in tests/timeout
 
 ### Changed
 
 - Allow empty runner lists
 - Improve PacketClient efficiency by remove received replies from request map
+- StreamServer only reads up to Length bytes from client, when Length > 0
 
 ### Fixed
 
 - Remove encoded source files from index when Destructive is true
 - Remove debug line from PacketClient
+- Encode StreamHeader before sending, so only header bytes are written by gob
 
 ## 0.6.0 - 2024-08-30
 

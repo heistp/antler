@@ -158,6 +158,10 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 //
 // Run defines the Run hierarchy, and is documented in more detail in #Run.
 //
+// Timeout sets the maximum amount of time the Test can run for, and defaults
+// to 11 minutes, to comfortably accommodate 10 minute Tests.  A timeout of 0
+// disables the timeout.
+//
 // DuringDefault and During are concatenated together to form a pipeline of
 // Reports that are run *while* the Test is run. They may not be used to
 // generate saved reports from result data, otherwise those reports would be
@@ -175,6 +179,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	DataFile: string | *"data.gob"
 	HMAC:     bool | *false
 	#Run
+	Timeout: #Duration | *"660s"
 	During?: [...#Report]
 	DuringDefault: [...#Report] | *[
 			{SaveFiles: {Consume: true}},

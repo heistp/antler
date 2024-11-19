@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/heistp/antler/node"
+	"github.com/heistp/antler/node/metric"
 )
 
 // Test is an Antler test.
@@ -36,6 +37,9 @@ type Test struct {
 
 	// Run is the top-level Run instance.
 	node.Run
+
+	// Timeout is the maximum amount of time the Test can run for.
+	Timeout metric.Duration
 
 	// DuringDefault is the first part of a pipeline of Reports run while the
 	// Test runs.

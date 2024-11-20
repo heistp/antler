@@ -7,12 +7,17 @@ package antler
 
 import (
 	"context"
+	"embed"
+	_ "embed"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
+	"text/template"
 	"time"
 
 	"cuelang.org/go/cue/load"
@@ -22,6 +27,9 @@ import (
 // dataChanBufLen is used as the buffer length for data channels.
 const dataChanBufLen = 64
 
+//go:embed init/*.cue
+var initCue embed.FS
+
 // Run runs an Antler Command.
 func Run(ctx context.Context, cmd Command) error {
 	return cmd.run(ctx)
@@ -30,6 +38,94 @@ func Run(ctx context.Context, cmd Command) error {
 // A Command is an Antler command.
 type Command interface {
 	run(context.Context) error
+}
+
+// InitCommand creates a new test package in the current directory.
+type InitCommand struct {
+	Package string // package name, or empty for parent directory name
+
+	// WritingPackage is called before the package is written.
+	WritingPackage func(pkg string)
+
+	// WrotePackage is called after the package was written.
+	WrotePackage func(pkg string)
+
+	// WritingFile is called before a package file is written.
+	WritingFile func(name string)
+
+	// WroteFile is called after a package file was written.
+	WroteFile func(name string)
+}
+
+// run implements command
+func (c *InitCommand) run(context.Context) (err error) {
+	// return an error if cwd isn't empty
+	var d *os.File
+	if d, err = os.Open("."); err != nil {
+		return
+	}
+	defer d.Close()
+	if _, err = d.Readdirnames(1); err == nil {
+		err = fmt.Errorf("current directory must be empty")
+	}
+	if err != io.EOF {
+		return
+	}
+	err = nil
+
+	// determine package name if not set
+	if c.Package == "" {
+		var d string
+		if d, err = os.Getwd(); err != nil {
+			return
+		}
+		c.Package = filepath.Base(d)
+	}
+
+	// write template tree locally
+	var s fs.FS
+	if s, err = fs.Sub(initCue, "init"); err != nil {
+		return
+	}
+	if c.WritingPackage != nil {
+		c.WritingPackage(c.Package)
+	}
+	w := func(path string, d fs.DirEntry, e error) (err error) {
+		if e != nil {
+			err = e
+			return
+		}
+		if d.IsDir() {
+			return
+		}
+		var t *template.Template
+		if t, err = template.ParseFS(s, path); err != nil {
+			return
+		}
+		n := path
+		if n == "init.cue" {
+			n = c.Package + ".cue"
+		}
+		if c.WritingFile != nil {
+			c.WritingFile(n)
+		}
+		var f *os.File
+		if f, err = os.Create(n); err != nil {
+			return
+		}
+		defer f.Close()
+		if err = t.Execute(f, c); err == nil && c.WroteFile != nil {
+			c.WroteFile(n)
+		}
+		return
+	}
+	if err = fs.WalkDir(s, ".", w); err != nil {
+		return
+	}
+	if c.WrotePackage != nil {
+		c.WrotePackage(c.Package)
+	}
+	return
 }
 
 // VetCommand loads and checks the CUE config.

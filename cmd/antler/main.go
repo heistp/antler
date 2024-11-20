@@ -28,12 +28,38 @@ func root() (cmd *cobra.Command) {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	cmd.AddCommand(initCmd())
 	cmd.AddCommand(vet())
 	cmd.AddCommand(list())
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
 	cmd.AddCommand(server())
 	cmd.Version = version.Version()
+	return
+}
+
+func initCmd() (cmd *cobra.Command) {
+	c := context.Background()
+	i := antler.InitCommand{
+		WritingPackage: func(pkg string) {
+			fmt.Printf("Writing package '%s'\n", pkg)
+		},
+		WritingFile: func(name string) {
+			fmt.Printf("Writing file '%s'\n", name)
+		},
+		WrotePackage: func(pkg string) {
+			fmt.Println("Done!")
+		},
+	}
+	cmd = &cobra.Command{
+		Use:   "init",
+		Short: "Creates a new sample test package in the current directory",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return antler.Run(c, &i)
+		},
+	}
+	cmd.Flags().StringVarP(&i.Package, "package", "p", "",
+		"package name (defaults to current directory name)")
 	return
 }
 

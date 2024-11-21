@@ -87,8 +87,7 @@ _ratedrop: {
 			"tc class add dev mid.r parent 1: classid 1:1 htb rate \(_rate0) quantum \(_quantum)",
 			"tc qdisc add dev mid.r parent 1:1 \(_qdisc)",
 		]
-		right: post: [
-		]
+		right: post: []
 	}
 
 	// _server runs StreamServer in the right namespace
@@ -96,7 +95,7 @@ _ratedrop: {
 		Child: {
 			Node: _rig.right.node
 			Serial: [
-				_tcpdump & {_iface:         "right.l"},
+				_tcpdump & {_iface: "right.l"},
 				{StreamServer: {ListenAddr: _rig.serverAddr}},
 				{PacketServer: {ListenAddr: _rig.serverAddr}},
 			]
@@ -110,7 +109,7 @@ _ratedrop: {
 				Node: _rig.left.node
 				Serial: [
 					_tcpdump & {_iface: "left.r"},
-					{Sleep:             "1s"},
+					{Sleep: "1s"},
 					{Parallel: [
 						{PacketClient: {
 							Addr: _rig.serverAddr
@@ -138,11 +137,11 @@ _ratedrop: {
 			{Child: {
 				Node: _rig.mid.node
 				Serial: [
-					{Sleep: "\(_duration/3)s"},
+					{Sleep: "\(div(_duration, 3))s"},
 					{System: Command:
 						"tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate1) quantum \(_quantum)"
 					},
-					{Sleep: "\(_duration/3)s"},
+					{Sleep: "\(div(_duration, 3))s"},
 					{System: Command:
 						"tc class change dev mid.r parent 1: classid 1:1 htb rate \(_rate0) quantum \(_quantum)"
 					},

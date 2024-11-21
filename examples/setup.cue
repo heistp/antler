@@ -3,6 +3,8 @@
 
 package examples
 
+import "list"
+
 // _platform sets the node platform used for all tests (must match the local
 // machine).
 _platform: "linux-amd64"
@@ -52,7 +54,7 @@ _dumbbell: {
 		Serial: [
 			_stream,
 			_sysinfo,
-			for n in [ right, mid, left] {
+			for n in [right, mid, left] {
 				Child: {
 					Node: n.node
 					Serial: [
@@ -66,46 +68,55 @@ _dumbbell: {
 
 	right: {
 		post: [...string]
-		node:  _netnsNode & {ID: "right"}
-		addr:  "10.0.0.2"
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link add dev right.l type veth peer name mid.r",
-			"ip link set dev mid.r netns mid",
-			"ip addr add \(addr)/24 dev right.l",
-			"ip link set right.l up",
-			"ethtool -K right.l \(_offloads)",
-		] + post
+		node: _netnsNode & {ID: "right"}
+		addr: "10.0.0.2"
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip link add dev right.l type veth peer name mid.r",
+				"ip link set dev mid.r netns mid",
+				"ip addr add \(addr)/24 dev right.l",
+				"ip link set right.l up",
+				"ethtool -K right.l \(_offloads)",
+			],
+			post,
+		])
 	}
 
 	mid: {
 		post: [...string]
-		node:  _netnsNode & {ID: "mid"}
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip link set mid.r up",
-			"ip link add dev mid.l type veth peer name left.r",
-			"ip link set dev left.r netns left",
-			"ip link set dev mid.l up",
-			"ip link add name mid.b type bridge",
-			"ip link set dev mid.r master mid.b",
-			"ip link set dev mid.l master mid.b",
-			"ip link set dev mid.b up",
-			"ethtool -K mid.r \(_offloads)",
-			"ethtool -K mid.l \(_offloads)",
-		] + post
+		node: _netnsNode & {ID: "mid"}
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip link set mid.r up",
+				"ip link add dev mid.l type veth peer name left.r",
+				"ip link set dev left.r netns left",
+				"ip link set dev mid.l up",
+				"ip link add name mid.b type bridge",
+				"ip link set dev mid.r master mid.b",
+				"ip link set dev mid.l master mid.b",
+				"ip link set dev mid.b up",
+				"ethtool -K mid.r \(_offloads)",
+				"ethtool -K mid.l \(_offloads)",
+			],
+			post,
+		])
 	}
 
 	left: {
 		post: [...string]
-		node:  _netnsNode & {ID: "left"}
-		addr:  "10.0.0.1"
-		setup: [
-			"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
-			"ip addr add \(addr)/24 dev left.r",
-			"ip link set left.r up",
-			"ethtool -K left.r \(_offloads)",
-			"ping -c 3 -i 0.1 \(_dumbbell.right.addr)",
-		] + post
+		node: _netnsNode & {ID: "left"}
+		addr: "10.0.0.1"
+		setup: list.Concat([
+			[
+				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
+				"ip addr add \(addr)/24 dev left.r",
+				"ip link set left.r up",
+				"ethtool -K left.r \(_offloads)",
+				"ping -c 3 -i 0.1 \(_dumbbell.right.addr)",
+			],
+			post,
+		])
 	}
 }

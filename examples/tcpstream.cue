@@ -79,8 +79,7 @@ _tcpstream: {
 			"tc filter add dev mid.l parent ffff: protocol all prio 10 u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev imid.l",
 			"tc qdisc add dev mid.r root \(_qdisc)",
 		]
-		right: post: [
-		]
+		right: post: []
 	}
 
 	// _server runs StreamServer in the right namespace
@@ -88,7 +87,7 @@ _tcpstream: {
 		Child: {
 			Node: _rig.right.node
 			Serial: [
-				_tcpdump & {_iface:         "right.l"},
+				_tcpdump & {_iface: "right.l"},
 				{StreamServer: {ListenAddr: _rig.serverAddr}},
 				{PacketServer: {ListenAddr: _rig.serverAddr}},
 			]
@@ -101,7 +100,7 @@ _tcpstream: {
 			Node: _rig.left.node
 			Serial: [
 				_tcpdump & {_iface: "left.r"},
-				{Sleep:             "1s"},
+				{Sleep: "1s"},
 				{Parallel: [
 					{PacketClient: {
 						Addr: _rig.serverAddr
@@ -125,13 +124,13 @@ _tcpstream: {
 						}
 					}},
 					{Serial: [
-						{Sleep: "\(_duration/3)s"},
+						{Sleep: "\(div(_duration, 3))s"},
 						{StreamClient: {
 							Addr: _rig.serverAddr
 							Upload: {
 								Flow:             "reno"
 								CCA:              "reno"
-								Duration:         "\(_duration/3)s"
+								Duration:         "\(div(_duration, 3))s"
 								IOSampleInterval: "\(_rtt*4)ms"
 							}
 						}},

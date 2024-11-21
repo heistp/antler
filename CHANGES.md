@@ -19,6 +19,7 @@ and this project adheres to
 - Allow empty runner lists
 - Improve PacketClient efficiency by remove received replies from request map
 - StreamServer only reads up to Length bytes from client, when Length > 0
+- Split DS field into DSCP and ECN, which are shifted and OR'd to set IP_TOS
 
 ### Fixed
 

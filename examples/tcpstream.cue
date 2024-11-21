@@ -112,7 +112,8 @@ _tcpstream: {
 								Duration: "\(_duration)s"
 							}},
 						]
-						DS: 0x28
+						DSCP: 10 // AF11
+						ECN:  2  // ECT(0)
 					}},
 					{StreamClient: {
 						Addr: _rig.serverAddr

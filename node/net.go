@@ -68,8 +68,15 @@ type Sockopts struct {
 	// Sockopt lists the generic socket options to set.
 	Sockopt []Sockopt
 
-	// DS is the value to set for the DS (ToS/Traffic Class) byte.
-	DS int
+	// DSCP is the value of the Differentiated services codepoint.  This value
+	// is left shifted two places and and OR'd with the ECN field to set in the
+	// former ToS byte.
+	DSCP byte
+
+	// ECN is the value of the ECN field.  This value is masked to retain only
+	// the lowest order two bits, and OR'd with the left-shifted DSCP value to
+	// set the former ToS byte.
+	ECN byte
 
 	// CCA is the sender's Congestion Control Algorithm (TCP only).
 	CCA string
@@ -81,9 +88,9 @@ func (s Sockopts) sockopt() (opt []Sockopt) {
 		opt = append(opt, Sockopt{"string", unix.IPPROTO_TCP,
 			unix.TCP_CONGESTION, "CCA", s.CCA})
 	}
-	if s.DS != 0 {
-		opt = append(opt, Sockopt{"int", unix.IPPROTO_IP,
-			unix.IP_TOS, "ToS", s.DS})
+	if s.DSCP != 0 || s.ECN != 0 {
+		t := int((s.DSCP << 2) | (s.ECN & 0x3))
+		opt = append(opt, Sockopt{"int", unix.IPPROTO_IP, unix.IP_TOS, "ToS", t})
 	}
 	opt = append(opt, s.Sockopt...)
 	return

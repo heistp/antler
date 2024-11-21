@@ -732,7 +732,8 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	Flow:          #Flow
 	MaxPacketSize: #MaxPacketSize
 	Sender: [#PacketSenders, ...#PacketSenders]
-	DS?: int & <=0xFF
+	DSCP?: int & <=0x3F
+	ECN?:  int & <=0x3
 	Sockopt?: [...#Sockopt]
 }
 
@@ -812,14 +813,26 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 }
 
 // node.Stream defines a stream flow. Flow and Direction are described in their
-// corresponding definitions. CCA is the Congestion Control Algorithm to use.
-// DS is the value for the DS field (ToS byte for IPv4, or Traffic Class for
-// IPv6). Sockopt may be used to set generic socket options.
+// corresponding definitions.
+//
+// CCA is the Congestion Control Algorithm to use.
+//
+// DSCP is the value for the Differentiated services codepoint.  This value is
+// left shifted two places into the upper 6 bits of the former ToS byte /
+// Traffic Class field.
+//
+// ECN is the value of the ECN field, and is used for the lowest two bits of
+// the former ToS byte / Traffic Class field.  This is ordinarily set by
+// enabling ECN on a socket or globally, but is included here for overriding
+// the field for testing purposes.
+//
+// Sockopt may be used to set generic socket options.
 #Stream: {
 	Flow:      #Flow
 	Direction: #Direction
 	CCA?:      string & !=""
-	DS?:       int & <=0xFF
+	DSCP?:     int & <=0x3F
+	ECN?:      int & <=0x3
 	Sockopt?: [...#Sockopt]
 }
 

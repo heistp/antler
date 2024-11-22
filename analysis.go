@@ -14,6 +14,9 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
+// LinuxSSThreshInfinity is the initial value of ssthresh in Linux.
+const LinuxSSThreshInfinity = 2147483647
+
 // Analyze is a reporter that processes stream and packet data for reports.
 // This must be in the Report pipeline *before* reporters that require it.
 type Analyze struct {
@@ -117,6 +120,7 @@ type StreamAnalysis struct {
 	RtxCumAvg    []rtxCumAvg
 	FCT          metric.Duration
 	Length       metric.Bytes
+	SSExitTime   metric.RelativeTime
 }
 
 // T0 returns the earliest absolute time from Sent or Rcvd.
@@ -227,10 +231,18 @@ func (m *streams) analyze() {
 			s.GoodputPoint = append(s.GoodputPoint, GoodputPoint{r.T, g})
 			pr = r
 		}
+		var sx bool
 		for i := 0; i < len(s.TCPInfo); i++ {
 			t := s.TCPInfo[i]
 			r := float64(t.TotalRetransmits) / t.T.Duration().Seconds()
 			s.RtxCumAvg = append(s.RtxCumAvg, rtxCumAvg{t.T, r})
+			if !sx && t.SendSSThresh < LinuxSSThreshInfinity {
+				s.SSExitTime = t.T
+				sx = true
+			}
+		}
+		if !sx {
+			s.SSExitTime = metric.RelativeTime(-1)
 		}
 		if len(s.Rcvd) > 0 {
 			s.Length = s.Rcvd[len(s.Rcvd)-1].Total

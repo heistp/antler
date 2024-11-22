@@ -250,6 +250,11 @@ type TCPInfo struct {
 	// RTTVar is the round-trip time variance, from tcpi_rttvar.
 	RTTVar time.Duration
 
+	// SendSSThresh is the sending slow start threshold in packets, from
+	// tcpi_snd_ssthresh. This starts at 2147483647 (2^31 - 1) and changes to
+	// some value after slow start exit.
+	SendSSThresh int
+
 	// TotalRetransmits is the total number of retransmits, from
 	// tcpi_total_retrans.
 	TotalRetransmits int
@@ -279,6 +284,7 @@ func newTCPInfo(id TCPInfoID, t metric.RelativeTime, st time.Duration,
 		st,
 		time.Duration(time.Duration(ti.tcpi_rtt) * time.Microsecond),
 		time.Duration(time.Duration(ti.tcpi_rttvar) * time.Microsecond),
+		int(ti.tcpi_snd_ssthresh),
 		int(ti.tcpi_total_retrans),
 		metric.Bitrate(ti.tcpi_delivery_rate * 8),
 		metric.Bitrate(ti.tcpi_pacing_rate * 8),
@@ -304,14 +310,15 @@ func (t TCPInfo) handle(node *node) {
 
 func (t TCPInfo) String() string {
 	return fmt.Sprintf("TCPInfo[Flow:%s Location:%s T:%s SampleTime:%s "+
-		"RTT:%s RTTVar:%s TotalRetransmits:%d DeliveryRate:%s PacingRate: %s "+
-		"SendCwnd:%d SendMSS:%s]",
+		"RTT:%s RTTVar:%s SendSSThresh:%d TotalRetransmits:%d DeliveryRate:%s "+
+		"PacingRate:%s SendCwnd:%d SendMSS:%s]",
 		t.Flow,
 		t.Location,
 		t.T,
 		t.SampleTime,
 		t.RTT,
 		t.RTTVar,
+		t.SendSSThresh,
 		t.TotalRetransmits,
 		t.DeliveryRate,
 		t.PacingRate,

@@ -47,6 +47,7 @@
     <tr>
       <th>ID</th>
       <th>T<sub>0</sub> (Sec.)</th>
+      <th>T<sub>ssexit</sub> (Sec.)</th>
       <th>Completion Time (Sec.)</th>
       <th>Length (Bytes)</th>
       <th>Goodput (Mbps)</th>
@@ -55,6 +56,11 @@
     <tr>
       <td>{{.Flow}}</td>
       <td>{{(index .Sent 0).T.Duration.Seconds}}</td>
+      <td>
+        {{with .SSExitTime.Duration.Seconds}}
+          {{if ge . 0.0}}{{.}}{{else}}n/a{{end}}
+        {{end}}
+      </td>
       <td>{{.FCT.Seconds}}</td>
       <td>{{.Length.Bytes}}</td>
       <td>{{.Goodput.Mbps}}</td>

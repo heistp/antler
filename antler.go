@@ -16,9 +16,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"text/template"
 	"time"
+	"unicode"
 
 	"cuelang.org/go/cue/load"
 	"github.com/heistp/antler/node"
@@ -79,7 +82,7 @@ func (c *InitCommand) run(context.Context) (err error) {
 		if d, err = os.Getwd(); err != nil {
 			return
 		}
-		c.Package = filepath.Base(d)
+		c.Package = validIdentifier(filepath.Base(d))
 	}
 
 	// write template tree locally
@@ -126,6 +129,28 @@ func (c *InitCommand) run(context.Context) (err error) {
 		c.WrotePackage(c.Package)
 	}
 	return
+}
+
+// validIdentifier returns a valid Go identifier for the given string.
+func validIdentifier(s string) string {
+	// Remove any leading or trailing whitespace
+	s = strings.TrimSpace(s)
+
+	// Replace non-alphanumeric characters (except underscores) with underscores
+	re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+	s = re.ReplaceAllString(s, "_")
+
+	// Return a default identifier for an empty string
+	if len(s) == 0 {
+		return "_"
+	}
+
+	// Ensure the identifier starts with a letter or underscore
+	if !unicode.IsLetter(rune(s[0])) && s[0] != '_' {
+		s = "_" + s
+	}
+
+	return s
 }
 
 // VetCommand loads and checks the CUE config.

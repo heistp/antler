@@ -128,6 +128,7 @@ _mix: {
 								]
 								Length: [1458]
 								Duration: "\(_duration)s"
+								Echo: true
 							}},
 						]
 					}},

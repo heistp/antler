@@ -213,7 +213,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 }
 
 // antler.Analyze is a report that analyzes data used by other reports. This
-// must be in the Report pipeline *before* reporters that require it.
+// must be in the Report pipeline *before* reports that require it.
 #Analyze: {
 }
 

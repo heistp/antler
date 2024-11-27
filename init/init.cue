@@ -5,7 +5,9 @@ package {{.Package}}
 
 // Tests lists the tests to run.
 Test: [
-	_mix
+	for r in [10, 20] {
+		_mix & {_rtt: r}
+	}
 ]
 
 // MultiReport adds an HTML index file.

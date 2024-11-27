@@ -5,7 +5,7 @@ package {{.Package}}
 // namespace) has single queue CoDel added, without ECN.
 _mix: {
 	// _rtt is the path RTT, in milliseconds
-	_rtt: 20
+	_rtt: int
 
 	// _duration is the test duration in seconds
 	_duration: 60
@@ -17,7 +17,11 @@ _mix: {
 	_qdisc: "codel noecn"
 
 	// ID is the Test ID.
-	ID: name: "mix"
+	ID: {
+		name: "mix"
+		rtt: "\(_rtt)ms"
+	}
+	Path: "{{ "{{.name}}_{{.rtt}}_" }}"
 
 	Serial: [
 		_rig.setup,

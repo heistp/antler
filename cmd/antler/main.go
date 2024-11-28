@@ -203,7 +203,7 @@ func report() (cmd *cobra.Command) {
 		},
 	}
 	return &cobra.Command{
-		Use:   "report [filter] ...",
+		Use:   "report",
 		Short: "Re-runs reports using existing data files",
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			c, x := context.WithCancelCause(context.Background())

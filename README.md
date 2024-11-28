@@ -160,10 +160,9 @@ another language, if required.
 
 #### Features
 
+- complete rewrite of configuration mechanism?
 - improve performance of linking prior results in incremental builds
-- try new evaluator in CUE 0.10 to improve performance during config parsing
 - improve performance of low interval / UDP flood recording and plotting
-- complete overhaul of configuration mechanism?
 - implement traffic generator in C (or rewrite node in Rust)
 - allow writing custom Go templates to generate any plot/report output
 - merge system info and logs into plots
@@ -179,9 +178,8 @@ another language, if required.
 - add log command to emit LogEntry's to stdout
 - implement flagForward optimization, and maybe invert it to flagProcess
 - add support for simulating conversational stream protocols
-- add Antler to [CUE Unity](https://github.com/marketplace/cue-unity)
-- support MacOS
 - support FreeBSD
+- support MacOS
 
 #### Refactoring
 
@@ -194,14 +192,14 @@ another language, if required.
 
 #### Bugs
 
-- improve poor error messages from CUE, especially under disjunctions
-- figure out why default for #EmitSysInfo:To doesn't work (default-default)
+- CUE: fix excessive memory usage (not yet fixed in CUE v0.10)
+- CUE: improve poor error messages, especially under disjunctions
 
 ## Thanks
 
 A kind thanks to sponsors:
 
-* **NLNet** and *NGI0 Core*
+* **NLNet** and **NGI0 Core**
 * **NGI Pointer**
 * **RIPE NCC**
 

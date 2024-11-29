@@ -181,7 +181,7 @@ func (f configFunc) lognRandFloat64(n int, p5, p95 float64) (
 	return
 }
 
-// lognRand returns a list of n random number on a lognormal distribution, with
+// lognRand returns a list of n random numbers on a lognormal distribution, with
 // the given 5th and 95th percentile values.
 func (f configFunc) lognRand(n int, p5, p95 float64) (
 	jsn string, err error) {

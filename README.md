@@ -147,14 +147,19 @@ another language, if required.
 
 ## Roadmap
 
-### Version 1.0.0
+### Version 0.7.0
 
-- undergo security audit
-- secure servers for use on the Internet
 - enhance stream server protocol to ensure streams have completed
 - add runner duration and use that to implement timeouts
 - add an antler _init_ command to create a default project
+- secure servers for use on the Internet
 - write documentation (in markdown)
+
+### Version 1.0.0
+
+- add test traffic header encryption
+- add netns support with minimal sudo requirements
+- undergo security audit
 
 ### Inbox
 

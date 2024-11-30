@@ -69,7 +69,7 @@ future.
 
 #### Features
 
-- switch to a different configuration mechnism
+- switch to a different configuration mechanism
 - improve flexibility of visualizations (maybe allow custom Go templates)
 - add plotting library alternative to Google Charts
 - improve performance of linking prior results in incremental builds

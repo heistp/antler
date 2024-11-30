@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0
+# Copyright 2024 Pete Heist
+
 # race detection
 #INSTALL_FLAGS := -race
 

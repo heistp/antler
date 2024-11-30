@@ -30,7 +30,8 @@ written to the `results` directory.
 
 ## Documentation
 
-Documentation for Antler is available in the [Wiki](wiki).
+Documentation for Antler is available in the
+[Wiki](https://github.com/heistp/antler/wiki).
 
 ## Status
 

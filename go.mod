@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0
+// Copyright 2024 Pete Heist
+
 module github.com/heistp/antler
 
 go 1.21

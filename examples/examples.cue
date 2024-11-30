@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright 2023 Pete Heist
 
 // This package contains Antler examples. By keeping the examples in one CUE

@@ -5,7 +5,6 @@ package antler
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,8 +12,8 @@ import (
 	"time"
 )
 
-//go:embed admin
-var admin embed.FS
+////go:embed admin
+//var admin embed.FS
 
 // Server is the builtin web server.
 type Server struct {
@@ -28,7 +27,7 @@ func (s Server) Run(ctx context.Context) (err error) {
 
 	m := http.NewServeMux()
 	m.Handle("/", http.FileServer(http.Dir(s.RootDir)))
-	m.Handle("/admin/", http.FileServer(http.FS(admin)))
+	//m.Handle("/admin/", http.FileServer(http.FS(admin)))
 	var v http.Server
 	v.Addr = s.ListenAddr
 	v.Handler = m

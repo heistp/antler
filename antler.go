@@ -105,20 +105,16 @@ func (c *InitCommand) run(context.Context) (err error) {
 		if t, err = template.ParseFS(s, path); err != nil {
 			return
 		}
-		n := path
-		if n == "init.cue" {
-			n = c.Package + ".cue"
-		}
 		if c.WritingFile != nil {
-			c.WritingFile(n)
+			c.WritingFile(path)
 		}
 		var f *os.File
-		if f, err = os.Create(n); err != nil {
+		if f, err = os.Create(path); err != nil {
 			return
 		}
 		defer f.Close()
 		if err = t.Execute(f, c); err == nil && c.WroteFile != nil {
-			c.WroteFile(n)
+			c.WroteFile(path)
 		}
 		return
 	}

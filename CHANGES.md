@@ -15,6 +15,7 @@ and this project adheres to
 - Add HMAC signing to protect test servers against unauthorized use
 - Add test timeouts (see #Test.Timeout) and exerciser in tests/timeout
 - Add antler init command to create a sample project
+- Add tcpi_snd_ssthresh to TCPInfo and report SS exit time in streams table
 - Add documentation in [Wiki](https://github.com/heistp/antler/wiki/)
 
 ### Changed

@@ -8,6 +8,8 @@ and this project adheres to
 
 ## Unreleased
 
+## 0.7.0 - 2024-11-30
+
 ### Added
 
 - Add HMAC signing to protect test servers against unauthorized use

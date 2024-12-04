@@ -85,6 +85,7 @@ future.
 
 #### Refactoring
 
+- reconsider allowing empty Runs (see NOTE in run.go)
 - convert longer funcs/methods to use explicit return values
 - consistently document config in config.cue, with minimal doc in structs
 - replace use of chan any in conn

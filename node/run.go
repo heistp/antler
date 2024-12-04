@@ -94,7 +94,8 @@ func (r *Run) Validate() (err error) {
 		}
 		n++
 	}
-	if n != 1 {
+	// NOTE allow empty Runs for convenience
+	if n > 1 {
 		err = UnionError{r, n}
 	}
 	return

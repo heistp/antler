@@ -52,6 +52,11 @@ func (n ID) String() string {
 	return string(n)
 }
 
+// validate returns an error if the node does not pass validation.
+func (n Node) validate() error {
+	return n.Launcher.validate()
+}
+
 // launch installs and starts the Node, and returns a transport connected to it
 // for communication. The transport must be closed after it's no longer in use,
 // so any cleanup operations are also performed.
@@ -69,15 +74,32 @@ type launchers struct {
 	SSH   SSH
 }
 
-// launcher returns the launcher implementation for the Node.
-func (l *launchers) launcher() (a launcher) {
-	switch {
-	case l.Local.Set:
-		a = l.Local
-	case l.SSH.Set:
-		a = l.SSH
-	default:
-		panic("no launcher set in launchers union")
+// launcher returns the launcher.
+func (l *launchers) launcher() (ll launcher) {
+	var n int
+	if ll, n = l.value(); n != 1 {
+		panic(UnionError{l, n}.Error())
+	}
+	return
+}
+
+// validate returns an error if exactly one field isn't set.
+func (l *launchers) validate() (err error) {
+	if _, n := l.value(); n != 1 {
+		err = UnionError{l, n}
+	}
+	return
+}
+
+// value returns the last set field, and the number of unset fields.
+func (l *launchers) value() (ll launcher, n int) {
+	if l.Local.Set {
+		ll = l.Local
+		n++
+	}
+	if l.SSH.Set {
+		ll = l.SSH
+		n++
 	}
 	return
 }

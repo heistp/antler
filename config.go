@@ -38,17 +38,13 @@ type Config struct {
 // validate performs any programmatic generation and validation on the Config
 // that isn't possible to do with the schema in config.cue.
 func (c *Config) validate() (err error) {
-	if err = c.Test.validateTestIDs(); err != nil {
+	if err = c.Test.validate(); err != nil {
 		return
 	}
-	if err = c.Test.generatePaths(); err != nil {
-		return
-	}
-	if err = c.Test.validateNodeIDs(); err != nil {
-		return
-	}
-	if err = c.Test.setKeys(); err != nil {
-		return
+	for _, m := range c.MultiReport {
+		if err = m.validate(); err != nil {
+			return
+		}
 	}
 	return
 }
@@ -124,6 +120,19 @@ type DuplicateResultPrefixError struct {
 func (d DuplicateResultPrefixError) Error() string {
 	return fmt.Sprintf("duplicate Test ResultPrefixes: %s",
 		strings.Join(d.ResultPrefix, ", "))
+}
+
+// UnionError is returned when a union type doesn't have exactly one field set.
+// NOTE Keep in sync with parallel type in node package.
+type UnionError struct {
+	Value any
+	Set   int
+}
+
+// Error implements error
+func (u UnionError) Error() string {
+	return fmt.Sprintf("%T union has %d fields set instead of 1: %+v",
+		u.Value, u.Set, u.Value)
 }
 
 // configFunc contains the template functions for .cue.tmpl config files.

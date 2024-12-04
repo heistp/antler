@@ -210,6 +210,21 @@ func (s *StreamServer) validNonce(nonce []byte) bool {
 	return true
 }
 
+// validate implements validater
+func (s *StreamServer) validate() (err error) {
+	if s.ListenAddr == "" && s.ListenAddrKey == "" {
+		err = fmt.Errorf(
+			"either ListenAddr or ListenAddrKey must be set in StreamServer: %+v", s)
+		return
+	}
+	if s.ListenAddr != "" && s.ListenAddrKey != "" {
+		err = fmt.Errorf(
+			"only one of ListenAddr or ListenAddrKey must be set in StreamServer: %+v", s)
+		return
+	}
+	return
+}
+
 // StreamClient is the client used for stream oriented protocols.
 type StreamClient struct {
 	// Addr is the dial address, as specified to the address parameter in
@@ -326,6 +341,24 @@ func (s *StreamClient) addr(ifb Feedback) (a string, err error) {
 	return
 }
 
+// validate implements validater
+func (s *StreamClient) validate() (err error) {
+	if err = s.Streamers.validate(); err != nil {
+		return
+	}
+	if s.Addr == "" && s.AddrKey == "" {
+		err = fmt.Errorf(
+			"either Addr or AddrKey must be set in StreamClient: %+v", s)
+		return
+	}
+	if s.Addr != "" && s.AddrKey != "" {
+		err = fmt.Errorf(
+			"only one of Addr or AddrKey must be set in StreamServer: %+v", s)
+		return
+	}
+	return
+}
+
 // A streamer handles connections in StreamClient and StreamServer.
 type streamer interface {
 	// handleClient handles a client connection.
@@ -347,16 +380,34 @@ type Streamers struct {
 	Download *Download
 }
 
-// streamer returns the only non-nil streamer implementation.
-func (s *Streamers) streamer() streamer {
-	switch {
-	case s.Upload != nil:
-		return s.Upload
-	case s.Download != nil:
-		return s.Download
-	default:
-		panic("no streamer set in streamers union")
+// streamer returns the streamer.
+func (s *Streamers) streamer() (ss streamer) {
+	var n int
+	if ss, n = s.value(); n != 1 {
+		panic(UnionError{s, n}.Error())
 	}
+	return
+}
+
+// validate returns an error if exactly one field isn't set.
+func (s *Streamers) validate() (err error) {
+	if _, n := s.value(); n != 1 {
+		err = UnionError{s, n}
+	}
+	return
+}
+
+// value returns the last non-nil field, and the number of non-nil fields.
+func (s *Streamers) value() (ss streamer, n int) {
+	if s.Upload != nil {
+		ss = s.Upload
+		n++
+	}
+	if s.Download != nil {
+		ss = s.Download
+		n++
+	}
+	return
 }
 
 // Upload is a stream transfer from client to server.

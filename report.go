@@ -46,6 +46,16 @@ type reporter interface {
 // Report represents a list of reporters.
 type Report []reporters
 
+// validate returns the first validation error from any of the reporters.
+func (r Report) validate() (err error) {
+	for _, rr := range r {
+		if err = rr.validate(); err != nil {
+			return
+		}
+	}
+	return
+}
+
 // report returns an equivalent report instance.
 func (r Report) report() (t report) {
 	for _, p := range r {
@@ -65,26 +75,54 @@ type reporters struct {
 	Encode           *Encode
 }
 
-// reporter returns the only non-nil reporter implementation.
-func (r *reporters) reporter() reporter {
-	switch {
-	case r.Analyze != nil:
-		return r.Analyze
-	case r.EmitLog != nil:
-		return r.EmitLog
-	case r.EmitSysInfo != nil:
-		return r.EmitSysInfo
-	case r.ChartsFCT != nil:
-		return r.ChartsFCT
-	case r.ChartsTimeSeries != nil:
-		return r.ChartsTimeSeries
-	case r.SaveFiles != nil:
-		return r.SaveFiles
-	case r.Encode != nil:
-		return r.Encode
-	default:
-		panic("no reporter set in reporters union")
+// reporter returns the reporter.
+func (r *reporters) reporter() (rr reporter) {
+	var n int
+	if rr, n = r.value(); n != 1 {
+		panic(UnionError{r, n}.Error())
 	}
+	return
+}
+
+// validate returns an error if exactly one field isn't set.
+func (r *reporters) validate() (err error) {
+	if _, n := r.value(); n != 1 {
+		err = UnionError{r, n}
+	}
+	return
+}
+
+// value returns the last non-nil field, and the number of non-nil fields.
+func (r *reporters) value() (rr reporter, n int) {
+	if r.Analyze != nil {
+		rr = r.Analyze
+		n++
+	}
+	if r.EmitLog != nil {
+		rr = r.EmitLog
+		n++
+	}
+	if r.EmitSysInfo != nil {
+		rr = r.EmitSysInfo
+		n++
+	}
+	if r.ChartsFCT != nil {
+		rr = r.ChartsFCT
+		n++
+	}
+	if r.ChartsTimeSeries != nil {
+		rr = r.ChartsTimeSeries
+		n++
+	}
+	if r.SaveFiles != nil {
+		rr = r.SaveFiles
+		n++
+	}
+	if r.Encode != nil {
+		rr = r.Encode
+		n++
+	}
+	return
 }
 
 // report is a Report list with the reporters unions resolved to implementations
@@ -487,14 +525,30 @@ type multiReporters struct {
 	Index *Index
 }
 
-// multiReporter returns the only non-nil multiReporter implementation.
-func (m *multiReporters) multiReporter() multiReporter {
-	switch {
-	case m.Index != nil:
-		return m.Index
-	default:
-		panic("no multiReporter set in multiReporters union")
+// multiReporter returns the multiReporter.
+func (m *multiReporters) multiReporter() (mm multiReporter) {
+	var n int
+	if mm, n = m.value(); n != 1 {
+		panic(UnionError{m, n}.Error())
 	}
+	return
+}
+
+// validate returns an error if exactly one field isn't set.
+func (m *multiReporters) validate() (err error) {
+	if _, n := m.value(); n != 1 {
+		err = UnionError{m, n}
+	}
+	return
+}
+
+// value returns the last non-nil field, and the number of non-nil fields.
+func (m *multiReporters) value() (mm multiReporter, n int) {
+	if m.Index != nil {
+		mm = m.Index
+		n++
+	}
+	return
 }
 
 // multiRunner runs multiReporters.

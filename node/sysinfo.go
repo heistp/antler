@@ -54,6 +54,26 @@ func (s SysInfo) Run(ctx context.Context, arg runArg) (ofb Feedback, err error) 
 	return
 }
 
+// validate implements validater.  NOTE Keep up to date if fields change.
+func (s SysInfo) validate() (err error) {
+	if s.OS != (Texters{}) {
+		if err = s.OS.validate(); err != nil {
+			return
+		}
+	}
+	if s.KernSrcInfo != (Texters{}) {
+		if err = s.KernSrcInfo.validate(); err != nil {
+			return
+		}
+	}
+	if s.KernSrcVer != (Texters{}) {
+		if err = s.KernSrcVer.validate(); err != nil {
+			return
+		}
+	}
+	return
+}
+
 // SysInfoData is a data object containing system information.
 type SysInfoData struct {
 	NodeID         ID                       // the ID of the Node the data comes from
@@ -201,19 +221,39 @@ type Texters struct {
 	Sysctl  *Sysctl
 }
 
-// texter returns the only non-nil Texter implementation.
-func (t *Texters) texter() Texter {
-	switch {
-	case t.Command != nil:
-		return t.Command
-	case t.File != nil:
-		return t.File
-	case t.Env != nil:
-		return t.Env
-	case t.Sysctl != nil:
-		return t.Sysctl
+// texter returns the texter.
+func (t *Texters) texter() (tt Texter) {
+	tt, _ = t.value()
+	return
+}
+
+// validate returns an error if exactly one field isn't set.
+func (t *Texters) validate() (err error) {
+	if _, n := t.value(); n != 1 {
+		err = UnionError{t, n}
 	}
-	return nil
+	return
+}
+
+// value returns the last non-nil field, and the number of non-nil fields.
+func (t *Texters) value() (tt Texter, n int) {
+	if t.Command != nil {
+		tt = t.Command
+		n++
+	}
+	if t.File != nil {
+		tt = t.File
+		n++
+	}
+	if t.Env != nil {
+		tt = t.Env
+		n++
+	}
+	if t.Sysctl != nil {
+		tt = t.Sysctl
+		n++
+	}
+	return
 }
 
 // File represents a file name, and implements Texter to retrieve its data as

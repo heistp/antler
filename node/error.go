@@ -69,6 +69,19 @@ func (f ErrorFactory) NewErrorf(format string, a ...any) Error {
 	return Error{LogEntry{t, f.nodeID, f.tag, fmt.Sprintf(format, a...)}}
 }
 
+// UnionError is returned when a union type doesn't have exactly one field set.
+// NOTE Keep in sync with parallel type in antler package.
+type UnionError struct {
+	Value any
+	Set   int
+}
+
+// Error implements error
+func (u UnionError) Error() string {
+	return fmt.Sprintf("%T union has %d fields set instead of 1: %+v",
+		u.Value, u.Set, u.Value)
+}
+
 // errDone is an internal error sent on error channels to indicate the
 // completion of a goroutine.
 var errDone = errors.New("done")

@@ -43,7 +43,7 @@ type Run struct {
 	Runners
 }
 
-// run runs the Run.
+// run runs the Run.  NOTE Keep validate up to date if fields change.
 func (r *Run) run(ctx context.Context, arg runArg, ev chan event) (
 	ofb Feedback, ok bool) {
 	switch {
@@ -57,6 +57,45 @@ func (r *Run) run(ctx context.Context, arg runArg, ev chan event) (
 		ofb, ok = r.Child.do(ctx, arg, ev)
 	default:
 		ofb, ok = r.Runners.do(ctx, arg, ev)
+	}
+	return
+}
+
+// Validate returns an error if the Run fails validation.
+func (r *Run) Validate() (err error) {
+	var n int
+	if len(r.Serial) > 0 {
+		if err = r.Serial.validate(); err != nil {
+			return
+		}
+		n++
+	}
+	if len(r.Parallel) > 0 {
+		if err = r.Parallel.validate(); err != nil {
+			return
+		}
+		n++
+	}
+	if r.Schedule != nil {
+		if err = r.Schedule.validate(); err != nil {
+			return
+		}
+		n++
+	}
+	if r.Child != nil {
+		if err = r.Child.validate(); err != nil {
+			return
+		}
+		n++
+	}
+	if r.Runners != (Runners{}) {
+		if err = r.Runners.validate(); err != nil {
+			return
+		}
+		n++
+	}
+	if n != 1 {
+		err = UnionError{r, n}
 	}
 	return
 }
@@ -77,6 +116,16 @@ func (s Serial) do(ctx context.Context, arg runArg, ev chan event) (
 			ev <- errorEvent{rr.NewErrore(e), false}
 		}
 		if !ok {
+			return
+		}
+	}
+	return
+}
+
+// validate returns the first validation error from each of the Runs.
+func (s Serial) validate() (err error) {
+	for _, r := range s {
+		if err = r.Validate(); err != nil {
 			return
 		}
 	}
@@ -117,6 +166,16 @@ func (p Parallel) do(ctx context.Context, arg runArg, ev chan event) (
 	return
 }
 
+// validate returns the first validation error from each of the Runs.
+func (p Parallel) validate() (err error) {
+	for _, r := range p {
+		if err = r.Validate(); err != nil {
+			return
+		}
+	}
+	return
+}
+
 // Child is a Run to execute on a child Node.
 type Child struct {
 	// Run is the Run to execute on Node.
@@ -135,6 +194,18 @@ func (r *Child) do(ctx context.Context, arg runArg, ev chan event) (
 	a := <-rc
 	ofb = a.Feedback
 	ok = a.OK
+	return
+}
+
+// validate validates the Child's fields.  NOTE Keep this in sync if any fields
+// change.
+func (r *Child) validate() (err error) {
+	if err = r.Run.Validate(); err != nil {
+		return
+	}
+	if err = r.Node.validate(); err != nil {
+		return
+	}
 	return
 }
 
@@ -239,6 +310,16 @@ func (s *Schedule) nextWait() (wait time.Duration) {
 	return
 }
 
+// validate returns the first validation error from each of the Runs.
+func (s *Schedule) validate() (err error) {
+	for _, r := range s.Run {
+		if err = r.Validate(); err != nil {
+			return
+		}
+	}
+	return
+}
+
 // runDone is the result returned by Run's internal goroutines.
 type runDone struct {
 	run *Run
@@ -260,29 +341,68 @@ type Runners struct {
 	PacketClient *PacketClient
 }
 
-// runner returns the only non-nil runner implementation.
-func (r *Runners) runner() runner {
-	switch {
-	case r.ResultStream != nil:
-		return r.ResultStream
-	case r.Setup != nil:
-		return r.Setup
-	case r.Sleep != nil:
-		return r.Sleep
-	case r.SysInfo != nil:
-		return r.SysInfo
-	case r.System != nil:
-		return r.System
-	case r.StreamClient != nil:
-		return r.StreamClient
-	case r.StreamServer != nil:
-		return r.StreamServer
-	case r.PacketClient != nil:
-		return r.PacketClient
-	case r.PacketServer != nil:
-		return r.PacketServer
+// runner returns the runner.
+func (r *Runners) runner() (rr runner) {
+	var n int
+	if rr, n = r.value(); n != 1 {
+		panic(UnionError{r, n}.Error())
 	}
-	return nil
+	return
+}
+
+// validate returns an error if exactly one field isn't set.
+func (r *Runners) validate() (err error) {
+	var n int
+	var rr runner
+	if rr, n = r.value(); n != 1 {
+		err = UnionError{r, n}
+		return
+	}
+	if v, ok := rr.(validater); ok {
+		err = v.validate()
+	}
+	return
+}
+
+// value returns the last non-nil field, and the number of non-nil fields.
+func (r *Runners) value() (rr runner, n int) {
+	if r.ResultStream != nil {
+		rr = r.ResultStream
+		n++
+	}
+	if r.Setup != nil {
+		rr = r.Setup
+		n++
+	}
+	if r.Sleep != nil {
+		rr = r.Sleep
+		n++
+	}
+	if r.SysInfo != nil {
+		rr = r.SysInfo
+		n++
+	}
+	if r.System != nil {
+		rr = r.System
+		n++
+	}
+	if r.StreamClient != nil {
+		rr = r.StreamClient
+		n++
+	}
+	if r.StreamServer != nil {
+		rr = r.StreamServer
+		n++
+	}
+	if r.PacketClient != nil {
+		rr = r.PacketClient
+		n++
+	}
+	if r.PacketServer != nil {
+		rr = r.PacketServer
+		n++
+	}
+	return
 }
 
 // SetKeyer returns the only non-nil runner implementation as a SetKeyer, or nil

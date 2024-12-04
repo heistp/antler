@@ -105,6 +105,58 @@ func (i TestID) String() string {
 	return b.String()
 }
 
+// generatePath executes the Path field template and replaces Path with the
+// output.
+func (t *Test) generatePath() (err error) {
+	pt := template.New("Path")
+	if pt, err = pt.Parse(t.Path); err != nil {
+		return
+	}
+	var pb strings.Builder
+	if err = pt.Execute(&pb, t.ID); err != nil {
+		return
+	}
+	p := pb.String()
+	t.Path = p
+	return
+}
+
+// generateKey generates and sets a security key on any SetKeyers, if HMAC
+// protection is enabled.
+func (t *Test) generateKey() (err error) {
+	if t.HMAC {
+		k := make([]byte, 32)
+		if _, err = rand.Read(k); err != nil {
+			return
+		}
+		setKey(&t.Run, k)
+	}
+	return
+}
+
+// setKey is called recursively for a Run to call SetKey on any SetKeyers.
+// NOTE Keep in sync with Run fields.
+func setKey(run *node.Run, key []byte) {
+	var rr []node.Run
+	switch {
+	case len(run.Serial) > 0:
+		rr = run.Serial
+	case len(run.Parallel) > 0:
+		rr = run.Parallel
+	case run.Schedule != nil:
+		rr = run.Schedule.Run
+	case run.Child != nil:
+		setKey(&run.Child.Run, key)
+		return
+	}
+	for i := range rr {
+		setKey(&rr[i], key)
+	}
+	if k := run.SetKeyer(); k != nil {
+		k.SetKey(key)
+	}
+}
+
 // DataWriter returns a WriteCloser for writing result data to the work
 // directory.
 //
@@ -222,6 +274,29 @@ func (t *Test) LinkPriorData(rw resultRW) (err error) {
 // Tests wraps a list of Tests to add functionality.
 type Tests []Test
 
+// validate does validation and any programmatic config work on all the Tests.
+func (s Tests) validate() (err error) {
+	if err = s.validateTestIDs(); err != nil {
+		return
+	}
+	if err = s.generatePaths(); err != nil {
+		return
+	}
+	if err = s.validateNodeIDs(); err != nil {
+		return
+	}
+	if err = s.setKeys(); err != nil {
+		return
+	}
+	if err = s.validateRuns(); err != nil {
+		return
+	}
+	if err = s.validateReports(); err != nil {
+		return
+	}
+	return
+}
+
 // validateTestIDs returns an error if any Test IDs are duplicated.
 func (s Tests) validateTestIDs() (err error) {
 	var ii, dd []TestID
@@ -265,23 +340,16 @@ func (s Tests) generatePaths() (err error) {
 	var d []string
 	for i := range s {
 		t := &s[i]
-		pt := template.New("Path")
-		if pt, err = pt.Parse(t.Path); err != nil {
+		if err = t.generatePath(); err != nil {
 			return
 		}
-		var pb strings.Builder
-		if err = pt.Execute(&pb, t.ID); err != nil {
-			return
-		}
-		p := pb.String()
-		t.Path = p
-		if v, ok := pp[p]; ok {
+		if v, ok := pp[t.Path]; ok {
 			if v == 1 {
-				d = append(d, p)
+				d = append(d, t.Path)
 			}
-			pp[p] = v + 1
+			pp[t.Path] = v + 1
 		} else {
-			pp[p] = 1
+			pp[t.Path] = 1
 		}
 	}
 	if len(d) > 0 {
@@ -354,35 +422,47 @@ func (a AmbiguousNodeIDError) Error() string {
 func (s Tests) setKeys() (err error) {
 	for i := range s {
 		t := &s[i]
-		if t.HMAC {
-			k := make([]byte, 32)
-			if _, err = rand.Read(k); err != nil {
-				return
-			}
-			setKey(&t.Run, k)
+		if err = t.generateKey(); err != nil {
+			return
 		}
 	}
 	return
 }
 
-// setKey is called recursively for a Run to call SetKey on any SetKeyers.
-func setKey(run *node.Run, key []byte) {
-	var rr []node.Run
-	switch {
-	case len(run.Serial) > 0:
-		rr = run.Serial
-	case len(run.Parallel) > 0:
-		rr = run.Parallel
-	case run.Schedule != nil:
-		rr = run.Schedule.Run
-	case run.Child != nil:
-		setKey(&run.Child.Run, key)
-		return
+// validateRuns returns an error if any Node IDs do not uniquely identify
+// their fields.
+func (s Tests) validateRuns() (err error) {
+	for _, t := range s {
+		if err = t.Run.Validate(); err != nil {
+			return
+		}
 	}
-	for i := range rr {
-		setKey(&rr[i], key)
+	return
+}
+
+// validateReports returns an error if any of the Report fields are invalid.
+func (s Tests) validateReports() (err error) {
+	for _, t := range s {
+		for _, r := range t.DuringDefault {
+			if err = r.validate(); err != nil {
+				return
+			}
+		}
+		for _, r := range t.During {
+			if err = r.validate(); err != nil {
+				return
+			}
+		}
+		for _, r := range t.AfterDefault {
+			if err = r.validate(); err != nil {
+				return
+			}
+		}
+		for _, r := range t.After {
+			if err = r.validate(); err != nil {
+				return
+			}
+		}
 	}
-	if k := run.SetKeyer(); k != nil {
-		k.SetKey(key)
-	}
+	return
 }

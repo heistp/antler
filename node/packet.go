@@ -511,6 +511,16 @@ func (c *PacketClient) schedule(at time.Time, data any) {
 	heap.Push(&c.timerQ, packetTimer{c.sender, at, data})
 }
 
+// validate implements validater
+func (c *PacketClient) validate() (err error) {
+	for _, p := range c.Sender {
+		if err = p.validate(); err != nil {
+			return
+		}
+	}
+	return
+}
+
 // packetTimer schedules an event for PacketClient.
 type packetTimer struct {
 	sender int
@@ -563,14 +573,30 @@ type PacketSenders struct {
 	Unresponsive *Unresponsive
 }
 
-// packetSender returns the only non-nil packetSender implementation.
-func (p *PacketSenders) packetSender() packetSender {
-	switch {
-	case p.Unresponsive != nil:
-		return p.Unresponsive
-	default:
-		panic("no packetSender set in packetSender union")
+// packetSender returns the packetSender.
+func (p *PacketSenders) packetSender() (pp packetSender) {
+	var n int
+	if pp, n = p.value(); n != 1 {
+		panic(UnionError{p, n}.Error())
 	}
+	return
+}
+
+// validate returns an error if exactly one field isn't set.
+func (p *PacketSenders) validate() (err error) {
+	if _, n := p.value(); n != 1 {
+		err = UnionError{p, n}
+	}
+	return
+}
+
+// value returns the last non-nil field, and the number of non-nil fields.
+func (p *PacketSenders) value() (pp packetSender, n int) {
+	if p.Unresponsive != nil {
+		pp = p.Unresponsive
+		n++
+	}
+	return
 }
 
 // Unresponsive sends packets on a schedule without regard to any congestion

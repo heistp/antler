@@ -8,6 +8,12 @@ and this project adheres to
 
 ## Unreleased
 
+## 0.7.1 - 2024-12-04
+
+### Fixed
+
+- Reduce CUE memory consumption by removing disjunctions where possible
+
 ## 0.7.0 - 2024-11-30
 
 ### Added

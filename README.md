@@ -35,7 +35,7 @@ Documentation for Antler is available in the
 
 ## Status
 
-As of version 0.7.0, many of the core
+As of version 0.7.1, many of the core
 [features](https://github.com/heistp/antler/wiki/#features) are implemented,
 along with some basic tests and visualizations.  More work on security is
 planned for 1.0.0, but Antler should be safe to use in controlled environments.
@@ -47,14 +47,6 @@ in Google Charts could be more flexible than they are.  Future versions of
 Antler may replace the configuration and/or visualization mechanisms.
 
 ## Roadmap
-
-### Version 0.7.0
-
-- enhance stream server protocol to ensure streams have completed
-- add runner duration and use that to implement timeouts
-- add an antler _init_ command to create a default project
-- secure servers for use on the Internet
-- write documentation (in markdown)
 
 ### Version 1.0.0
 
@@ -99,11 +91,6 @@ future.
 - improve semantics for System.Stdout and Stderr
 - find a better way than unions to create interface implementations from CUE
 - consider moving all FileData to gob, for consistency with encoding
-
-#### Bugs
-
-- CUE: fix excessive memory usage (not yet fixed in CUE v0.10)
-- CUE: improve poor error messages, especially under disjunctions
 
 ## Thanks
 

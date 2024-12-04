@@ -192,24 +192,16 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 	]
 }
 
-// antler.Report contains the union of Report types. Reports are documented in
-// more detail in their individual definitions.
+// antler.Report contains the union of Report types. Only one field may be set.
+// Reports are documented in more detail in their individual definitions.
 #Report: {
-	{} | {
-		Analyze?: #Analyze
-	} | {
-		Encode?: #Encode
-	} | {
-		EmitLog?: #EmitLog
-	} | {
-		EmitSysInfo?: #EmitSysInfo
-	} | {
-		ChartsTimeSeries?: #ChartsTimeSeries
-	} | {
-		ChartsFCT?: #ChartsFCT
-	} | {
-		SaveFiles?: #SaveFiles
-	}
+	Analyze?:          #Analyze
+	Encode?:           #Encode
+	EmitLog?:          #EmitLog
+	EmitSysInfo?:      #EmitSysInfo
+	ChartsTimeSeries?: #ChartsTimeSeries
+	ChartsFCT?:        #ChartsFCT
+	SaveFiles?:        #SaveFiles
 }
 
 // antler.Analyze is a report that analyzes data used by other reports. This
@@ -450,9 +442,8 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // definitions.
 #MultiReport: {
 	ID?: [string & =~_IDregex]: string & =~_IDregex
-	{} | {
-		Index?: #Index
-	}
+
+	Index?: #Index
 }
 
 // antler.Index is a MultiReport that generates an index page for Tests.
@@ -490,17 +481,11 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // Schedule defines arbitrary timings for Run execution, and is documented in
 // more detail in the #Schedule definition.
 #Run: {
-	{} | {
-		#Runners
-	} | {
-		Serial?: [...#Run]
-	} | {
-		Parallel?: [...#Run]
-	} | {
-		Schedule?: #Schedule
-	} | {
-		Child?: #Child
-	}
+	#Runners
+	Serial?: [...#Run]
+	Parallel?: [...#Run]
+	Schedule?: #Schedule
+	Child?:    #Child
 }
 
 // node.Schedule schedules execution of the given Runs, using the given
@@ -549,6 +534,8 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 
 // node.Launchers lists the available ways to start a node.
 //
+// One of either Local or SSH must be specified.
+//
 // If Local is specified, the node will be launched in a separate process on
 // the local machine, using stdio for communication.
 //
@@ -558,22 +545,19 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // destination without a password.
 //
 // For Linux, the root user is required to use network namespaces. Sudo may be
-// set to true to run the node with the sudo command, which must be configured
-// to not require a password.
+// set to true to run the node with the sudo command, which must then be
+// configured to not require a password.
 //
 // The Set fields are for internal use and must not be changed.
 #Launchers: {
-	{} | {
-		SSH?: {
-			Destination?: string & !=""
-			Sudo:         bool | *false
-			Set:          true
-		}
-	} | {
-		Local?: {
-			Sudo: bool | *false
-			Set:  true
-		}
+	SSH?: {
+		Destination?: string & !=""
+		Sudo:         bool | *false
+		Set:          true
+	}
+	Local?: {
+		Sudo: bool | *false
+		Set:  true
 	}
 }
 
@@ -606,23 +590,14 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // node.Runners lists the Runners available for execution. Each is documented
 // further in its corresponding value definition.
 #Runners: {
-	{} | {
-		Sleep?: #Duration
-	} | {
-		ResultStream?: #ResultStream
-	} | {
-		SysInfo?: #SysInfo
-	} | {
-		System?: #System
-	} | {
-		PacketClient?: #PacketClient
-	} | {
-		PacketServer?: #PacketServer
-	} | {
-		StreamClient?: #StreamClient
-	} | {
-		StreamServer?: #StreamServer
-	}
+	Sleep?:        #Duration
+	ResultStream?: #ResultStream
+	SysInfo?:      #SysInfo
+	System?:       #System
+	PacketClient?: #PacketClient
+	PacketServer?: #PacketServer
+	StreamClient?: #StreamClient
+	StreamServer?: #StreamServer
 }
 
 // node.Duration is a time duration with mandatory units, as defined here:
@@ -680,15 +655,10 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 
 // node.Texters lists the available Texter implementations.
 #Texters: {
-	{} | {
-		Command?: #Command
-	} | {
-		File?: #File
-	} | {
-		EnvVar?: #EnvVar
-	} | {
-		Sysctl?: #Sysctl
-	}
+	Command?: #Command
+	File?:    #File
+	EnvVar?:  #EnvVar
+	Sysctl?:  #Sysctl
 }
 
 // node.Command represents the information needed to run a system command, and
@@ -744,9 +714,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 
 // node.PacketSenders
 #PacketSenders: {
-	{} | {
-		Unresponsive?: #Unresponsive
-	}
+	Unresponsive?: #Unresponsive
 }
 
 // node.Unresponsive
@@ -772,22 +740,16 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 
 // node.StreamClient
 #StreamClient: {
-	{} | {
-		Addr?: string & !=""
-	} | {
-		AddrKey?: string & !=""
-	}
+	Addr?:    string & !=""
+	AddrKey?: string & !=""
 	Protocol: #StreamProtocol
 	#Streamers
 }
 
 // node.streamers
 #Streamers: {
-	{} | {
-		Upload?: #Upload
-	} | {
-		Download?: #Download
-	}
+	Upload?:   #Upload
+	Download?: #Download
 }
 
 // node.Upload
@@ -861,12 +823,9 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // the StreamClient. ListenAddr is a listen address, and ListenAddrKey is a
 // string key that may be communicated to the client using node.Feedback.
 #StreamServer: {
-	{} | {
-		ListenAddr?: string & !=""
-	} | {
-		ListenAddrKey?: string & !=""
-	}
-	Protocol: #StreamProtocol
+	ListenAddr?:    string & !=""
+	ListenAddrKey?: string & !=""
+	Protocol:       #StreamProtocol
 }
 
 // StreamProtocol is the protocol used for StreamClient and StreamServer. It

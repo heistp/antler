@@ -8,6 +8,10 @@ and this project adheres to
 
 ## Unreleased
 
+### Fixed
+
+- Avoid usage of binary.Append to keep Go version requirement to 1.21
+
 ## 0.7.1 - 2024-12-04
 
 ### Fixed

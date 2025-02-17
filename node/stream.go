@@ -315,10 +315,7 @@ func (s *StreamClient) header(streamer streamer) (hdr []byte, err error) {
 		hdr = append(hdr, n...)
 		hdr = append(hdr, m...)
 	}
-	l := uint16(b.Len())
-	if hdr, err = binary.Append(hdr, binary.LittleEndian, l); err != nil {
-		return
-	}
+	hdr = binary.LittleEndian.AppendUint16(hdr, uint16(b.Len()))
 	hdr = append(hdr, r...)
 	return
 }

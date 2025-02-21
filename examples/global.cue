@@ -32,4 +32,4 @@ _tcpdump: {
 }
 
 // Run all commands as root using sudo, if antler was not run as root.
-#System: Root: true
+#System: Root: bool | *true

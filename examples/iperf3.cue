@@ -45,6 +45,7 @@ _iperf3: {
 			Node: _rig.right.node
 			System: {
 				Command:    "iperf3 -s -1"
+				Root:       false
 				Background: true
 			}
 		}
@@ -57,8 +58,11 @@ _iperf3: {
 			Serial: [
 				_tcpdump & {_iface: "left.r"},
 				{Sleep:             "1s"},
-				{System: Command:   "iperf3 -t 30 -c \(_dumbbell.right.addr)"},
-				{Sleep:             "1s"},
+				{System: {
+					Command: "iperf3 -t 30 -c \(_dumbbell.right.addr)"
+					Root:    false
+				}},
+				{Sleep: "1s"},
 			]
 		}
 	}

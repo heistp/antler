@@ -66,7 +66,7 @@ _tcpstream: {
 
 	// _rig defines the dumbbell Test setup.
 	_rig: _dumbbell & {
-		serverAddr: "\(right.addr):777"
+		serverAddr: "\(right.addr):7777"
 		left: post: [
 			"sysctl -w net.ipv4.tcp_ecn=1",
 		]
@@ -87,7 +87,7 @@ _tcpstream: {
 		Child: {
 			Node: _rig.right.node
 			Serial: [
-				_tcpdump & {_iface: "right.l"},
+				_tcpdump & {_iface:         "right.l"},
 				{StreamServer: {ListenAddr: _rig.serverAddr}},
 				{PacketServer: {ListenAddr: _rig.serverAddr}},
 			]
@@ -100,7 +100,7 @@ _tcpstream: {
 			Node: _rig.left.node
 			Serial: [
 				_tcpdump & {_iface: "left.r"},
-				{Sleep: "1s"},
+				{Sleep:             "1s"},
 				{Parallel: [
 					{PacketClient: {
 						Addr: _rig.serverAddr

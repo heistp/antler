@@ -29,7 +29,7 @@ type sshArgs struct {
 // SSH is a launcher used to start an Antler node remotely via ssh.
 type SSH struct {
 	Destination string // ssh destination (man ssh(1))
-	Sudo        bool
+	Root        bool
 	Set         bool
 }
 
@@ -63,8 +63,9 @@ func (s SSH) launch(node Node, log logFunc) (tr transport, err error) {
 	a = append(a, "-o")
 	a = append(a, "BatchMode yes")
 	a = append(a, dest)
-	if s.Sudo {
+	if s.Root {
 		a = append(a, "sudo")
+		a = append(a, "-n")
 	}
 	a = append(a, "sh")
 	a = append(a, "-c")

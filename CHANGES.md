@@ -8,10 +8,19 @@ and this project adheres to
 
 ## Unreleased
 
+### Added
+
+- Allow running node and system commands as either regular user or root
+
+### Changed
+
+- Run antler node as regular user by default
+- Rename the Sudo fields in SSH and Local to Root
+- Update libs x/net 0.26=>0.35, x/sys 0.21=>0.30, x/text 0.16=>0.22
+
 ### Fixed
 
 - Avoid usage of binary.Append to keep Go version requirement to 1.21
-- Update libs x/net 0.26=>0.35, x/sys 0.21=>0.30, x/text 0.16=>0.22
 
 ## 0.7.1 - 2024-12-04
 

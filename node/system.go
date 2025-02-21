@@ -238,6 +238,11 @@ type Command struct {
 	// Arg[0] is the command name, otherwise the Arg slice is appended to the
 	// slice obtained by splitting Command.
 	Arg []string
+
+	// Root indicates to prefix the command with sudo -n, if the process is not
+	// already running as root. It must be possible to run sudo without a
+	// password.
+	Root bool
 }
 
 // Cmd returns an exec.Cmd with name and arg obtained from param().
@@ -277,8 +282,31 @@ func (c Command) Text(ctx context.Context) (txt string, err error) {
 // param returns the name and arg parameters for exec.
 func (c Command) param() (name string, arg []string, err error) {
 	var a []string
-	if a, err = shellquote.Split(c.Command); err != nil {
-		return
+	if c.Root {
+		if os.Geteuid() != 0 {
+			a = append(a, "sudo")
+			a = append(a, "-n")
+		}
+	} else {
+		if os.Geteuid() == 0 {
+			if u := os.Getenv("SUDO_USER"); u != "" {
+				a = append(a, "sudo")
+				a = append(a, "-n")
+				a = append(a, "-u")
+				a = append(a, u)
+			} else {
+				err = fmt.Errorf(
+					"can't run command as regular user without SUDO_USER set")
+				return
+			}
+		}
+	}
+	if c.Command != "" {
+		var aa []string
+		if aa, err = shellquote.Split(c.Command); err != nil {
+			return
+		}
+		a = append(a, aa...)
 	}
 	a = append(a, c.Arg...)
 	name = a[0]

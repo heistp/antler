@@ -6,7 +6,7 @@
 // To customize the host the test is run on, either change the default for
 // _dest, or create a file e.g. local.cue with "_dest: hostname".
 //
-// To test sudo support, set the Sudo field for the SSH Launcher to true.
+// To test sudo support, set the Root field for the SSH Launcher to true.
 
 package ssh
 
@@ -18,7 +18,7 @@ Test: [{
 		Node: {
 			ID:       _dest
 			Platform: "linux-amd64"
-			Launcher: SSH: {Sudo: false}
+			Launcher: SSH: {Root: false}
 		}
 		System: {
 			Command: "bash -c"

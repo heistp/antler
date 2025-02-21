@@ -59,7 +59,7 @@ _packets: {
 
 	// _rig defines the dumbbell Test setup.
 	_rig: _dumbbell & {
-		serverAddr: "\(right.addr):777"
+		serverAddr: "\(right.addr):7777"
 		left: post: [
 		]
 		mid: post: [

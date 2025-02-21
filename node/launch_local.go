@@ -4,14 +4,16 @@
 package node
 
 import (
+	"os"
 	"os/exec"
+	"os/user"
 	"strings"
 	"syscall"
 )
 
 // Local is a launcher used to start a node as a locally executed process.
 type Local struct {
-	Sudo bool
+	Root bool
 	Set  bool
 }
 
@@ -39,15 +41,25 @@ func (l Local) launch(node Node, log logFunc) (tr transport, err error) {
 		cl.Push(deleteNetns{ns})
 	}
 	var a []string
-	if l.Sudo {
+	if os.Geteuid() != 0 {
 		a = append(a, "sudo")
+		a = append(a, "-n")
 	}
 	if ns != "" {
 		a = append(a, "ip")
 		a = append(a, "netns")
 		a = append(a, "exec")
 		a = append(a, ns)
-	} else {
+	}
+	if !l.Root {
+		var u *user.User
+		if u, err = user.Current(); err != nil {
+			return
+		}
+		a = append(a, "sudo")
+		a = append(a, "-n")
+		a = append(a, "-u")
+		a = append(a, u.Username)
 	}
 	a = append(a, f.Path)
 	a = append(a, string(node.ID))
@@ -84,7 +96,16 @@ func randString(n int) string {
 
 // addNetns adds a network namespace.
 func addNetns(name string, log logFunc) (err error) {
-	c := exec.Command("ip", "netns", "add", name)
+	var a []string
+	if os.Geteuid() != 0 {
+		a = append(a, "sudo")
+		a = append(a, "-n")
+	}
+	a = append(a, "ip")
+	a = append(a, "netns")
+	a = append(a, "add")
+	a = append(a, name)
+	c := exec.Command(a[0], a[1:]...)
 	log("%s", c.String())
 	var out []byte
 	out, err = c.CombinedOutput()
@@ -159,7 +180,16 @@ type deleteNetns struct {
 }
 
 func (d deleteNetns) Close(log logFunc) (err error) {
-	c := exec.Command("ip", "netns", "del", d.name)
+	var a []string
+	if os.Geteuid() != 0 {
+		a = append(a, "sudo")
+		a = append(a, "-n")
+	}
+	a = append(a, "ip")
+	a = append(a, "netns")
+	a = append(a, "del")
+	a = append(a, d.name)
+	c := exec.Command(a[0], a[1:]...)
 	log("%s", c.String())
 	var out []byte
 	if out, err = c.CombinedOutput(); len(out) > 0 {

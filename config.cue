@@ -544,20 +544,24 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 // different from the Node ID. It must be possible to connect to the ssh
 // destination without a password.
 //
-// For Linux, the root user is required to use network namespaces. Sudo may be
-// set to true to run the node with the sudo command, which must then be
-// configured to not require a password.
+// For both Local and SSH, Root may be used to run the node as root. If antler
+// is run as a regular user and Root is true, sudo -n is used to run the
+// node with root privileges. If antler is run as root and Root is false,
+// sudo -n -u is used to run the node as the user specified by the SUDO_USER
+// environment variable, so it's run as the user that ran antler. It must be
+// possible for the user running antler to use sudo without a password (i.e.
+// using NOPASSWD: in sudoers file).
 //
 // The Set fields are for internal use and must not be changed.
 #Launchers: {
 	SSH?: {
 		Destination?: string & !=""
-		Sudo:         bool | *false
+		Root?:        bool
 		Set:          true
 	}
 	Local?: {
-		Sudo: bool | *false
-		Set:  true
+		Root?: bool
+		Set:   true
 	}
 }
 
@@ -666,6 +670,7 @@ _IDregex: "[a-zA-Z0-9][a-zA-Z0-9_-]*"
 #Command: {
 	Command?: string & !=""
 	Arg?: [...string]
+	Root?: bool
 }
 
 // node.File represents a file name, and implements Texter.

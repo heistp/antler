@@ -68,8 +68,8 @@ _dumbbell: {
 
 	right: {
 		post: [...string]
-		node: _netnsNode & {ID: "right"}
-		addr: "10.0.0.2"
+		node:  _netnsNode & {ID: "right"}
+		addr:  "10.0.0.2"
 		setup: list.Concat([
 			[
 				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
@@ -85,7 +85,7 @@ _dumbbell: {
 
 	mid: {
 		post: [...string]
-		node: _netnsNode & {ID: "mid"}
+		node:  _netnsNode & {ID: "mid"}
 		setup: list.Concat([
 			[
 				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",
@@ -106,8 +106,8 @@ _dumbbell: {
 
 	left: {
 		post: [...string]
-		node: _netnsNode & {ID: "left"}
-		addr: "10.0.0.1"
+		node:  _netnsNode & {ID: "left"}
+		addr:  "10.0.0.1"
 		setup: list.Concat([
 			[
 				"sysctl -w net.ipv6.conf.all.disable_ipv6=1",

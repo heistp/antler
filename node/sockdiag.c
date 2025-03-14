@@ -76,17 +76,17 @@ int send_request(int fd, uint8_t family) {
 // grow increases the size of the samples array.
 #define INIT_CAP 16
 int grow(struct samples *samples) {
-	if (samples->cap == UINT32_MAX) {
+	if (samples->cap == SIZE_MAX) {
 		errno = ENOMEM;
 		return -1;
 	}
 
 	if (samples->cap == 0)
 		samples->cap = INIT_CAP;
-	else if (samples->cap <= UINT32_MAX / 2)
+	else if (samples->cap <= SIZE_MAX / 2)
 		samples->cap *= 2;
 	else
-		samples->cap = UINT32_MAX;
+		samples->cap = SIZE_MAX;
 
 	samples->sample = realloc(samples->sample,
 		samples->cap * sizeof(struct sample));

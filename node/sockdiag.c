@@ -75,26 +75,36 @@ int send_request(int fd, uint8_t family) {
 
 // grow increases the size of the samples array.
 #define INIT_CAP 16
-void grow(struct samples *samples) {
-	if (samples->cap == 0) {
-		samples->cap = INIT_CAP;
-	} else {
-		samples->cap *= 2;
+int grow(struct samples *samples) {
+	if (samples->cap == UINT32_MAX) {
+		errno = ENOMEM;
+		return -1;
 	}
+
+	if (samples->cap == 0)
+		samples->cap = INIT_CAP;
+	else if (samples->cap <= UINT32_MAX / 2)
+		samples->cap *= 2;
+	else
+		samples->cap = UINT32_MAX;
+
 	samples->sample = realloc(samples->sample,
 		samples->cap * sizeof(struct sample));
+	if (samples->sample == NULL)
+		return -1;
+
+	return 0;
 }
 
 // parse_response reads a message and appends samples for each embedded tcp_info.
-void parse_response(struct inet_diag_msg *msg, int rtalen,
+int parse_response(struct inet_diag_msg *msg, int rtalen,
 		struct samples *samples) {
 	struct rtattr *attr = (struct rtattr*) (msg+1);
 	while (RTA_OK(attr, rtalen)) {
 		if(attr->rta_type == INET_DIAG_INFO){
 			struct tcp_info *t = (struct tcp_info*) RTA_DATA(attr);
-			if (samples->len >= samples->cap) {
-				grow(samples);
-			}
+			if (samples->len >= samples->cap && grow(samples))
+				return -1;
 			samples->sample[samples->len] = (struct sample) {
 				msg->idiag_family,
 				{0},
@@ -112,6 +122,7 @@ void parse_response(struct inet_diag_msg *msg, int rtalen,
 		}
 		attr = RTA_NEXT(attr, rtalen); 
 	}
+	return 0;
 }
 
 // sockdiag_sample sends an inet_diag request, parses the results and returns
@@ -123,7 +134,8 @@ int sockdiag_sample(int fd, uint8_t family, struct samples *samples) {
 
 	// read until message with NLMSG_DONE is received
 	*samples = (const struct samples){0};
-	grow(samples);
+	if (grow(samples))
+		return -1;
 	while (1) {
 		uint8_t b[32*1024];
 		int n;
@@ -132,9 +144,8 @@ int sockdiag_sample(int fd, uint8_t family, struct samples *samples) {
 
 		struct nlmsghdr *h = (struct nlmsghdr*) b;
 		while (NLMSG_OK(h, n)) {
-			if(h->nlmsg_type == NLMSG_DONE) {
+			if(h->nlmsg_type == NLMSG_DONE)
 				return 0;
-			}
 
 			if(h->nlmsg_type == NLMSG_ERROR) {
 				struct nlmsgerr *e = (struct nlmsgerr*)NLMSG_DATA(h);

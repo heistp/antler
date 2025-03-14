@@ -21,6 +21,7 @@ and this project adheres to
 ### Fixed
 
 - Avoid usage of binary.Append to keep Go version requirement to 1.21
+- Check bounds when growing samples array in sockdiag code
 
 ## 0.7.1 - 2024-12-04
 

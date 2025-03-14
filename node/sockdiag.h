@@ -20,8 +20,8 @@ struct sample {
 // samples is a list of sample's, with length and capacity.
 struct samples {
 	struct sample *sample;
-	int len;
-	int cap;
+	uint32_t len;
+	uint32_t cap;
 };
 
 int sockdiag_open();

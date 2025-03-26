@@ -8,6 +8,8 @@ and this project adheres to
 
 ## Unreleased
 
+## 1.0.0 - 2025-03-26
+
 ### Added
 
 - Allow running node and system commands as either regular user or root
@@ -16,7 +18,7 @@ and this project adheres to
 
 - Run antler node as regular user by default
 - Rename the Sudo fields in SSH and Local to Root
-- Update libs x/net 0.26=>0.35, x/sys 0.21=>0.30, x/text 0.16=>0.22
+- Update libs x/net=>0.37, x/sys=>0.31, x/text=>0.23, cobra=>1.9.1
 
 ### Fixed
 

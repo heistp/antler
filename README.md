@@ -35,10 +35,9 @@ Documentation for Antler is available in the
 
 ## Status
 
-As of version 0.7.1, many of the core
-[features](https://github.com/heistp/antler/wiki/#features) are implemented,
-along with some basic tests and visualizations.  More work on security is
-planned for 1.0.0, but Antler should be safe to use in controlled environments.
+Antler v1.0 has some useful
+[features](https://github.com/heistp/antler/wiki/#features), and has ungergone a
+security audit, so it should be safe to use.
 
 It is important to understand Antler's
 [caveats](https://github.com/heistp/antler/wiki/#caveats).  In particular, the
@@ -48,50 +47,42 @@ Antler may replace the configuration and/or visualization mechanisms.
 
 ## Roadmap
 
-### Version 1.0.0
-
-- add test traffic header encryption
-- add netns support with minimal sudo requirements
-- undergo security audit
-
 ### Inbox
 
-The Inbox is a collection area for tasks that may (or may not) happen in the
-future.
+The Inbox is a collection area for future tasks.
 
 #### Features
 
-- switch to a different configuration mechanism
-- improve flexibility of visualizations (maybe allow custom Go templates)
-- add plotting library alternative to Google Charts
-- improve performance of linking prior results in incremental builds
-- improve performance of low interval / UDP flood recording and plotting
-- implement traffic generator in C (or rewrite node in Rust)
-- merge system info and logs into plots
-- add rm command to remove result and update latest symlink
-- add ls command to list results
-- add admin web UI to run a package of tests
-- add node-side compression support for System runner FileData output
-- handle tests both with and without node-synchronized time
-- process pcaps to get retransmits, CE/SCE marks, TCP RTT or other stats
-- add test progress bar
-- add ability to save System Stdout directly to local file
-- add ability to buffer System Stdout to a tmp file before sending as FileData
-- add log command to emit LogEntry's to stdout
-- implement flagForward optimization, and maybe invert it to flagProcess
-- add support for simulating conversational stream protocols
-- support FreeBSD
-- support MacOS
+- Research alternative configuration mechanisms
+- Improve flexibility of visualizations (maybe allow custom Go templates)
+- Add alternative plotting library to Google Charts
+- Implement node or at least traffic generator in C or Rust
+- Process pcaps to get retransmits, CE/SCE marks, TCP RTT or other stats
+- Merge system info and logs into plots
+- Improve performance of low interval / UDP flood recording and plotting
+- Add results command to list results
+- Add log command to emit LogEntry's to stdout
+- Add rm command to remove result and update latest symlink
+- Add ability to save System Stdout directly to local file
+- Add node-side compression support for System runner FileData output
+- Add ability to buffer System Stdout to a tmp file before sending as FileData
+- Add admin web UI to run a package of tests
+- Handle tests both with and without node-synchronized time
+- Add test progress bar
+- Implement flagForward optimization, and maybe invert it to flagProcess
+- Add support for simulating conversational stream protocols
+- Support FreeBSD
+- Support MacOS
 
 #### Refactoring
 
-- reconsider allowing empty Runs (see NOTE in run.go)
-- convert longer funcs/methods to use explicit return values
-- consistently document config in config.cue, with minimal doc in structs
-- replace use of chan any in conn
-- improve semantics for System.Stdout and Stderr
-- find a better way than unions to create interface implementations from CUE
-- consider moving all FileData to gob, for consistency with encoding
+- Convert longer funcs/methods to use explicit return values
+- Reconsider allowing empty Runs (see NOTE in run.go)
+- Consistently document config in config.cue, with minimal doc in structs
+- Replace use of chan any in conn
+- Improve semantics for System.Stdout and Stderr
+- Find a better way than unions to create interface implementations from CUE
+- Consider moving all FileData to gob, for consistency with encoding
 
 ## Thanks
 

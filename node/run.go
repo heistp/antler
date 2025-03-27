@@ -344,10 +344,12 @@ type Runners struct {
 
 // runner returns the runner.
 func (r *Runners) runner() (rr runner) {
-	var n int
-	if rr, n = r.value(); n != 1 {
-		panic(UnionError{r, n}.Error())
-	}
+	// NOTE not panicking on no fields allows empty runner lists
+	rr, _ = r.value()
+	//var n int
+	//if rr, n = r.value(); n != 1 {
+	//	panic(UnionError{r, n}.Error())
+	//}
 	return
 }
 

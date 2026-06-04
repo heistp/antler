@@ -47,6 +47,15 @@ Antler may replace the configuration and/or visualization mechanisms.
 
 ## Roadmap
 
+### Version 1.1
+
+- Pull in and test new libs, mainly
+  [CUE](https://github.com/cue-lang/cue/issues/3452)
+- Add `results` command to list results
+- Add `log` command to emit LogEntry's to stdout
+- Add `rm` command to remove result and update latest symlink
+- Add ability to buffer System Stdout to a tmp file before sending as FileData
+
 ### Inbox
 
 The Inbox is a collection area for future tasks.

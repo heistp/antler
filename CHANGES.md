@@ -8,6 +8,15 @@ and this project adheres to
 
 ## Unreleased
 
+### Changed
+
+- Update libs cue=>0.16.1, x/net=>0.52, x/sys=>0.42, x/text=>0.35, cobra=>1.10.2
+- Bump Go requirement from 1.23 to 1.25 for updated libs
+
+### Fixed
+
+- CUE 0.16.1 cuts memory consumption of config parsing by ~33%
+
 ## 1.0.0 - 2025-03-26
 
 ### Added

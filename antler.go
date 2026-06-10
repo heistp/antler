@@ -507,6 +507,25 @@ func (d doReport) Test(ctx context.Context, test *Test) (err error) {
 	return
 }
 
+// ResultsCommand returns all results.
+type ResultsCommand struct {
+	Results func([]ResultInfo)
+}
+
+// run implements command
+func (r ResultsCommand) run(ctx context.Context) (err error) {
+	var c *Config
+	if c, err = LoadConfig(&load.Config{}); err != nil {
+		return
+	}
+	var i []ResultInfo
+	if i, err = c.Results.info(); err != nil {
+		return
+	}
+	r.Results(i)
+	return
+}
+
 // ServerCommand runs the builtin web server.
 type ServerCommand struct {
 }

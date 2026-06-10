@@ -54,13 +54,16 @@ func (r Results) open() (rw resultRW, err error) {
 	if i, err = r.info(); err != nil {
 		return
 	}
+	sort.Slice(i, func(j, k int) bool {
+		return i[j].Name > i[k].Name
+	})
 	rw = resultRW{r, "", i, newResultStat()}
 	return
 }
 
-// info returns a list of ResultInfos by reading the directory names under
-// RootDir that match ResultDirFormat. The returned ResultInfos are sorted
-// descending by Name. If RootDir does not exist, len(ii) is 0 and err is nil.
+// info returns a list of unsorted ResultInfos by reading the directory names
+// under RootDir that match ResultDirFormat. If RootDir does not exist, len(ii)
+// is 0 and err is nil.
 func (r Results) info() (ii []ResultInfo, err error) {
 	var d *os.File
 	if d, err = os.Open(r.RootDir); err != nil {
@@ -84,9 +87,6 @@ func (r Results) info() (ii []ResultInfo, err error) {
 			ii = append(ii, ResultInfo{n, filepath.Join(r.RootDir, n)})
 		}
 	}
-	sort.Slice(ii, func(i, j int) bool {
-		return ii[i].Name > ii[j].Name
-	})
 	return
 }
 

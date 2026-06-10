@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -33,6 +34,7 @@ func root() (cmd *cobra.Command) {
 	cmd.AddCommand(list())
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
+	cmd.AddCommand(results())
 	cmd.AddCommand(server())
 	cmd.Version = version.Version()
 	return
@@ -208,6 +210,29 @@ func report() (cmd *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			c, x := context.WithCancelCause(context.Background())
 			defer x(nil)
+			err = antler.Run(c, r)
+			return
+		},
+	}
+}
+
+// results returns the results cobra command.
+func results() (cmd *cobra.Command) {
+	c := context.Background()
+	r := &antler.ResultsCommand{
+		Results: func(info []antler.ResultInfo) {
+			sort.Slice(info, func(j, k int) bool {
+				return info[j].Name < info[k].Name
+			})
+			for _, i := range info {
+				fmt.Println(i.Name)
+			}
+		},
+	}
+	return &cobra.Command{
+		Use:   "results",
+		Short: "Lists all results",
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			err = antler.Run(c, r)
 			return
 		},

@@ -8,6 +8,10 @@ and this project adheres to
 
 ## Unreleased
 
+### Added
+
+- Add results command to list all test results
+
 ### Changed
 
 - Update libs cue=>0.16.1, x/net=>0.52, x/sys=>0.42, x/text=>0.35, cobra=>1.10.2

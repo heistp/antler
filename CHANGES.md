@@ -11,6 +11,7 @@ and this project adheres to
 ### Added
 
 - Add results command to list all test results
+- Add log command to emit log entries from .gob files
 
 ### Changed
 

@@ -9,6 +9,7 @@ import (
 	"context"
 	"embed"
 	_ "embed"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"text/template"
@@ -523,6 +525,115 @@ func (r ResultsCommand) run(ctx context.Context) (err error) {
 		return
 	}
 	r.Results(i)
+	return
+}
+
+// LogCommand emits log entries from .gob files.
+type LogCommand struct {
+	// Path is a list of .gob files to read and directories to search. If
+	// empty, the directory of the most recent result is searched.
+	Path []string
+
+	// Output is the destination for emitted log entries. If empty, os.Stdout
+	// is used.
+	Output io.Writer
+}
+
+// run implements command
+func (l LogCommand) run(ctx context.Context) (err error) {
+	c, _ := LoadConfig(&load.Config{})
+	if l.Output == nil {
+		l.Output = os.Stdout
+	}
+	if len(l.Path) == 0 && c != nil {
+		var i []ResultInfo
+		if i, err = c.Results.info(); err == nil && len(i) > 0 {
+			sort.Slice(i, func(j, k int) bool {
+				return i[j].Name > i[k].Name
+			})
+			l.Path = append(l.Path, i[0].Path)
+		}
+	}
+	if len(l.Path) == 0 {
+		err = fmt.Errorf("no files or paths given and no results available")
+		return
+	}
+	var f []string
+	for _, p := range l.Path {
+		var i os.FileInfo
+		if i, err = os.Stat(p); err != nil {
+			if !errors.Is(err, fs.ErrNotExist) || c == nil {
+				return
+			}
+			p = filepath.Join(c.Results.RootDir, p)
+			var e2 error
+			if i, e2 = os.Stat(p); e2 != nil {
+				err = errors.Join(err, e2)
+				return
+			}
+		}
+		if i.IsDir() {
+			f := func(p2 string, d fs.DirEntry, e error) error {
+				if d.IsDir() {
+					return nil
+				}
+				if filepath.Ext(d.Name()) != ".gob" {
+					return nil
+				}
+				f = append(f, p2)
+				return nil
+			}
+			if err = filepath.WalkDir(p, f); err != nil {
+				return
+			}
+		} else {
+			f = append(f, p)
+		}
+	}
+	var ee []error
+	for i, f2 := range f {
+		var e error
+		if i > 0 {
+			fmt.Fprintln(l.Output)
+		}
+		if e = l.emitLog(f2); e != nil {
+			ee = append(ee, e)
+		}
+	}
+	err = errors.Join(ee...)
+	return
+}
+
+// emitLog emits all LogEntry's from the given .gob file to Output.
+func (l LogCommand) emitLog(name string) (err error) {
+	var f *os.File
+	if f, err = os.Open(name); err != nil {
+		return
+	}
+	defer f.Close()
+	d := gob.NewDecoder(f)
+	var yy []node.LogEntry
+	for {
+		var a any
+		if err = d.Decode(&a); err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			break
+		}
+		if y, ok := a.(LogEntry); ok {
+			yy = append(yy, y.GetLogEntry())
+		}
+	}
+	sort.Slice(yy, func(i, j int) bool {
+		return yy[i].Time.Before(yy[j].Time)
+	})
+	fmt.Fprintf(l.Output, "--- %s:\n\n", name)
+	for _, y := range yy {
+		if _, err = fmt.Fprintln(l.Output, y); err != nil {
+			return
+		}
+	}
 	return
 }
 

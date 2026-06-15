@@ -32,6 +32,7 @@ func root() (cmd *cobra.Command) {
 	cmd.AddCommand(initCmd())
 	cmd.AddCommand(vet())
 	cmd.AddCommand(list())
+	cmd.AddCommand(log())
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
 	cmd.AddCommand(results())
@@ -83,7 +84,7 @@ func list() (cmd *cobra.Command) {
 	return &cobra.Command{
 		Use:   "list [filter] ...",
 		Short: "Lists tests",
-		Long: help(`List lists tests.
+		Long: help(`The list command lists tests.
 
 {{template "filter" "list"}}
 `),
@@ -108,6 +109,27 @@ func list() (cmd *cobra.Command) {
 				fmt.Fprintf(w, "%s\t%s\n", t.ID, t.Path)
 			}
 			w.Flush()
+			return
+		},
+	}
+}
+
+// log returns the log cobra command.
+func log() (cmd *cobra.Command) {
+	return &cobra.Command{
+		Use:   "log [dir|file.gob] ...",
+		Short: "Emits log entries in .gob files",
+		Long: help(strings.TrimSpace(`
+The log command emits log entries from .gob files. It accepts a list of paths,
+which may be either .gob files, or directories to search recursively for .gob
+files. If the current directory contains a valid Antler package, then files and
+directories may be relative to the results directory. If no arguments are
+supplied, then all .gob files in the most recent result are logged.
+`)),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			c := context.Background()
+			l := &antler.LogCommand{Path: args}
+			err = antler.Run(c, l)
 			return
 		},
 	}
@@ -143,7 +165,7 @@ func run() (cmd *cobra.Command) {
 	cmd = &cobra.Command{
 		Use:   "run [filter] ...",
 		Short: "Runs tests and reports",
-		Long: help(`Run runs tests and reports.
+		Long: help(`The run command runs tests and reports.
 
 {{template "filter" "run"}}
 `),

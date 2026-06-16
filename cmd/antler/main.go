@@ -33,6 +33,7 @@ func root() (cmd *cobra.Command) {
 	cmd.AddCommand(vet())
 	cmd.AddCommand(list())
 	cmd.AddCommand(log())
+	cmd.AddCommand(rm())
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
 	cmd.AddCommand(results())
@@ -80,7 +81,7 @@ func vet() (cmd *cobra.Command) {
 }
 
 // list returns the list cobra command.
-func list() (cmd *cobra.Command) {
+func list() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list [filter] ...",
 		Short: "Lists tests",
@@ -115,7 +116,7 @@ func list() (cmd *cobra.Command) {
 }
 
 // log returns the log cobra command.
-func log() (cmd *cobra.Command) {
+func log() *cobra.Command {
 	return &cobra.Command{
 		Use:   "log [dir|file.gob] ...",
 		Short: "Emits log entries in .gob files",
@@ -133,6 +134,44 @@ supplied, then all .gob files in the most recent result are logged.
 			return
 		},
 	}
+}
+
+// rm returns the rm cobra command.
+func rm() (cmd *cobra.Command) {
+	var d bool
+	cmd = &cobra.Command{
+		Use:   "rm [result name] ...",
+		Short: "Removes results",
+		Long: help(strings.TrimSpace(`
+The rm command removes results. Use the results command to get a list. The
+latest symlink is updated when the most recent result is removed.
+`)),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			if len(args) == 0 {
+				err = fmt.Errorf("missing result name/s")
+				return
+			}
+			c := context.Background()
+			r := &antler.RemoveCommand{
+				Name: args,
+				Dry:  d,
+				Removing: func(info antler.ResultInfo) {
+					fmt.Printf("removing: %s\n", info.Name)
+				},
+				Relinking: func(from, to antler.ResultInfo, name string) {
+					fmt.Printf("re-linking %s -> %s\n", name, to.Name)
+				},
+			}
+			if d {
+				fmt.Println("DRY RUN - no results will be removed")
+			}
+			err = antler.Run(c, r)
+			return
+		},
+	}
+	cmd.Flags().BoolVarP(&d, "dry", "n", false,
+		"dry run, do not remove any results, show what would be done")
+	return
 }
 
 // run returns the run cobra command.
@@ -205,7 +244,7 @@ func run() (cmd *cobra.Command) {
 }
 
 // report returns the report cobra command.
-func report() (cmd *cobra.Command) {
+func report() *cobra.Command {
 	r := &antler.ReportCommand{
 		Reporting: func(test *antler.Test) {
 			fmt.Printf("reporting on %s...\n", test.ID)
@@ -239,7 +278,7 @@ func report() (cmd *cobra.Command) {
 }
 
 // results returns the results cobra command.
-func results() (cmd *cobra.Command) {
+func results() *cobra.Command {
 	c := context.Background()
 	r := &antler.ResultsCommand{
 		Results: func(info []antler.ResultInfo) {
@@ -262,7 +301,7 @@ func results() (cmd *cobra.Command) {
 }
 
 // server returns the server cobra command.
-func server() (cmd *cobra.Command) {
+func server() *cobra.Command {
 	s := &antler.ServerCommand{}
 	return &cobra.Command{
 		Use:   "server",

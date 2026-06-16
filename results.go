@@ -43,11 +43,7 @@ func (r Results) open() (rw resultRW, err error) {
 			return
 		}
 	}
-	if err = os.Mkdir(r.WorkDir, 0755); err != nil {
-		if errors.Is(err, fs.ErrExist) {
-			err = fmt.Errorf("'%s' exists- move it away if not in use (%w)",
-				r.WorkDir, err)
-		}
+	if err = r.mkWorkDir(); err != nil {
 		return
 	}
 	var i []ResultInfo
@@ -59,6 +55,27 @@ func (r Results) open() (rw resultRW, err error) {
 	})
 	rw = resultRW{r, "", i, newResultStat()}
 	return
+}
+
+// mkWorkDir creates the working directory.
+func (r Results) mkWorkDir() (err error) {
+	if err = os.Mkdir(r.WorkDir, 0755); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			err = fmt.Errorf("'%s' exists- move it away if not in use (%w)",
+				r.WorkDir, err)
+		}
+	}
+	return
+}
+
+// rmWorkDir removes the working directory (must be empty).
+func (r Results) rmWorkDir() error {
+	return os.Remove(r.WorkDir)
+}
+
+// rmAllWorkDir removes the working directory and its contents.
+func (r Results) rmAllWorkDir() error {
+	return os.RemoveAll(r.WorkDir)
 }
 
 // info returns a list of unsorted ResultInfos by reading the directory names
@@ -472,7 +489,7 @@ func dirEmpty(name string) (empty bool, err error) {
 // Abort removes WorkDir and its contents, thereby aborting a result. If RootDir
 // is then empty, it is also removed.
 func (r resultRW) Abort() (err error) {
-	if err = os.RemoveAll(r.WorkDir); err != nil {
+	if err = r.Results.rmAllWorkDir(); err != nil {
 		return
 	}
 	var x bool
@@ -877,7 +894,7 @@ func (a *atomicWriter) findPrior() (path string, err error) {
 // compareFiles returns true if both name1 and name2 exist, and have the same
 // size and contents.
 func compareFiles(name1, name2 string) (same bool, err error) {
-	var i1, i2 os.FileInfo
+	var i1, i2 fs.FileInfo
 	if i1, err = os.Stat(name1); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			err = nil

@@ -12,6 +12,7 @@ and this project adheres to
 
 - Add results command to list all test results
 - Add log command to emit log entries from .gob files
+- Add rm command to remove results and update latest symlink
 
 ### Changed
 

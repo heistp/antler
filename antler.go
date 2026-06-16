@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -560,7 +561,7 @@ func (l LogCommand) run(ctx context.Context) (err error) {
 	}
 	var f []string
 	for _, p := range l.Path {
-		var i os.FileInfo
+		var i fs.FileInfo
 		if i, err = os.Stat(p); err != nil {
 			if !errors.Is(err, fs.ErrNotExist) || c == nil {
 				return
@@ -632,6 +633,101 @@ func (l LogCommand) emitLog(name string) (err error) {
 	for _, y := range yy {
 		if _, err = fmt.Fprintln(l.Output, y); err != nil {
 			return
+		}
+	}
+	return
+}
+
+// RemoveCommand removes results.
+type RemoveCommand struct {
+	// Name lists the names of the results.
+	Name []string
+
+	// Dry, if true, means do not remove any results.
+	Dry bool
+
+	// Removing is called before a result is removed.
+	Removing func(info ResultInfo)
+
+	// Relinking is called before updating the latest symlink.
+	Relinking func(from, to ResultInfo, name string)
+}
+
+// run implements command
+func (r RemoveCommand) run(ctx context.Context) (err error) {
+	var c *Config
+	if c, err = LoadConfig(&load.Config{}); err != nil {
+		return
+	}
+	// create in-progress directory and remove in defer (locks results)
+	if err = c.Results.mkWorkDir(); err != nil {
+		return
+	}
+	defer func() {
+		if e := c.Results.rmWorkDir(); e != nil {
+			err = errors.Join(err, e)
+		}
+	}()
+	// get existing results, sorted ascending by name (so oldest first)
+	var ii []ResultInfo
+	if ii, err = c.Results.info(); err != nil {
+		return
+	}
+	sort.Slice(ii, func(j, k int) bool {
+		return ii[j].Name < ii[k].Name
+	})
+	// build a list to remove
+	var rr []ResultInfo
+	for _, n := range r.Name {
+		var x bool
+		for _, i := range ii {
+			if n == i.Name {
+				x = true
+				rr = append(rr, i)
+				break
+			}
+		}
+		if !x {
+			err = fmt.Errorf("%s is not a result directory", n)
+			return
+		}
+	}
+	// remove result directories, oldest first
+	sort.Slice(rr, func(j, k int) bool {
+		return rr[j].Name < rr[k].Name
+	})
+	for _, i := range rr {
+		if r.Removing != nil {
+			r.Removing(i)
+		}
+		if !r.Dry {
+			if err = os.RemoveAll(i.Path); err != nil {
+				return
+			}
+		}
+	}
+	// get list of remaining results, will naturally be sorted oldest first
+	var ii2 []ResultInfo
+	for _, i := range ii {
+		if !slices.Contains(rr, i) {
+			ii2 = append(ii2, i)
+		}
+	}
+	// re-link latest
+	f := ii[len(ii)-1]   // from, or newest in original list
+	t := ii2[len(ii2)-1] // to, or newest in updated list
+	if c.Results.LatestSymlink != "" && f != t {
+		if r.Relinking != nil {
+			r.Relinking(f, t, c.Results.LatestSymlink)
+		}
+		if !r.Dry {
+			l := c.Results.LatestSymlink + "~"
+			if err = os.Symlink(t.Name, l); err != nil {
+				return
+			}
+			if err = os.Rename(l, c.Results.LatestSymlink); err != nil {
+				return
+			}
 		}
 	}
 	return

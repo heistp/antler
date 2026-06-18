@@ -138,7 +138,7 @@ supplied, then all .gob files in the most recent result are logged.
 
 // remove returns the remove cobra command.
 func remove() (cmd *cobra.Command) {
-	var d bool
+	var n bool
 	cmd = &cobra.Command{
 		Use:   "remove [result name] ...",
 		Short: "Removes results",
@@ -156,38 +156,38 @@ result is removed.
 			c := context.Background()
 			r := &antler.RemoveCommand{
 				Name: args,
-				Dry:  d,
+				Noop: n,
 				Removing: func(info antler.ResultInfo) {
-					if !d {
+					if !n {
 						fmt.Printf("removing: %s\n", info.Name)
 					} else {
 						fmt.Printf("would remove: %s\n", info.Name)
 					}
 				},
 				Relinking: func(from, to antler.ResultInfo, name string) {
-					if !d {
+					if !n {
 						fmt.Printf("re-linking %s -> %s\n", name, to.Name)
 					} else {
 						fmt.Printf("would re-link %s -> %s\n", name, to.Name)
 					}
 				},
 				NoMoreResults: func() {
-					if !d {
+					if !n {
 						fmt.Println("all results removed")
 					} else {
 						fmt.Println("would remove all results!")
 					}
 				},
 			}
-			if d {
-				fmt.Println("DRY RUN - no results will be removed")
+			if n {
+				fmt.Println("NO-OP - no results will be removed")
 			}
 			err = antler.Run(c, r)
 			return
 		},
 	}
-	cmd.Flags().BoolVarP(&d, "dry", "n", false,
-		"dry run, do not remove any results, show what would be done")
+	cmd.Flags().BoolVarP(&n, "noop", "n", false,
+		"do not remove any results, show what would be done")
 	return
 }
 

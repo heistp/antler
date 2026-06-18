@@ -643,8 +643,8 @@ type RemoveCommand struct {
 	// Name lists the names of the results.
 	Name []string
 
-	// Dry, if true, means do not remove any results.
-	Dry bool
+	// Noop, if true, means do not remove any results.
+	Noop bool
 
 	// Removing is called before a result is removed.
 	Removing func(info ResultInfo)
@@ -710,7 +710,7 @@ func (r RemoveCommand) run(ctx context.Context) (err error) {
 		if r.Removing != nil {
 			r.Removing(i)
 		}
-		if !r.Dry {
+		if !r.Noop {
 			if err = os.RemoveAll(i.Path); err != nil {
 				return
 			}
@@ -728,7 +728,7 @@ func (r RemoveCommand) run(ctx context.Context) (err error) {
 		if r.NoMoreResults != nil {
 			r.NoMoreResults()
 		}
-		if !r.Dry {
+		if !r.Noop {
 			err = os.Remove(c.Results.LatestSymlink)
 		}
 		return
@@ -740,7 +740,7 @@ func (r RemoveCommand) run(ctx context.Context) (err error) {
 		if r.Relinking != nil {
 			r.Relinking(f, t, c.Results.LatestSymlink)
 		}
-		if !r.Dry {
+		if !r.Noop {
 			l := c.Results.LatestSymlink + "~"
 			if err = os.Symlink(t.Name, l); err != nil {
 				return

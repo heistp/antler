@@ -651,6 +651,10 @@ type RemoveCommand struct {
 
 	// Relinking is called before updating the latest symlink.
 	Relinking func(from, to ResultInfo, name string)
+
+	// NoMoreResults is called when all results were removed, along with
+	// the latest symlink.
+	NoMoreResults func()
 }
 
 // run implements command
@@ -668,7 +672,7 @@ func (r RemoveCommand) run(ctx context.Context) (err error) {
 			err = errors.Join(err, e)
 		}
 	}()
-	// get existing results, sorted ascending by name (so oldest first)
+	// get existing results, sorted ascending by name
 	var ii []ResultInfo
 	if ii, err = c.Results.info(); err != nil {
 		return
@@ -680,11 +684,16 @@ func (r RemoveCommand) run(ctx context.Context) (err error) {
 	var rr []ResultInfo
 	for _, n := range r.Name {
 		var x bool
-		for _, i := range ii {
-			if n == i.Name {
-				x = true
-				rr = append(rr, i)
-				break
+		if n == filepath.Base(c.Results.LatestSymlink) {
+			rr = append(rr, ii[len(ii)-1])
+			x = true
+		} else {
+			for _, i := range ii {
+				if n == i.Name {
+					x = true
+					rr = append(rr, i)
+					break
+				}
 			}
 		}
 		if !x {
@@ -692,10 +701,11 @@ func (r RemoveCommand) run(ctx context.Context) (err error) {
 			return
 		}
 	}
-	// remove result directories, oldest first
+	// remove result directories, oldest first, removing duplicates
 	sort.Slice(rr, func(j, k int) bool {
 		return rr[j].Name < rr[k].Name
 	})
+	rr = slices.Compact(rr)
 	for _, i := range rr {
 		if r.Removing != nil {
 			r.Removing(i)
@@ -713,7 +723,17 @@ func (r RemoveCommand) run(ctx context.Context) (err error) {
 			ii2 = append(ii2, i)
 		}
 	}
-	// re-link latest
+	// remove latest symlink if there are no more results
+	if len(ii2) == 0 {
+		if r.NoMoreResults != nil {
+			r.NoMoreResults()
+		}
+		if !r.Dry {
+			err = os.Remove(c.Results.LatestSymlink)
+		}
+		return
+	}
+	// re-link latest symlink
 	f := ii[len(ii)-1]   // from, or newest in original list
 	t := ii2[len(ii2)-1] // to, or newest in updated list
 	if c.Results.LatestSymlink != "" && f != t {

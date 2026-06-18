@@ -143,8 +143,10 @@ func remove() (cmd *cobra.Command) {
 		Use:   "remove [result name] ...",
 		Short: "Removes results",
 		Long: help(strings.TrimSpace(`
-The remove command removes results. Use the results command to get a list. The
-latest symlink is updated when the most recent result is removed.
+The remove command removes results. Use the results command to get a list. If
+the given name is the same as the latest symlink ("latest" by default), the most
+recent result is removed. The latest symlink is updated when the most recent
+result is removed.
 `)),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			if len(args) == 0 {
@@ -156,10 +158,25 @@ latest symlink is updated when the most recent result is removed.
 				Name: args,
 				Dry:  d,
 				Removing: func(info antler.ResultInfo) {
-					fmt.Printf("removing: %s\n", info.Name)
+					if !d {
+						fmt.Printf("removing: %s\n", info.Name)
+					} else {
+						fmt.Printf("would remove: %s\n", info.Name)
+					}
 				},
 				Relinking: func(from, to antler.ResultInfo, name string) {
-					fmt.Printf("re-linking %s -> %s\n", name, to.Name)
+					if !d {
+						fmt.Printf("re-linking %s -> %s\n", name, to.Name)
+					} else {
+						fmt.Printf("would re-link %s -> %s\n", name, to.Name)
+					}
+				},
+				NoMoreResults: func() {
+					if !d {
+						fmt.Println("all results removed")
+					} else {
+						fmt.Println("would remove all results!")
+					}
 				},
 			}
 			if d {

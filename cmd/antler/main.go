@@ -33,7 +33,7 @@ func root() (cmd *cobra.Command) {
 	cmd.AddCommand(vet())
 	cmd.AddCommand(list())
 	cmd.AddCommand(log())
-	cmd.AddCommand(rm())
+	cmd.AddCommand(remove())
 	cmd.AddCommand(run())
 	cmd.AddCommand(report())
 	cmd.AddCommand(results())
@@ -136,14 +136,14 @@ supplied, then all .gob files in the most recent result are logged.
 	}
 }
 
-// rm returns the rm cobra command.
-func rm() (cmd *cobra.Command) {
+// remove returns the remove cobra command.
+func remove() (cmd *cobra.Command) {
 	var d bool
 	cmd = &cobra.Command{
-		Use:   "rm [result name] ...",
+		Use:   "remove [result name] ...",
 		Short: "Removes results",
 		Long: help(strings.TrimSpace(`
-The rm command removes results. Use the results command to get a list. The
+The remove command removes results. Use the results command to get a list. The
 latest symlink is updated when the most recent result is removed.
 `)),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {

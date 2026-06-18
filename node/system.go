@@ -40,8 +40,11 @@ type System struct {
 	// Stdout selects the treatment for stdout. If empty, stdout is gathered and
 	// emitted to the log as a single line when the command completes. If
 	// "stream", stdout is emitted to the log a line at a time. If "quiet",
-	// stdout is discarded. Otherwise, stdout is written to a file of the given
-	// name.
+	// stdout is discarded. If "bufmem:name", stdout is buffered in memory on
+	// the node, then sent as a file with the given name when the command
+	// completes. If "buftmp:name", it's buffered in a temporary file.
+	// Otherwise, stdout is streamed from the node as the command runs as a file
+	// with the given name.
 	Stdout string
 
 	// Stderr selects the treatment for stderr, with the same semantics as for
@@ -136,7 +139,13 @@ func (s *System) handleOutput(treatment string, pipe pipeFunc,
 	case "stream":
 		s.stream(r, rec)
 	default:
-		s.file(r, treatment, rec)
+		if strings.HasPrefix(treatment, "bufmem:") {
+			s.fileMem(r, strings.TrimPrefix(treatment, "bufmem:"), rec)
+		} else if strings.HasPrefix(treatment, "buftmp:") {
+			s.fileTmp(r, strings.TrimPrefix(treatment, "buftmp:"), rec)
+		} else {
+			s.file(r, treatment, rec)
+		}
 	}
 	return
 }
@@ -219,7 +228,79 @@ func (s *System) file(rcl io.ReadCloser, name string, rec *recorder) {
 			}
 			if e != nil {
 				if e != io.EOF {
-					rec.Logf("%s", e)
+					rec.SendErrore(e)
+				}
+				break
+			}
+		}
+	}()
+}
+
+// fileMem contains a goroutine to buffer data from the given ReadCloser in
+// memory, then send it as FileData.
+func (s *System) fileMem(rcl io.ReadCloser, name string, rec *recorder) {
+	s.io.Add(1)
+	go func() {
+		defer s.io.Done()
+		var e error
+		var bb [][]byte
+		for {
+			b := make([]byte, 64*1024)
+			var n int
+			n, e = rcl.Read(b)
+			if n > 0 {
+				bb = append(bb, b[:n])
+			}
+			if e != nil {
+				if e != io.EOF {
+					rec.SendErrore(e)
+				}
+				break
+			}
+		}
+		for _, b := range bb {
+			rec.FileData(name, b)
+		}
+	}()
+}
+
+// fileTmp contains a goroutine to buffer data from the given ReadCloser to a
+// temporary file, then send it as FileData.
+func (s *System) fileTmp(rcl io.ReadCloser, name string, rec *recorder) {
+	s.io.Add(1)
+	go func() {
+		defer func() {
+			io.Copy(io.Discard, rcl)
+			s.io.Done()
+		}()
+		var e error
+		var f *os.File
+		if f, e = os.CreateTemp("", fmt.Sprintf("antler-%s-", name)); e != nil {
+			rec.SendErrore(e)
+			return
+		}
+		defer func() {
+			f.Close()
+			os.Remove(f.Name())
+		}()
+		if _, e = io.Copy(f, rcl); e != nil {
+			rec.SendErrore(e)
+			return
+		}
+		if _, e = f.Seek(0, io.SeekStart); e != nil {
+			rec.SendErrore(e)
+			return
+		}
+		for {
+			var n int
+			b := make([]byte, 64*1024)
+			n, e = f.Read(b)
+			if n > 0 {
+				rec.FileData(name, b[:n])
+			}
+			if e != nil {
+				if e != io.EOF {
+					rec.SendErrore(e)
 				}
 				break
 			}

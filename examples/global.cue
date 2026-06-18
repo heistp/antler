@@ -28,6 +28,13 @@ _tcpdump: {
 		Command:    "tcpdump -i \(_iface) -s \(_snaplen) -w -"
 		Background: true
 		Stdout:     "\(_iface).pcap.zst"
+
+		// bufmem or buftmp may be used to buffer on the node before sending
+		// results back to antler. This is useful mainly when running the node
+		// over ssh, where streaming back file data during the test could
+		// affect the results.
+		//Stdout: "bufmem:\(_iface).pcap.zst"
+		//Stdout: "buftmp:\(_iface).pcap.zst"
 	}
 }
 

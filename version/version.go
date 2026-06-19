@@ -8,7 +8,7 @@ import (
 )
 
 // version represents the Antler version.
-const version = "1.0.0"
+const version = "1.1.0"
 
 // Version returns the version string.
 func Version() string {

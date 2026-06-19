@@ -35,26 +35,18 @@ Documentation for Antler is available in the
 
 ## Status
 
-Antler v1.0 has some useful
+Antler v1.1 has some useful
 [features](https://github.com/heistp/antler/wiki/#features), and has ungergone a
 security audit, so it should be safe to use.
 
 It is important to understand Antler's
-[caveats](https://github.com/heistp/antler/wiki/#caveats).  In particular, the
-use of [CUE](https://cuelang.org/) has been a mixed bag, and the visualizations
-in Google Charts could be more flexible than they are.  Future versions of
-Antler may replace the configuration and/or visualization mechanisms.
+[caveats](https://github.com/heistp/antler/wiki/#caveats). The use of
+[CUE](https://cuelang.org/) has been a mixed bag, though recent improvements
+have reduced memory consumption, and the visualizations in Google Charts could
+be more flexible than they are. That said, Antler can be used to run some
+useful tests.
 
 ## Roadmap
-
-### Version 1.1
-
-- Pull in and test new libs, mainly
-  [CUE](https://github.com/cue-lang/cue/issues/3452)
-- Add `results` command to list results
-- Add `log` command to emit LogEntry's to stdout
-- Add `rm` command to remove result and update latest symlink
-- Add ability to buffer System Stdout to a tmp file before sending as FileData
 
 ### Inbox
 

@@ -8,6 +8,8 @@ and this project adheres to
 
 ## Unreleased
 
+## 1.1.0 - 2026-06-19
+
 ### Added
 
 - Add results command to list all test results
